@@ -15,7 +15,7 @@ import { navItems } from "@/data/kratos"
 import type { UserProfile } from "@/types/kratos"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { KevinAvatar } from "@/components/kratos/KevinAvatar"
+import { UserAvatar } from "@/components/kratos/UserAvatar"
 
 type SidebarProps = {
   activeNav: string
@@ -65,7 +65,7 @@ export function Sidebar({
           </h1>
           <p
             className={cn(
-              "mt-2 text-[13px] tracking-[0.01em] text-[#8b8b8b]",
+              "mt-1 text-[13px] tracking-[0.01em] text-[#8b8b8b]",
               collapsed && "xl:hidden"
             )}
           >
@@ -241,7 +241,7 @@ function PersonalInfoModule({
         onClick={onToggleMenu}
         type="button"
       >
-        <KevinAvatar />
+        <UserAvatar />
         <span className={cn("min-w-0 flex-1", collapsed && "xl:hidden")}>
           <span className="block truncate text-[14px] leading-5 font-bold">
             {user.username}
@@ -264,16 +264,12 @@ function PersonalInfoModule({
             {expNow} / {expTotal}
           </span>
         </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#eeeeee]">
+        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#eeeeee]">
           <div
             className="h-full rounded-full bg-[#111111]"
             style={{ width: `${expPercent}%` }}
           />
         </div>
-        <p className="mt-3 truncate text-[11px] text-[#858585]">
-          {user.location ?? "未设置地区"} ·{" "}
-          {user.fitness_status ?? "等待完善训练状态"}
-        </p>
       </div>
 
       {menuOpen ? (

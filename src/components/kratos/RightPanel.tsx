@@ -41,7 +41,7 @@ export function RightPanel({
       <StatusCard metrics={metrics} />
 
       <button
-        className="mt-4 w-full rounded-[12px] border border-[#e8e8e8] bg-white px-4 py-4 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        className="mt-3 w-full rounded-[12px] border border-[#e8e8e8] bg-white px-4 py-4 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
         onClick={() =>
           onOpenPanel({
             title: "Kratos 提醒",
@@ -224,7 +224,7 @@ function TrainingPlanCard({
       </div>
 
       <button
-        className="mt-8 w-full rounded-[12px] border border-[#ededed] bg-white p-4 text-left transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        className="mt-3 w-full rounded-[12px] border border-[#ededed] bg-white p-4 text-left transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
         onClick={() =>
           onOpenPanel({
             title: "热身建议",
@@ -250,7 +250,7 @@ function TrainingPlanCard({
         </div>
       </button>
       <Button
-        className="mt-4 h-12 w-full rounded-[8px] bg-[#101010] text-[15px] font-semibold text-white hover:bg-[#101010]/90"
+        className="mt-3 h-12 w-full rounded-[8px] bg-[#101010] text-[15px] font-semibold text-white hover:bg-[#101010]/90"
         onClick={onTrainingButton}
         type="button"
       >

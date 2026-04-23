@@ -71,7 +71,7 @@ export function MainConversation({
             {activeNav === "对话" ? `下午好， ${currentUserName}` : activeNav}{" "}
             <span className="tracking-normal">👋</span>
           </h2>
-          <p className="mt-3 text-[13px] text-[#6d6d6d]">
+          <p className="mt-2 text-[13px] text-[#6d6d6d]">
             {activeNav === "对话"
               ? "我是你的 AI 健身教练 Kratos， 有什么可以帮你?"
               : "该模块已接入界面状态，当前使用本地假数据预览。"}
@@ -195,7 +195,8 @@ function NotificationsPopover({
 
 function UserPromptCard({ message }: { message: ChatMessage }) {
   return (
-    <section className="rounded-[12px] border border-[#e8e8e8] bg-white px-5 py-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+    // <section className="rounded-[12px] border border-[#e8e8e8] bg-white px-5 py-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+    <section className="bg-white px-5 py-5 pb-5">
       <div className="flex gap-4">
         <div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#ededed]">
           <MessageCircle className="size-4.5 text-[#2b2b2b]" strokeWidth={1.8} />
@@ -205,12 +206,13 @@ function UserPromptCard({ message }: { message: ChatMessage }) {
             <h3 className="text-[14px] leading-5 font-bold">你</h3>
             <span className="text-[12px] text-[#8b8b8b]">{message.time}</span>
           </div>
-          <p className="mt-1.5 max-w-[620px] text-[14px] leading-[1.7] text-[#2f2f2f]">
+          <p className="mt-0.5 max-w-[620px] text-[14px] leading-[1.7] text-[#2f2f2f]">
             {message.body}
           </p>
         </div>
       </div>
     </section>
+
   )
 }
 
@@ -222,7 +224,8 @@ function ThinkingCard({
   onToggle: () => void
 }) {
   return (
-    <section className="rounded-[12px] border border-[#e8e8e8] bg-white px-5 pt-5 pb-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+    // <section className="rounded-[12px] border border-[#e8e8e8] bg-white px-5 pt-5 pb-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+    <section className="bg-white px-5 pb-5">
       <div className="flex items-start gap-4">
         <div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#111111] text-white">
           <span className="text-[18px] font-bold">K</span>
@@ -262,7 +265,7 @@ function ThinkingCard({
           ) : null}
         </div>
       </div>
-    </section>
+    </section >
   )
 }
 
@@ -299,7 +302,8 @@ function ChatBubble({ message }: { message: ChatMessage }) {
   const isAssistant = message.author === "assistant"
 
   return (
-    <section className="rounded-[12px] border border-[#e8e8e8] bg-white px-5 py-4 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+    // <section className="rounded-[12px] border border-[#e8e8e8] bg-white px-5 py-4 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+    <section className="bg-white px-5 py-4 pt-0 ">
       <div className="flex gap-4">
         <div
           className={cn(
@@ -320,7 +324,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
             </h3>
             <span className="text-[12px] text-[#8b8b8b]">{message.time}</span>
           </div>
-          <p className="mt-1.5 text-[13px] leading-[1.7] text-[#333333]">
+          <p className="mt-0.5 text-[13px] leading-[1.7] text-[#333333]">
             {message.body}
           </p>
         </div>
@@ -366,7 +370,7 @@ function Composer({
   value: string
 }) {
   return (
-    <section className="rounded-[12px] border border-[#e7e7e7] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors focus-within:border-[#111111] focus-within:shadow-[0_0_0_3px_rgba(17,17,17,0.08)]">
+    <section className="rounded-[12px] border border-[#e7e7e7] bg-white px-4 pt-3 pb-2 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors focus-within:border-[#111111] focus-within:shadow-[0_0_0_3px_rgba(17,17,17,0.08)]">
       <textarea
         className="min-h-9 w-full resize-none bg-transparent text-[12px] leading-5 text-[#222222] outline-none placeholder:text-[#8c8c8c]"
         onChange={(event) => onChange(event.target.value)}
@@ -424,7 +428,7 @@ function QuickActions({
     <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {quickActions.map((action) => (
         <button
-          className="flex h-[60px] items-center gap-3 rounded-[12px] border border-[#e9e9e9] bg-white px-4 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#f8f8f7] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+          className="flex h-[56px] items-center gap-3 rounded-[12px] border border-[#e9e9e9] bg-white px-4 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#f8f8f7] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
           key={action.title}
           onClick={() => onQuickAction(action)}
           type="button"

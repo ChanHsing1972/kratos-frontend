@@ -75,7 +75,7 @@ export function App() {
   const [toast, setToast] = useState<string | null>(null)
 
   const unreadCount = notifications.filter((item) => !item.read).length
-  const displayName = currentUser?.username ?? "Kevin"
+  const displayName = currentUser?.username ?? "请登录"
   const metrics = useMemo<Metric[]>(
     () => [
       ...baseMetrics,

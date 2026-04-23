@@ -1,4 +1,4 @@
-export function KevinAvatar() {
+export function UserAvatar() {
   return (
     <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-[#e6e2dc]">
       <div className="absolute top-2 left-1/2 size-4 -translate-x-1/2 rounded-full bg-[#a36b43]" />
