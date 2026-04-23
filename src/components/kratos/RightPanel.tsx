@@ -1,0 +1,415 @@
+import { Check, ChevronRight, LoaderCircle, Play, Sparkles } from "lucide-react"
+
+import type { DetailPanel, Metric } from "@/types/kratos"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+
+type RightPanelProps = {
+  completedExercises: string[]
+  metrics: Metric[]
+  onOpenPanel: (panel: DetailPanel) => void
+  onToggleExercise: (title: string) => void
+  onTrainingButton: () => void
+  trainingStarted: boolean
+}
+
+export function RightPanel({
+  completedExercises,
+  metrics,
+  onOpenPanel,
+  onToggleExercise,
+  onTrainingButton,
+  trainingStarted,
+}: RightPanelProps) {
+  return (
+    <aside className="h-full w-full shrink-0 overflow-y-auto bg-white px-6 py-8 xl:w-[388px]">
+      <SectionHeader
+        action="更多数据"
+        onAction={() =>
+          onOpenPanel({
+            title: "身体与训练状态",
+            body: "这些是当前界面的本地假数据，用于模拟可交互状态面板。",
+            items: [
+              "静息心率 72 bpm",
+              "昨晚睡眠 6.5 小时",
+              "今日训练完成度动态跟随动作完成情况",
+            ],
+          })
+        }
+        title="当前状态"
+      />
+      <StatusCard metrics={metrics} />
+
+      <button
+        className="mt-4 w-full rounded-[12px] border border-[#e8e8e8] bg-white px-4 py-4 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        onClick={() =>
+          onOpenPanel({
+            title: "Kratos 提醒",
+            body: "右膝恢复期建议选择髋主导动作，避免大量深蹲、弓步跳、箱跳等高冲击训练。",
+            items: [
+              "训练中疼痛超过 3/10 时停止",
+              "热身时重点激活臀部和髋关节",
+              "训练后观察 24 小时反馈",
+            ],
+          })
+        }
+        type="button"
+      >
+        <div className="flex items-center gap-3">
+          <span className="grid size-5 place-items-center rounded-full text-[#111111]">
+            <Sparkles className="size-4 fill-[#111111]" strokeWidth={2} />
+          </span>
+          <h3 className="text-[14px] font-bold">Kratos 提醒</h3>
+        </div>
+        <p className="mt-3 text-[12px] leading-5 text-[#777777]">
+          注意右膝恢复，建议避免大量深蹲和跳跃类动作。
+        </p>
+      </button>
+
+      <div className="mt-9">
+        <SectionHeader
+          action="查看完整计划"
+          onAction={() =>
+            onOpenPanel({
+              title: "完整训练计划",
+              body: "20 分钟酒店护膝下肢训练：4 分钟热身，两个主动作各 4 组，组间休息 45 秒。",
+              items: [
+                "哑铃罗马尼亚硬拉 4 组 × 12 次",
+                "哑铃臀桥 4 组 × 15 次",
+                "训练后做轻度拉伸 2 分钟",
+              ],
+            })
+          }
+          title="今日训练计划"
+        />
+      </div>
+      <TrainingPlanCard
+        completedExercises={completedExercises}
+        onOpenPanel={onOpenPanel}
+        onToggleExercise={onToggleExercise}
+        onTrainingButton={onTrainingButton}
+        trainingStarted={trainingStarted}
+      />
+    </aside>
+  )
+}
+
+function SectionHeader({
+  action,
+  onAction,
+  title,
+}: {
+  action: string
+  onAction: () => void
+  title: string
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <h2 className="text-[17px] font-bold tracking-[-0.02em]">{title}</h2>
+      <button
+        className="inline-flex items-center gap-2 rounded-[8px] text-[11px] font-medium text-[#8a8a8a] hover:text-[#111111] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        onClick={onAction}
+        type="button"
+      >
+        {action}
+        <ChevronRight className="size-3.5" strokeWidth={1.7} />
+      </button>
+    </div>
+  )
+}
+
+function StatusCard({ metrics }: { metrics: Metric[] }) {
+  return (
+    <section className="mt-4 rounded-[12px] border border-[#e8e8e8] bg-white px-4 py-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+      <div className="grid grid-cols-2 border-b border-[#efefef] pb-4 text-center text-[11px] text-[#8a8a8a]">
+        <span>身体状态</span>
+        <span className="border-l border-[#efefef]">训练状态</span>
+      </div>
+      <div className="grid grid-cols-2 gap-y-7 pt-6">
+        {metrics.map((metric, index) => (
+          <MetricCell isRight={index % 2 === 1} key={metric.label} {...metric} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function MetricCell({
+  icon: Icon,
+  isRight,
+  label,
+  unit,
+  value,
+}: Metric & { isRight: boolean }) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-4 px-1",
+        isRight && "border-l border-[#efefef] pl-6"
+      )}
+    >
+      <Icon className="size-7 shrink-0 text-[#101010]" strokeWidth={1.7} />
+      <div>
+        <div className="flex items-baseline gap-1">
+          <span className="text-[20px] leading-none font-bold tracking-[-0.02em]">
+            {value}
+          </span>
+          {unit ? (
+            <span className="text-[11px] font-medium text-[#777777]">
+              {unit}
+            </span>
+          ) : null}
+        </div>
+        <p className="mt-1.5 text-[11px] text-[#8a8a8a]">{label}</p>
+      </div>
+    </div>
+  )
+}
+
+function TrainingPlanCard({
+  completedExercises,
+  onOpenPanel,
+  onToggleExercise,
+  onTrainingButton,
+  trainingStarted,
+}: {
+  completedExercises: string[]
+  onOpenPanel: (panel: DetailPanel) => void
+  onToggleExercise: (title: string) => void
+  onTrainingButton: () => void
+  trainingStarted: boolean
+}) {
+  const allDone = completedExercises.length >= 2
+  const buttonLabel = allDone
+    ? "重新开始"
+    : trainingStarted
+      ? "训练进行中"
+      : "开始训练"
+
+  return (
+    <section className="mt-4 rounded-[12px] border border-[#e8e8e8] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-[13px] leading-5 font-bold">
+            酒店护膝下肢训练（20 分钟）
+          </h3>
+        </div>
+        <span
+          className={cn(
+            "rounded-full px-2.5 py-1 text-[10px] font-semibold",
+            allDone
+              ? "bg-[#111111] text-white"
+              : "bg-[#e9f5e6] text-[#5d9a5c]"
+          )}
+        >
+          {allDone ? "已完成" : "已生成"}
+        </span>
+      </div>
+
+      <div className="mt-3 overflow-hidden rounded-[8px] border border-[#eeeeee]">
+        <ExerciseRow
+          completed={completedExercises.includes("哑铃罗马尼亚硬拉")}
+          illustration="hinge"
+          onToggle={() => onToggleExercise("哑铃罗马尼亚硬拉")}
+          reps="4 组 × 12 次"
+          title="哑铃罗马尼亚硬拉"
+        />
+        <ExerciseRow
+          completed={completedExercises.includes("哑铃臀桥")}
+          illustration="bridge"
+          onToggle={() => onToggleExercise("哑铃臀桥")}
+          reps="4 组 × 15 次"
+          title="哑铃臀桥"
+        />
+      </div>
+
+      <button
+        className="mt-8 w-full rounded-[12px] border border-[#ededed] bg-white p-4 text-left transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        onClick={() =>
+          onOpenPanel({
+            title: "热身建议",
+            body: "先做 4 分钟动态热身，让髋关节和臀部进入状态，降低膝盖代偿。",
+            items: [
+              "髋环绕 45 秒",
+              "臀桥激活 60 秒",
+              "轻度腘绳肌拉伸 60 秒",
+              "空手髋铰链练习 75 秒",
+            ],
+          })
+        }
+        type="button"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-[13px] font-bold">热身建议</h3>
+            <p className="mt-2 text-[11px] text-[#777777]">
+              4分钟动态热身（髋关节激活 + 轻度拉伸）
+            </p>
+          </div>
+          <ChevronRight className="mt-2 size-4 text-[#777777]" />
+        </div>
+      </button>
+      <Button
+        className="mt-4 h-12 w-full rounded-[8px] bg-[#101010] text-[15px] font-semibold text-white hover:bg-[#101010]/90"
+        onClick={onTrainingButton}
+        type="button"
+      >
+        {trainingStarted && !allDone ? (
+          <LoaderCircle className="size-4 animate-spin" />
+        ) : (
+          <Play className="size-4" />
+        )}
+        {buttonLabel}
+      </Button>
+    </section>
+  )
+}
+
+function ExerciseRow({
+  completed,
+  illustration,
+  onToggle,
+  reps,
+  title,
+}: {
+  completed: boolean
+  illustration: "hinge" | "bridge"
+  onToggle: () => void
+  reps: string
+  title: string
+}) {
+  return (
+    <button
+      className={cn(
+        "flex min-h-[112px] w-full items-center justify-between gap-3 border-b border-[#eeeeee] px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
+        completed && "bg-[#f6f6f5]"
+      )}
+      onClick={onToggle}
+      type="button"
+    >
+      <div className="flex min-w-0 gap-3">
+        <span
+          className={cn(
+            "grid size-5 place-items-center rounded-full pt-px text-[12px] font-bold text-[#111111]",
+            completed && "bg-[#111111] text-white"
+          )}
+        >
+          {completed ? (
+            <Check className="size-3" />
+          ) : illustration === "hinge" ? (
+            "1."
+          ) : (
+            "2."
+          )}
+        </span>
+        <div>
+          <h4 className="text-[12px] font-bold">{title}</h4>
+          <p className="mt-2 text-[12px] text-[#555555]">{reps}</p>
+        </div>
+      </div>
+      <ExerciseIllustration type={illustration} />
+    </button>
+  )
+}
+
+function ExerciseIllustration({ type }: { type: "hinge" | "bridge" }) {
+  if (type === "bridge") {
+    return (
+      <svg
+        aria-hidden="true"
+        className="h-[70px] w-[138px] shrink-0"
+        viewBox="0 0 138 70"
+      >
+        <path
+          d="M20 50c18 0 28-4 39-13 7-6 16-10 28-3l12 7"
+          fill="none"
+          stroke="#111"
+          strokeLinecap="round"
+          strokeWidth="7"
+        />
+        <path
+          d="M52 36 73 17c7-6 17-3 21 6l9 20"
+          fill="none"
+          stroke="#d9d9d9"
+          strokeLinecap="round"
+          strokeWidth="10"
+        />
+        <path
+          d="M75 18c12 4 22 14 31 29"
+          fill="none"
+          stroke="#111"
+          strokeLinecap="round"
+          strokeWidth="2.2"
+        />
+        <circle cx="18" cy="48" fill="#111" r="8" />
+        <rect fill="#111" height="7" rx="2" width="34" x="9" y="46" />
+        <circle cx="105" cy="45" fill="#111" r="4" />
+        <circle cx="115" cy="47" fill="#111" r="4" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-[74px] w-[132px] shrink-0"
+      viewBox="0 0 132 74"
+    >
+      <PoseFigure transform="translate(15 5)" variant="stand" />
+      <PoseFigure transform="translate(78 9) rotate(11)" variant="hinge" />
+    </svg>
+  )
+}
+
+function PoseFigure({
+  transform,
+  variant,
+}: {
+  transform: string
+  variant: "stand" | "hinge"
+}) {
+  const bent = variant === "hinge"
+
+  return (
+    <g transform={transform}>
+      <circle cx="13" cy="8" fill="#d8d8d8" r="6" stroke="#111" strokeWidth="1" />
+      <path
+        d={bent ? "M13 15 22 35" : "M13 15 14 37"}
+        fill="none"
+        stroke="#111"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <path
+        d={bent ? "M21 35 37 39" : "M14 37 19 57"}
+        fill="none"
+        stroke="#111"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <path
+        d={bent ? "M22 35 15 57" : "M14 37 10 58"}
+        fill="none"
+        stroke="#111"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <path
+        d={bent ? "M17 25 11 43" : "M13 24 8 43"}
+        fill="none"
+        stroke="#111"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <path
+        d={bent ? "M18 25 25 43" : "M15 24 20 43"}
+        fill="none"
+        stroke="#111"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <circle cx={bent ? "10" : "7"} cy="44" fill="#111" r="4.5" />
+      <circle cx={bent ? "26" : "21"} cy="44" fill="#111" r="4.5" />
+    </g>
+  )
+}
