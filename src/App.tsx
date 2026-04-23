@@ -184,7 +184,7 @@ function Sidebar() {
 
       <div className="mt-10 flex gap-4 max-xl:flex-wrap xl:mt-auto xl:flex-col">
         <UserCard />
-        <ProgressCard />
+        {/* <ProgressCard /> */}
       </div>
     </aside>
   )
@@ -211,27 +211,27 @@ function UserCard() {
   )
 }
 
-function ProgressCard() {
-  return (
-    <section className="w-full rounded-[12px] border border-[#e8e8e8] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)] xl:w-auto">
-      <p className="text-[12px] text-[#7b7b7b]">今日任务完成度</p>
-      <div className="mt-2 flex items-end gap-1">
-        <span className="text-[24px] leading-none font-bold">78</span>
-        <span className="pb-0.5 text-[14px] font-semibold">%</span>
-      </div>
-      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[#eeeeee]">
-        <div className="h-full w-[78%] rounded-full bg-[#111111]" />
-      </div>
-      <button
-        className="mt-4 inline-flex items-center gap-1 text-[12px] font-medium text-[#575757]"
-        type="button"
-      >
-        查看详情
-        <ChevronRight className="size-3.5" />
-      </button>
-    </section>
-  )
-}
+// function ProgressCard() {
+//   return (
+//     <section className="w-full rounded-[12px] border border-[#e8e8e8] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)] xl:w-auto">
+//       <p className="text-[12px] text-[#7b7b7b]">今日任务完成度</p>
+//       <div className="mt-2 flex items-end gap-1">
+//         <span className="text-[24px] leading-none font-bold">78</span>
+//         <span className="pb-0.5 text-[14px] font-semibold">%</span>
+//       </div>
+//       <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[#eeeeee]">
+//         <div className="h-full w-[78%] rounded-full bg-[#111111]" />
+//       </div>
+//       <button
+//         className="mt-4 inline-flex items-center gap-1 text-[12px] font-medium text-[#575757]"
+//         type="button"
+//       >
+//         查看详情
+//         <ChevronRight className="size-3.5" />
+//       </button>
+//     </section>
+//   )
+// }
 
 function KevinAvatar() {
   return (
