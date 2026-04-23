@@ -55,13 +55,13 @@ export function RightPanel({
         }
         type="button"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <span className="grid size-5 place-items-center rounded-full text-[#111111]">
             <Sparkles className="size-4 fill-[#111111]" strokeWidth={2} />
           </span>
           <h3 className="text-[14px] font-bold">Kratos 提醒</h3>
         </div>
-        <p className="mt-3 text-[12px] leading-5 text-[#777777]">
+        <p className="mt-2 text-[12px] leading-5 text-[#777777]">
           注意右膝恢复，建议避免大量深蹲和跳跃类动作。
         </p>
       </button>
@@ -120,7 +120,7 @@ function SectionHeader({
 
 function StatusCard({ metrics }: { metrics: Metric[] }) {
   return (
-    <section className="mt-4 rounded-[12px] border border-[#e8e8e8] bg-white px-4 py-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+    <section className="mt-2 rounded-[12px] border border-[#e8e8e8] bg-white px-4 py-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
       <div className="grid grid-cols-2 border-b border-[#efefef] pb-4 text-center text-[11px] text-[#8a8a8a]">
         <span>身体状态</span>
         <span className="border-l border-[#efefef]">训练状态</span>
@@ -187,7 +187,7 @@ function TrainingPlanCard({
       : "开始训练"
 
   return (
-    <section className="mt-4 rounded-[12px] border border-[#e8e8e8] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+    <section className="mt-2 rounded-[12px] border border-[#e8e8e8] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-[13px] leading-5 font-bold">
@@ -281,13 +281,13 @@ function ExerciseRow({
   return (
     <button
       className={cn(
-        "flex min-h-[112px] w-full items-center justify-between gap-3 border-b border-[#eeeeee] px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
+        "flex min-h-[100px] w-full items-center justify-between gap-3 border-b border-[#eeeeee] px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
         completed && "bg-[#f6f6f5]"
       )}
       onClick={onToggle}
       type="button"
     >
-      <div className="flex min-w-0 gap-3">
+      <div className="flex min-w-0 gap-2">
         <span
           className={cn(
             "grid size-5 place-items-center rounded-full pt-px text-[12px] font-bold text-[#111111]",

@@ -53,7 +53,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "flex min-h-0 w-full shrink-0 flex-col border-b border-[#e8e8e8] bg-white py-7 transition-all duration-300 xl:h-full xl:border-r xl:border-b-0",
+        "flex min-h-0 w-full shrink-0 flex-col border-b border-[#e8e8e8] bg-gray-100 py-7 transition-all duration-300 xl:h-full xl:border-r xl:border-b-0",
         collapsed ? "px-4 xl:w-[86px]" : "px-6 xl:w-[270px]"
       )}
     >
@@ -99,7 +99,7 @@ export function Sidebar({
                 "flex h-[46px] shrink-0 items-center gap-4 rounded-[9px] px-4 text-[14px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
                 active
                   ? "bg-[#0f0f0f] text-white"
-                  : "text-[#303030] hover:bg-[#f5f5f4]",
+                  : "text-[#303030] hover:bg-black/6",
                 collapsed && "xl:justify-center xl:px-0"
               )}
               key={item.label}
@@ -115,7 +115,7 @@ export function Sidebar({
               {item.badge ? (
                 <span
                   className={cn(
-                    "ml-auto rounded-full bg-[#efefef] px-2 py-0.5 text-[11px] font-medium text-[#777777]",
+                    "ml-auto rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-[#777777]",
                     collapsed && "xl:hidden"
                   )}
                 >
@@ -127,7 +127,7 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="sticky bottom-0 mt-4 shrink-0 bg-white pt-3">
+      <div className="sticky bottom-0 mt-4 shrink-0 pt-3">
         <PersonalInfoModule
           authLoading={authLoading}
           collapsed={collapsed}
