@@ -326,7 +326,7 @@ export function App() {
 
   return (
     <div className="min-h-svh bg-[#efefee] text-[#111111]">
-      <div className="mx-auto flex h-[100svh] w-full max-w-[1488px] overflow-hidden border border-white/80 bg-white shadow-[0_18px_55px_rgba(0,0,0,0.12)] max-xl:h-auto max-xl:min-h-[calc(100svh-2rem)] max-xl:flex-col max-xl:overflow-visible">
+      <div className="mx-auto flex h-[100svh] w-full max-w-[1488px] overflow-hidden bg-white shadow-[0_18px_55px_rgba(0,0,0,0.12)] max-xl:h-auto max-xl:min-h-[calc(100svh-2rem)] max-xl:flex-col max-xl:overflow-visible">
         <Sidebar
           activeNav={activeNav}
           authLoading={authLoading}
