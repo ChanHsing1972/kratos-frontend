@@ -261,7 +261,7 @@ export function App() {
   const [toast, setToast] = useState<string | null>(null)
 
   const unreadCount = notifications.filter((item) => !item.read).length
-  const displayName = currentUser?.username ?? "Kevin"
+  const displayName = currentUser?.username ?? "请登录"
   const metrics = useMemo<Metric[]>(
     () => [
       ...baseMetrics,
@@ -591,7 +591,7 @@ function Sidebar({
           </h1>
           <p
             className={cn(
-              "mt-2 text-[13px] tracking-[0.01em] text-[#8b8b8b]",
+              "mt-1 text-[13px] tracking-[0.01em] text-[#8b8b8b]",
               collapsed && "xl:hidden"
             )}
           >
@@ -784,16 +784,16 @@ function PersonalInfoModule({
             {expNow} / {expTotal}
           </span>
         </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#eeeeee]">
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#eeeeee]">
           <div
             className="h-full rounded-full bg-[#111111]"
             style={{ width: `${expPercent}%` }}
           />
         </div>
-        <p className="mt-3 truncate text-[11px] text-[#858585]">
+        {/* <p className="mt-3 truncate text-[11px] text-[#858585]">
           {user.location ?? "未设置地区"} ·{" "}
           {user.fitness_status ?? "等待完善训练状态"}
-        </p>
+        </p> */}
       </div>
 
       {menuOpen ? (
@@ -894,7 +894,7 @@ function MainConversation({
             {activeNav === "对话" ? `下午好， ${currentUserName}` : activeNav}{" "}
             <span className="tracking-normal">👋</span>
           </h2>
-          <p className="mt-3 text-[13px] text-[#6d6d6d]">
+          <p className="mt-2 text-[13px] text-[#6d6d6d]">
             {activeNav === "对话"
               ? "我是你的 AI 健身教练 Kratos， 有什么可以帮你?"
               : "该模块已接入界面状态，当前使用本地假数据预览。"}
@@ -1688,7 +1688,7 @@ function AuthModal({
               {mode === "login" ? "登录 Kratos" : "创建 Kratos 账号"}
             </h2>
             <p className="mt-2 text-[12px] leading-5 text-[#777777]">
-              接口已连接到本地后端：{API_BASE_URL}
+              以数据驱动的智能训练助手，助你科学训练，持续进步。
             </p>
           </div>
           <button
