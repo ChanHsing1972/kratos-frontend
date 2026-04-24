@@ -11,9 +11,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Eye,
   ImagePlus,
   Moon,
   Paperclip,
+  PencilLine,
   RefreshCw,
   SendHorizontal,
   Sparkles,
@@ -22,6 +24,7 @@ import {
 
 import { quickActions, timelineItems } from "@/data/kratos"
 import type { ChatMessage, NotificationItem, QuickAction } from "@/types/kratos"
+import { MarkdownMessage } from "@/components/kratos/MarkdownMessage"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -147,22 +150,27 @@ export function MainConversation({
           <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-white via-white/88 to-transparent" />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 bg-gradient-to-b from-transparent via-white/72 to-white" />
           <div
-            className="min-h-0 h-full overflow-y-auto px-7 sm:px-10"
+            className="h-full min-h-0 overflow-y-auto px-7 sm:px-10"
             ref={scrollViewportRef}
           >
-            <div className="flex flex-col gap-[17px] pb-8">
+            <div className="flex flex-col gap-[17px] pb-0">
               <UserPromptCard message={messages[0]} />
-              <ThinkingCard expanded={thinkingExpanded} onToggle={onToggleThinking} />
+              <ThinkingCard
+                expanded={thinkingExpanded}
+                onToggle={onToggleThinking}
+              />
               {extraMessages.map((message) => (
                 <ChatBubble key={message.id} message={message} />
               ))}
-              {activeNav !== "对话" ? <ModulePreview activeNav={activeNav} /> : null}
+              {activeNav !== "对话" ? (
+                <ModulePreview activeNav={activeNav} />
+              ) : null}
               <div ref={bottomAnchorRef} />
             </div>
           </div>
         </div>
 
-        <div className="relative shrink-0 bg-white px-7 pt-0 pb-3 sm:px-10">
+        <div className="relative shrink-0 bg-white px-7 pt-1 pb-3 sm:px-10">
           <div className="pointer-events-none absolute inset-x-0 -top-10 h-10 bg-gradient-to-b from-transparent via-white/72 to-white" />
           <Composer
             onAttachment={onAttachment}
@@ -176,7 +184,8 @@ export function MainConversation({
             <QuickActions onQuickAction={onQuickAction} />
           </div>
           <p className="mt-3 text-center text-[10px] text-[#9a9a9a]">
-            Kratos 提供的建议仅供健身参考，不构成医疗或诊断建议。如有严重不适，请及时就医。
+            Kratos
+            提供的建议仅供健身参考，不构成医疗或诊断建议。如有严重不适，请及时就医。
           </p>
         </div>
       </div>
@@ -242,16 +251,16 @@ function UserPromptCard({ message }: { message: ChatMessage }) {
   }
 
   return (
-    <section className="flex flex-col items-end px-5 pb-5 pt-5">
+    <section className="flex flex-col items-end px-5 pt-5 pb-5">
       {/* 消息气泡 */}
       <div className="max-w-[83.333%] rounded-2xl bg-[#f2f2f2] px-4 py-3">
-        <p className="text-[14px] leading-[1.7] text-[#2f2f2f]">
+        <MarkdownMessage className="text-[#2f2f2f]">
           {message.body}
-        </p>
+        </MarkdownMessage>
       </div>
 
       {/* 时间戳 + 复制图标 - 放在气泡外部下方靠右 */}
-      <div className="flex items-center gap-3 mt-1 text-[12px] text-[#8b8b8b]">
+      <div className="mt-1 flex items-center gap-3 text-[12px] text-[#8b8b8b]">
         <span>{message.time}</span>
         <button
           onClick={handleCopy}
@@ -318,7 +327,7 @@ function ThinkingCard({
           ) : null}
         </div>
       </div>
-    </section >
+    </section>
   )
 }
 
@@ -393,10 +402,14 @@ function ChatBubble({ message }: { message: ChatMessage }) {
           resolve(`${message.body} `)
         }, 800)
       })
-      const newTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+      const newTime = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
       const newVersion = { body: newBody, time: newTime }
-      setVersions(prev => [...prev, newVersion])
-      setCurrentVersionIndex(prev => prev + 1) // 切换到最新版本
+      setVersions((prev) => [...prev, newVersion])
+      setCurrentVersionIndex((prev) => prev + 1) // 切换到最新版本
     } catch (err) {
       console.error("重新生成失败", err)
     } finally {
@@ -407,13 +420,13 @@ function ChatBubble({ message }: { message: ChatMessage }) {
   // 版本切换
   const goToPreviousVersion = () => {
     if (currentVersionIndex > 0) {
-      setCurrentVersionIndex(prev => prev - 1)
+      setCurrentVersionIndex((prev) => prev - 1)
     }
   }
 
   const goToNextVersion = () => {
     if (currentVersionIndex < versions.length - 1) {
-      setCurrentVersionIndex(prev => prev + 1)
+      setCurrentVersionIndex((prev) => prev + 1)
     }
   }
 
@@ -421,11 +434,11 @@ function ChatBubble({ message }: { message: ChatMessage }) {
     return (
       <section className="flex flex-col items-end px-5 pb-5">
         <div className="max-w-[83.333%] rounded-2xl bg-[#f2f2f2] px-4 py-3">
-          <p className="text-[14px] leading-[1.7] text-[#2f2f2f]">
+          <MarkdownMessage className="text-[#2f2f2f]">
             {message.body}
-          </p>
+          </MarkdownMessage>
         </div>
-        <div className="flex items-center gap-3 mt-1 text-[12px] text-[#8b8b8b]">
+        <div className="mt-1 flex items-center gap-3 text-[12px] text-[#8b8b8b]">
           <span>{message.time}</span>
           <button
             onClick={handleCopy}
@@ -446,7 +459,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
   const showVersionControls = versions.length > 1
 
   return (
-    <section className="bg-white px-5 pb-4 pt-0">
+    <section className="bg-white px-5 pt-0 pb-4">
       <div className="flex gap-4">
         <div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#111111] text-white">
           <span className="text-[18px] font-bold">K</span>
@@ -455,20 +468,19 @@ function ChatBubble({ message }: { message: ChatMessage }) {
           <div className="flex items-start justify-between gap-4">
             <h3 className="text-[14px] leading-5 font-bold">Kratos</h3>
           </div>
-          <p className="mt-0.5 text-[14px] leading-[1.7] text-[#333333]">
+          <MarkdownMessage className="mt-0.5 text-[#333333]">
             {currentBody}
-          </p>
+          </MarkdownMessage>
 
           {/* 操作栏：重新生成、版本切换、时间戳、复制 (全部靠左) */}
-          <div className="flex items-center gap-3 mt-2 text-[12px] text-[#8b8b8b]">
-
+          <div className="mt-2 flex items-center gap-3 text-[12px] text-[#8b8b8b]">
             {/* 版本切换（多于1个版本时显示） */}
             {showVersionControls && (
               <div className="flex items-center gap-1">
                 <button
                   onClick={goToPreviousVersion}
                   disabled={currentVersionIndex === 0}
-                  className="hover:text-black disabled:opacity-40 focus:outline-none"
+                  className="hover:text-black focus:outline-none disabled:opacity-40"
                   aria-label="上一个版本"
                 >
                   <ChevronLeft className="size-3.5" />
@@ -479,7 +491,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
                 <button
                   onClick={goToNextVersion}
                   disabled={currentVersionIndex === versions.length - 1}
-                  className="hover:text-black disabled:opacity-40 focus:outline-none"
+                  className="hover:text-black focus:outline-none disabled:opacity-40"
                   aria-label="下一个版本"
                 >
                   <ChevronRight className="size-3.5" />
@@ -506,10 +518,12 @@ function ChatBubble({ message }: { message: ChatMessage }) {
             <button
               onClick={handleRegenerate}
               disabled={isRegenerating}
-              className="hover:text-black focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              className="hover:text-black focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="重新生成"
             >
-              <RefreshCw className={cn("size-3.5", isRegenerating && "animate-spin")} />
+              <RefreshCw
+                className={cn("size-3.5", isRegenerating && "animate-spin")}
+              />
             </button>
           </div>
         </div>
@@ -554,16 +568,64 @@ function Composer({
   onSend: () => void
   value: string
 }) {
+  const [mode, setMode] = useState<"write" | "preview">("write")
+
   return (
     <section className="rounded-[12px] border border-[#e7e7e7] bg-white px-4 pt-3 pb-2 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors focus-within:border-[#111111] focus-within:shadow-[0_0_0_3px_rgba(17,17,17,0.08)]">
-      <textarea
-        className="min-h-9 w-full resize-none bg-transparent text-[12px] leading-5 text-[#222222] outline-none placeholder:text-[#8c8c8c]"
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder="输入你的问题或反馈， Shift + Enter 换行"
-        rows={2}
-        value={value}
-      />
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="flex items-center rounded-[8px] bg-[#f3f3f3] p-0.5">
+          <button
+            aria-label="编辑 Markdown"
+            className={cn(
+              "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
+              mode === "write" &&
+                "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
+            )}
+            onClick={() => setMode("write")}
+            title="编辑 Markdown"
+            type="button"
+          >
+            <PencilLine className="size-3.5" strokeWidth={1.8} />
+            编辑
+          </button>
+          <button
+            aria-label="预览 Markdown"
+            className={cn(
+              "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
+              mode === "preview" &&
+                "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
+            )}
+            onClick={() => setMode("preview")}
+            title="预览 Markdown"
+            type="button"
+          >
+            <Eye className="size-3.5" strokeWidth={1.8} />
+            预览
+          </button>
+        </div>
+      </div>
+      {mode === "write" ? (
+        <textarea
+          className="min-h-9 w-full resize-none bg-transparent text-[12px] leading-5 text-[#222222] outline-none placeholder:text-[#8c8c8c]"
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="输入 Markdown 内容，Shift + Enter 换行"
+          rows={2}
+          value={value}
+        />
+      ) : (
+        <div className="min-h-10 rounded-[8px] bg-[#fbfbfa] px-3 py-2">
+          {value.trim() ? (
+            <MarkdownMessage className="text-[12px] text-[#222222]">
+              {value}
+            </MarkdownMessage>
+          ) : (
+            <p className="text-[12px] leading-5 text-[#8c8c8c]">
+              Markdown 预览会显示在这里
+            </p>
+          )}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <label className="cursor-pointer rounded-[6px] text-[#1f1f1f] focus-within:ring-2 focus-within:ring-[#111111]/30">
