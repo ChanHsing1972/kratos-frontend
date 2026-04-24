@@ -1,0 +1,59 @@
+image: node:22-alpine
+
+stages:
+  - build
+  - deploy
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "master"'
+    - when: never
+
+variables:
+  NPM_CONFIG_REGISTRY: "https://registry.npmmirror.com"
+  PNPM_STORE_DIR: "$CI_PROJECT_DIR/.pnpm-store"
+  DEPLOY_HOST: "192.0.2.1"
+  DEPLOY_USER: "root"
+  DEPLOY_PORT: "22"
+  FRONTEND_NAME: "agent"
+  SITE_ROOT: "/var/www/se3/agent"
+  VITE_BASE: "/"
+  VITE_API_BASE_URL: "/api/v1"
+
+cache:
+  key:
+    files:
+      - pnpm-lock.yaml
+  paths:
+    - .pnpm-store/
+
+build:
+  stage: build
+  before_script:
+    - npm config set registry "$NPM_CONFIG_REGISTRY"
+    - npm install -g pnpm@10.22.0
+    - pnpm config set registry "$NPM_CONFIG_REGISTRY"
+    - pnpm config set store-dir "$PNPM_STORE_DIR"
+  script:
+    - pnpm install --frozen-lockfile
+    - pnpm build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+
+deploy:
+  stage: deploy
+  image: alpine:3.20
+  needs:
+    - build
+  resource_group: web-frontend-production
+  before_script:
+    - sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+    - apk add --no-cache bash openssh-client sshpass tar
+  script:
+    - chmod +x ci/deploy_frontend.sh
+    - ci/deploy_frontend.sh
+  environment:
+    name: $CI_COMMIT_BRANCH
+    url: http://192.0.2.1/
