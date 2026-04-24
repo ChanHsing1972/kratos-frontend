@@ -6,14 +6,12 @@ import {
   ChevronRight,
   Copy,
   ImagePlus,
-  MessageCircle,
   Moon,
   Paperclip,
   RefreshCw,
   SendHorizontal,
   Sparkles,
   Sun,
-  User,
 } from "lucide-react"
 
 import { quickActions, timelineItems } from "@/data/kratos"
