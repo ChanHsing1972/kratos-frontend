@@ -184,7 +184,16 @@ function PersonalInfoModule({
 
   if (!user) {
     return (
-      <section className="w-full rounded-[12px] border border-[#e8e8e8] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)] xl:w-auto">
+      <section
+        className={cn(
+          // 基础样式
+          "w-full transition-all duration-300",
+          // 展开状态：有边框、背景、内边距和阴影
+          !collapsed && "rounded-[12px] border border-[#e8e8e8] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)] xl:w-auto",
+          // 收起状态：隐藏背景、边框、阴影，调整宽度和内边距以居中头像
+          collapsed && "xl:border-none xl:bg-transparent xl:p-0 xl:shadow-none xl:w-full"
+        )}
+      >
         <button
           className={cn(
             "flex w-full items-center gap-3 rounded-[10px] text-left focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",

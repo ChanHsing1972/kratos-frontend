@@ -79,10 +79,10 @@ export function MainConversation({
           </p>
         </div>
         <div className="relative flex items-center gap-7 pr-2">
-          <div className="flex items-center gap-2 text-[12px] text-[#5e5e5e]">
+          {/* <div className="flex items-center gap-2 text-[12px] text-[#5e5e5e]">
             <span className="size-1.5 rounded-full bg-[#4c9b4d]" />
             在线
-          </div>
+          </div> */}
           <button
             aria-label="Toggle theme"
             className="grid size-6 place-items-center rounded-full text-[#161616] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
@@ -221,11 +221,11 @@ function UserPromptCard({ message }: { message: ChatMessage }) {
         <span>{message.time}</span>
         <button
           onClick={handleCopy}
-          className="hover:text-blue-600 focus:outline-none"
+          className="hover:text-black focus:outline-none"
           aria-label="复制消息"
         >
           {copied ? (
-            <Check className="size-3.5 text-green-600" />
+            <Check className="size-3.5 text-black" />
           ) : (
             <Copy className="size-3.5" />
           )}
@@ -395,11 +395,11 @@ function ChatBubble({ message }: { message: ChatMessage }) {
           <span>{message.time}</span>
           <button
             onClick={handleCopy}
-            className="hover:text-blue-600 focus:outline-none"
+            className="hover:text-black focus:outline-none"
             aria-label="复制消息"
           >
             {copied ? (
-              <Check className="size-3.5 text-green-600" />
+              <Check className="size-3.5 text-black" />
             ) : (
               <Copy className="size-3.5" />
             )}
@@ -434,7 +434,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
                 <button
                   onClick={goToPreviousVersion}
                   disabled={currentVersionIndex === 0}
-                  className="hover:text-blue-600 disabled:opacity-40 focus:outline-none"
+                  className="hover:text-black disabled:opacity-40 focus:outline-none"
                   aria-label="上一个版本"
                 >
                   <ChevronLeft className="size-3.5" />
@@ -445,7 +445,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
                 <button
                   onClick={goToNextVersion}
                   disabled={currentVersionIndex === versions.length - 1}
-                  className="hover:text-blue-600 disabled:opacity-40 focus:outline-none"
+                  className="hover:text-black disabled:opacity-40 focus:outline-none"
                   aria-label="下一个版本"
                 >
                   <ChevronRight className="size-3.5" />
@@ -459,11 +459,11 @@ function ChatBubble({ message }: { message: ChatMessage }) {
             {/* 复制按钮 */}
             <button
               onClick={handleCopy}
-              className="hover:text-blue-600 focus:outline-none"
+              className="hover:text-black focus:outline-none"
               aria-label="复制消息"
             >
               {copied ? (
-                <Check className="size-3.5 text-green-600" />
+                <Check className="size-3.5 text-black" />
               ) : (
                 <Copy className="size-3.5" />
               )}
@@ -472,7 +472,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
             <button
               onClick={handleRegenerate}
               disabled={isRegenerating}
-              className="hover:text-blue-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              className="hover:text-black focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="重新生成"
             >
               <RefreshCw className={cn("size-3.5", isRegenerating && "animate-spin")} />
