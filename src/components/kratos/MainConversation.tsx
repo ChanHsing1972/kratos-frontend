@@ -1,12 +1,15 @@
-import type { ChangeEvent, KeyboardEvent } from "react"
+import { useState, type ChangeEvent, type KeyboardEvent } from "react"
 import {
   Bell,
   Check,
+  ChevronLeft,
   ChevronRight,
+  Copy,
   ImagePlus,
   MessageCircle,
   Moon,
   Paperclip,
+  RefreshCw,
   SendHorizontal,
   Sparkles,
   Sun,
@@ -194,25 +197,43 @@ function NotificationsPopover({
 }
 
 function UserPromptCard({ message }: { message: ChatMessage }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.body)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error("复制失败", err)
+    }
+  }
+
   return (
-    // <section className="rounded-[12px] border border-[#e8e8e8] bg-white px-5 py-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
-    <section className="bg-white px-5 py-5 pb-5">
-      <div className="flex gap-4">
-        <div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#ededed]">
-          <MessageCircle className="size-4.5 text-[#2b2b2b]" strokeWidth={1.8} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-4">
-            <h3 className="text-[14px] leading-5 font-bold">你</h3>
-            <span className="text-[12px] text-[#8b8b8b]">{message.time}</span>
-          </div>
-          <p className="mt-0.5 max-w-[620px] text-[14px] leading-[1.7] text-[#2f2f2f]">
-            {message.body}
-          </p>
-        </div>
+    <section className="flex flex-col items-end px-5 pb-5">
+      {/* 消息气泡 */}
+      <div className="max-w-[83.333%] rounded-2xl bg-[#f2f2f2] px-4 py-3">
+        <p className="text-[14px] leading-[1.7] text-[#2f2f2f]">
+          {message.body}
+        </p>
+      </div>
+
+      {/* 时间戳 + 复制图标 - 放在气泡外部下方靠右 */}
+      <div className="flex items-center gap-3 mt-1 text-[12px] text-[#8b8b8b]">
+        <span>{message.time}</span>
+        <button
+          onClick={handleCopy}
+          className="hover:text-blue-600 focus:outline-none"
+          aria-label="复制消息"
+        >
+          {copied ? (
+            <Check className="size-3.5 text-green-600" />
+          ) : (
+            <Copy className="size-3.5" />
+          )}
+        </button>
       </div>
     </section>
-
   )
 }
 
@@ -300,33 +321,165 @@ function TimelineRow({ item }: { item: (typeof timelineItems)[number] }) {
 
 function ChatBubble({ message }: { message: ChatMessage }) {
   const isAssistant = message.author === "assistant"
+  const [copied, setCopied] = useState(false)
+
+  // 版本管理（仅用于助手消息）
+  const [versions, setVersions] = useState(() => {
+    if (!isAssistant) return []
+    return [{ body: message.body, time: message.time }]
+  })
+  const [currentVersionIndex, setCurrentVersionIndex] = useState(0)
+  const [isRegenerating, setIsRegenerating] = useState(false)
+
+  const currentMessage = isAssistant ? versions[currentVersionIndex] : message
+  const currentBody = currentMessage?.body || message.body
+  const currentTime = currentMessage?.time || message.time
+
+  // 复制当前显示的内容
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(currentBody)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error("复制失败", err)
+    }
+  }
+
+  // 重新生成（模拟 API 请求，实际替换为你的真实接口）
+  const handleRegenerate = async () => {
+    if (isRegenerating) return
+    setIsRegenerating(true)
+    try {
+      // 模拟延迟 + 新内容生成（实际应调用后端接口传入原始消息，返回新答案）
+      const newBody = await new Promise<string>((resolve) => {
+        setTimeout(() => {
+          // 这里替换成你的 API 调用，例如：
+          // const response = await fetch(`/api/regenerate?messageId=${message.id}`)
+          // const data = await response.json()
+          // resolve(data.body)
+          resolve(`${message.body} `)
+        }, 800)
+      })
+      const newTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const newVersion = { body: newBody, time: newTime }
+      setVersions(prev => [...prev, newVersion])
+      setCurrentVersionIndex(prev => prev + 1) // 切换到最新版本
+    } catch (err) {
+      console.error("重新生成失败", err)
+    } finally {
+      setIsRegenerating(false)
+    }
+  }
+
+  // 版本切换
+  const goToPreviousVersion = () => {
+    if (currentVersionIndex > 0) {
+      setCurrentVersionIndex(prev => prev - 1)
+    }
+  }
+
+  const goToNextVersion = () => {
+    if (currentVersionIndex < versions.length - 1) {
+      setCurrentVersionIndex(prev => prev + 1)
+    }
+  }
+
+  if (!isAssistant) {
+    return (
+      <section className="flex flex-col items-end px-5 pb-5">
+        <div className="max-w-[83.333%] rounded-2xl bg-[#f2f2f2] px-4 py-3">
+          <p className="text-[14px] leading-[1.7] text-[#2f2f2f]">
+            {message.body}
+          </p>
+        </div>
+        <div className="flex items-center gap-3 mt-1 text-[12px] text-[#8b8b8b]">
+          <span>{message.time}</span>
+          <button
+            onClick={handleCopy}
+            className="hover:text-blue-600 focus:outline-none"
+            aria-label="复制消息"
+          >
+            {copied ? (
+              <Check className="size-3.5 text-green-600" />
+            ) : (
+              <Copy className="size-3.5" />
+            )}
+          </button>
+        </div>
+      </section>
+    )
+  }
+
+  const showVersionControls = versions.length > 1
 
   return (
-    // <section className="rounded-[12px] border border-[#e8e8e8] bg-white px-5 py-4 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
-    <section className="bg-white px-5 py-4 pt-0 ">
+    <section className="bg-white px-5 pb-4 pt-0">
       <div className="flex gap-4">
-        <div
-          className={cn(
-            "grid size-9 shrink-0 place-items-center rounded-full",
-            isAssistant ? "bg-[#111111] text-white" : "bg-[#ededed]"
-          )}
-        >
-          {isAssistant ? (
-            <span className="text-[18px] font-bold">K</span>
-          ) : (
-            <User className="size-4.5" strokeWidth={1.8} />
-          )}
+        <div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#111111] text-white">
+          <span className="text-[18px] font-bold">K</span>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-4">
-            <h3 className="text-[14px] leading-5 font-bold">
-              {isAssistant ? "Kratos" : "你"}
-            </h3>
-            <span className="text-[12px] text-[#8b8b8b]">{message.time}</span>
+            <h3 className="text-[14px] leading-5 font-bold">Kratos</h3>
           </div>
-          <p className="mt-0.5 text-[13px] leading-[1.7] text-[#333333]">
-            {message.body}
+          <p className="mt-0.5 text-[14px] leading-[1.7] text-[#333333]">
+            {currentBody}
           </p>
+
+          {/* 操作栏：重新生成、版本切换、时间戳、复制 (全部靠左) */}
+          <div className="flex items-center gap-3 mt-2 text-[12px] text-[#8b8b8b]">
+
+            {/* 版本切换（多于1个版本时显示） */}
+            {showVersionControls && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={goToPreviousVersion}
+                  disabled={currentVersionIndex === 0}
+                  className="hover:text-blue-600 disabled:opacity-40 focus:outline-none"
+                  aria-label="上一个版本"
+                >
+                  <ChevronLeft className="size-3.5" />
+                </button>
+                <span className="text-[11px] font-medium text-[#5e5e5e]">
+                  {currentVersionIndex + 1}/{versions.length}
+                </span>
+                <button
+                  onClick={goToNextVersion}
+                  disabled={currentVersionIndex === versions.length - 1}
+                  className="hover:text-blue-600 disabled:opacity-40 focus:outline-none"
+                  aria-label="下一个版本"
+                >
+                  <ChevronRight className="size-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* 时间戳 */}
+            <span>{currentTime}</span>
+
+            {/* 复制按钮 */}
+            <button
+              onClick={handleCopy}
+              className="hover:text-blue-600 focus:outline-none"
+              aria-label="复制消息"
+            >
+              {copied ? (
+                <Check className="size-3.5 text-green-600" />
+              ) : (
+                <Copy className="size-3.5" />
+              )}
+            </button>
+            {/* 重新生成按钮 */}
+            <button
+              onClick={handleRegenerate}
+              disabled={isRegenerating}
+              className="hover:text-blue-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="重新生成"
+            >
+              <RefreshCw className={cn("size-3.5", isRegenerating && "animate-spin")} />
+            </button>
+          </div>
         </div>
       </div>
     </section>
