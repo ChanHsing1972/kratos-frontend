@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import type { LucideIcon } from "lucide-react"
 import {
   ChevronDown,
@@ -50,23 +51,50 @@ export function Sidebar({
   onToggleCollapse,
   onToggleMenu,
 }: SidebarProps) {
+  const [expandTextReady, setExpandTextReady] = useState(!collapsed)
+  const showExpandedText = !collapsed && expandTextReady
+
+  useEffect(() => {
+    if (collapsed) {
+      const collapseTimer = window.setTimeout(() => {
+        setExpandTextReady(false)
+      }, 0)
+
+      return () => {
+        window.clearTimeout(collapseTimer)
+      }
+    }
+
+    const timer = window.setTimeout(() => {
+      setExpandTextReady(true)
+    }, 160)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [collapsed])
+
   return (
     <aside
       className={cn(
-        "flex min-h-0 w-full shrink-0 flex-col border-b border-[#e8e8e8] bg-gray-100 py-7 transition-all duration-300 xl:h-full xl:border-r xl:border-b-0",
+        "flex min-h-0 w-full shrink-0 flex-col border-b border-[#e8e8e8] bg-gray-100 pt-7 pb-4 transition-all duration-300 xl:h-full xl:border-r xl:border-b-0",
         collapsed ? "px-4 xl:w-[86px]" : "px-6 xl:w-[270px]"
       )}
     >
       <div className="flex shrink-0 items-start justify-between gap-3">
-        <div className={cn(collapsed && "xl:text-center")}>
+        <div className={cn("min-w-0", collapsed && "xl:text-center")}>
           <h1 className="text-[28px] leading-none font-black tracking-[-0.06em]">
-            <span className={cn(collapsed && "xl:hidden")}>Kratos</span>
+            <span className={cn(showExpandedText ? "xl:inline" : "xl:hidden")}>
+              Kratos
+            </span>
             <span className={cn("hidden", collapsed && "xl:inline")}>K</span>
           </h1>
           <p
             className={cn(
-              "mt-1 text-[13px] tracking-[0.01em] text-[#8b8b8b]",
-              collapsed && "xl:hidden"
+              "mt-1 overflow-hidden whitespace-nowrap text-[13px] tracking-[0.01em] text-[#8b8b8b] transition-[max-height,opacity,transform] duration-200",
+              showExpandedText
+                ? "max-h-6 opacity-100 translate-y-0"
+                : "max-h-0 opacity-0 -translate-y-1"
             )}
           >
             AI Fitness Coach
@@ -100,7 +128,7 @@ export function Sidebar({
                 active
                   ? "bg-[#0f0f0f] text-white"
                   : "text-[#303030] hover:bg-black/6",
-                collapsed && "xl:justify-center xl:px-0"
+                collapsed && "xl:justify-center xl:gap-0 xl:px-0"
               )}
               key={item.label}
               onClick={() => onNavSelect(item.label)}
@@ -111,17 +139,21 @@ export function Sidebar({
                 className={cn("size-[19px]", active && "text-white")}
                 strokeWidth={1.8}
               />
-              <span className={cn(collapsed && "xl:hidden")}>{item.label}</span>
-              {item.badge ? (
-                <span
-                  className={cn(
-                    "ml-auto rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-[#777777]",
-                    collapsed && "xl:hidden"
-                  )}
-                >
-                  {item.badge}
-                </span>
-              ) : null}
+              <div
+                className={cn(
+                  "min-w-0 overflow-hidden transition-[max-width,opacity,transform] duration-200",
+                  showExpandedText
+                    ? "ml-0 flex max-w-[160px] flex-1 items-center gap-2 opacity-100 translate-x-0"
+                    : "ml-0 w-0 max-w-0 shrink-0 opacity-0 -translate-x-1"
+                )}
+              >
+                <span className="truncate whitespace-nowrap">{item.label}</span>
+                {item.badge ? (
+                  <span className="ml-auto rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-[#777777]">
+                    {item.badge}
+                  </span>
+                ) : null}
+              </div>
             </button>
           )
         })}
@@ -139,6 +171,7 @@ export function Sidebar({
           onRefreshProfile={onRefreshProfile}
           onRegister={onRegister}
           onToggleMenu={onToggleMenu}
+          showExpandedText={showExpandedText}
           user={currentUser}
         />
       </div>
@@ -157,6 +190,7 @@ function PersonalInfoModule({
   onRefreshProfile,
   onRegister,
   onToggleMenu,
+  showExpandedText,
   user,
 }: {
   authLoading: boolean
@@ -169,6 +203,7 @@ function PersonalInfoModule({
   onRefreshProfile: () => void
   onRegister: () => void
   onToggleMenu: () => void
+  showExpandedText: boolean
   user: UserProfile | null
 }) {
   if (authLoading) {
@@ -176,7 +211,14 @@ function PersonalInfoModule({
       <section className="w-full rounded-[12px] border border-[#e8e8e8] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3 text-[12px] text-[#777777]">
           <LoaderCircle className="size-4 animate-spin" />
-          <span className={cn(collapsed && "xl:hidden")}>正在读取登录状态</span>
+          <span
+            className={cn(
+              "overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200",
+              showExpandedText ? "max-w-[140px] opacity-100" : "max-w-0 opacity-0"
+            )}
+          >
+            正在读取登录状态
+          </span>
         </div>
       </section>
     )
@@ -205,14 +247,28 @@ function PersonalInfoModule({
           <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#111111] text-white">
             <User className="size-5" strokeWidth={1.8} />
           </span>
-          <span className={cn("min-w-0", collapsed && "xl:hidden")}>
-            <span className="block text-[14px] leading-5 font-bold">
+          <span
+            className={cn(
+              "min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-200",
+              showExpandedText
+                ? "max-w-[150px] opacity-100 translate-x-0"
+                : "max-w-0 opacity-0 -translate-x-1"
+            )}
+          >
+            <span className="block truncate text-[14px] leading-5 font-bold">
               未登录用户
             </span>
-            <span className="text-[12px] text-[#666666]">登录同步训练档案</span>
+            <span className="block truncate text-[12px] text-[#666666]">
+              登录同步训练档案
+            </span>
           </span>
         </button>
-        <div className={cn("mt-4 grid grid-cols-2 gap-2", collapsed && "xl:hidden")}>
+        <div
+          className={cn(
+            "mt-4 grid grid-cols-2 gap-2 overflow-hidden transition-[max-height,opacity] duration-200",
+            showExpandedText ? "max-h-16 opacity-100" : "max-h-0 opacity-0"
+          )}
+        >
           <Button
             className="h-8 rounded-[8px] text-[12px]"
             onClick={onLogin}
@@ -251,7 +307,14 @@ function PersonalInfoModule({
         type="button"
       >
         <UserAvatar />
-        <span className={cn("min-w-0 flex-1", collapsed && "xl:hidden")}>
+        <span
+          className={cn(
+            "min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-200",
+            showExpandedText
+              ? "max-w-[150px] opacity-100 translate-x-0"
+              : "max-w-0 opacity-0 -translate-x-1"
+          )}
+        >
           <span className="block truncate text-[14px] leading-5 font-bold">
             {user.username}
           </span>
@@ -261,12 +324,17 @@ function PersonalInfoModule({
           className={cn(
             "size-4 text-[#777777] transition-transform",
             menuOpen && "rotate-180",
-            collapsed && "xl:hidden"
+            !showExpandedText && "opacity-0"
           )}
         />
       </button>
 
-      <div className={cn(collapsed && "xl:hidden")}>
+      <div
+        className={cn(
+          "overflow-hidden transition-[max-height,opacity] duration-200",
+          showExpandedText ? "max-h-32 opacity-100" : "max-h-0 opacity-0"
+        )}
+      >
         <div className="mt-5 flex items-center justify-between text-[12px] text-[#575757]">
           <span>经验值</span>
           <span>

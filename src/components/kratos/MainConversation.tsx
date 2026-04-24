@@ -1,4 +1,10 @@
-import { useState, type ChangeEvent, type KeyboardEvent } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react"
 import {
   Bell,
   Check,
@@ -63,10 +69,29 @@ export function MainConversation({
   unreadCount,
 }: MainConversationProps) {
   const extraMessages = messages.slice(1)
+  const scrollViewportRef = useRef<HTMLDivElement>(null)
+  const bottomAnchorRef = useRef<HTMLDivElement>(null)
+  const previousMessageCountRef = useRef(messages.length)
+
+  useEffect(() => {
+    const hasNewMessages = messages.length > previousMessageCountRef.current
+    previousMessageCountRef.current = messages.length
+
+    if (!hasNewMessages) {
+      return
+    }
+
+    requestAnimationFrame(() => {
+      bottomAnchorRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      })
+    })
+  }, [messages.length])
 
   return (
     <main className="flex h-full min-w-0 flex-1 flex-col border-[#e8e8e8] bg-white xl:border-r">
-      <header className="flex shrink-0 flex-col gap-5 px-7 pt-8 pb-6 sm:px-10 lg:flex-row lg:items-start lg:justify-between">
+      <header className="flex shrink-0 flex-col gap-5 px-7 pt-8 pb-0 sm:px-10 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-[25px] leading-[1.1] font-extrabold tracking-[-0.04em]">
             {activeNav === "对话" ? `下午好， ${currentUserName}` : activeNav}{" "}
@@ -118,18 +143,27 @@ export function MainConversation({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 overflow-y-auto px-7 sm:px-10">
-          <div className="flex flex-col gap-[17px] pb-5">
-            <UserPromptCard message={messages[0]} />
-            <ThinkingCard expanded={thinkingExpanded} onToggle={onToggleThinking} />
-            {extraMessages.map((message) => (
-              <ChatBubble key={message.id} message={message} />
-            ))}
-            {activeNav !== "对话" ? <ModulePreview activeNav={activeNav} /> : null}
+        <div className="relative min-h-0 flex-1">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-white via-white/88 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 bg-gradient-to-b from-transparent via-white/72 to-white" />
+          <div
+            className="min-h-0 h-full overflow-y-auto px-7 sm:px-10"
+            ref={scrollViewportRef}
+          >
+            <div className="flex flex-col gap-[17px] pb-8">
+              <UserPromptCard message={messages[0]} />
+              <ThinkingCard expanded={thinkingExpanded} onToggle={onToggleThinking} />
+              {extraMessages.map((message) => (
+                <ChatBubble key={message.id} message={message} />
+              ))}
+              {activeNav !== "对话" ? <ModulePreview activeNav={activeNav} /> : null}
+              <div ref={bottomAnchorRef} />
+            </div>
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-transparent bg-white px-7 pt-3 pb-5 sm:px-10">
+        <div className="relative shrink-0 bg-white px-7 pt-0 pb-3 sm:px-10">
+          <div className="pointer-events-none absolute inset-x-0 -top-10 h-10 bg-gradient-to-b from-transparent via-white/72 to-white" />
           <Composer
             onAttachment={onAttachment}
             onChange={onComposerChange}
@@ -208,7 +242,7 @@ function UserPromptCard({ message }: { message: ChatMessage }) {
   }
 
   return (
-    <section className="flex flex-col items-end px-5 pb-5">
+    <section className="flex flex-col items-end px-5 pb-5 pt-5">
       {/* 消息气泡 */}
       <div className="max-w-[83.333%] rounded-2xl bg-[#f2f2f2] px-4 py-3">
         <p className="text-[14px] leading-[1.7] text-[#2f2f2f]">
@@ -359,7 +393,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
           resolve(`${message.body} `)
         }, 800)
       })
-      const newTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const newTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
       const newVersion = { body: newBody, time: newTime }
       setVersions(prev => [...prev, newVersion])
       setCurrentVersionIndex(prev => prev + 1) // 切换到最新版本
