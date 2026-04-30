@@ -13,6 +13,28 @@ export type TimelineItem = {
   icon: "thought" | "action" | "observation" | "final"
 }
 
+export type AgentTraceStep = {
+  type:
+    | "status"
+    | "thought"
+    | "action"
+    | "observation"
+    | "reflection"
+    | "final"
+    | "answer_delta"
+    | "done"
+    | "error"
+  content: string
+  timestamp?: string
+  raw?: unknown
+}
+
+export type AgentStreamEvent = AgentTraceStep & {
+  session_id?: string
+  answer?: string
+  delta?: string
+}
+
 export type Metric = {
   label: string
   value: string
@@ -79,6 +101,9 @@ export type ChatMessage = {
   author: "user" | "assistant"
   body: string
   time: string
+  error?: string
+  streaming?: boolean
+  trace?: AgentTraceStep[]
 }
 
 export type NotificationItem = {

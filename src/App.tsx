@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type KeyboardEvent,
@@ -18,10 +19,10 @@ import {
   getErrorMessage,
   loginUser,
   registerUser,
+  streamAgentChat,
   updateCurrentUser,
 } from "@/lib/api"
 import {
-  buildAssistantReply,
   buildProfilePanel,
   compactOptionalText,
   formatTime,
@@ -67,6 +68,8 @@ export function App() {
   const [thinkingExpanded, setThinkingExpanded] = useState(true)
   const [composerValue, setComposerValue] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
+  const [agentSessionId, setAgentSessionId] = useState<string | null>(null)
+  const [agentStreaming, setAgentStreaming] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifications, setNotifications] =
     useState<NotificationItem[]>(initialNotifications)
@@ -74,6 +77,7 @@ export function App() {
   const [completedExercises, setCompletedExercises] = useState<string[]>([])
   const [trainingStarted, setTrainingStarted] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const activeStreamRef = useRef<AbortController | null>(null)
 
   const unreadCount = notifications.filter((item) => !item.read).length
   const displayName = currentUser?.username ?? "请登录"
@@ -244,13 +248,29 @@ export function App() {
     setToast(`已切换到${label}`)
   }
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     const body = composerValue.trim()
     if (!body) {
       setToast("先输入一点内容，Kratos 才能接招")
       return
     }
 
+    if (agentStreaming) {
+      setToast("Kratos 还在回复中，稍等一下")
+      return
+    }
+
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      setToast("登录后即可开始真实对话")
+      return
+    }
+
+    const assistantMessageId = crypto.randomUUID()
+    const controller = new AbortController()
+    activeStreamRef.current = controller
+    setAgentStreaming(true)
     setMessages((current) => [
       ...current,
       {
@@ -262,12 +282,105 @@ export function App() {
       {
         id: createId(),
         author: "assistant",
-        body: buildAssistantReply(body),
+        body: "",
+        streaming: true,
         time: formatTime(),
+        trace: [
+          {
+            type: "status",
+            content: "正在连接 Kratos Agent...",
+          },
+        ],
       },
     ])
     setComposerValue("")
-    setToast("Kratos 已生成一条模拟回复")
+
+    try {
+      await streamAgentChat({
+        message: body,
+        onEvent: (event) => {
+          if (event.session_id) {
+            setAgentSessionId(event.session_id)
+          }
+
+          setMessages((current) =>
+            current.map((message) => {
+              if (message.id !== assistantMessageId) {
+                return message
+              }
+
+              if (event.type === "done") {
+                return {
+                  ...message,
+                  body: event.answer ?? message.body,
+                  streaming: false,
+                }
+              }
+
+              if (event.type === "answer_delta") {
+                return {
+                  ...message,
+                  body: `${message.body}${event.delta ?? ""}`,
+                }
+              }
+
+              if (event.type === "error") {
+                return {
+                  ...message,
+                  error: event.content,
+                  streaming: false,
+                  trace: [...(message.trace ?? []), event],
+                }
+              }
+
+              if (event.type === "final") {
+                return {
+                  ...message,
+                  trace: [...(message.trace ?? []), event],
+                }
+              }
+
+              return {
+                ...message,
+                trace: [...(message.trace ?? []), event],
+              }
+            })
+          )
+        },
+        sessionId: agentSessionId,
+        signal: controller.signal,
+        token,
+      })
+    } catch (error) {
+      if (controller.signal.aborted) {
+        return
+      }
+
+      const message = getErrorMessage(error)
+      setToast(message)
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === assistantMessageId
+            ? {
+                ...item,
+                body: item.body || "抱歉，Agent 连接失败了。",
+                error: message,
+                streaming: false,
+                trace: [
+                  ...(item.trace ?? []),
+                  {
+                    type: "error",
+                    content: message,
+                  },
+                ],
+              }
+            : item
+        )
+      )
+    } finally {
+      activeStreamRef.current = null
+      setAgentStreaming(false)
+    }
   }
 
   const handleQuickAction = (action: QuickAction) => {
@@ -348,6 +461,7 @@ export function App() {
         />
         <MainConversation
           activeNav={activeNav}
+          agentStreaming={agentStreaming}
           composerValue={composerValue}
           currentUserName={displayName}
           messages={messages}
@@ -357,8 +471,11 @@ export function App() {
           onComposerChange={setComposerValue}
           onComposerKeyDown={handleComposerKeyDown}
           onEndConversation={() => {
+            activeStreamRef.current?.abort()
             setMessages(initialMessages)
             setComposerValue("")
+            setAgentSessionId(null)
+            setAgentStreaming(false)
             setToast("对话已回到初始状态")
           }}
           onMarkNotificationsRead={markAllNotificationsRead}

@@ -8,7 +8,6 @@ import {
 import {
   Bell,
   Check,
-  ChevronLeft,
   ChevronRight,
   Copy,
   Eye,
@@ -16,20 +15,25 @@ import {
   Moon,
   Paperclip,
   PencilLine,
-  RefreshCw,
   SendHorizontal,
   Sparkles,
   Sun,
 } from "lucide-react"
 
-import { quickActions, timelineItems } from "@/data/kratos"
-import type { ChatMessage, NotificationItem, QuickAction } from "@/types/kratos"
+// import { quickActions } from "@/data/kratos"
+import type {
+  AgentTraceStep,
+  ChatMessage,
+  NotificationItem,
+  QuickAction,
+} from "@/types/kratos"
 import { MarkdownMessage } from "@/components/kratos/MarkdownMessage"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 type MainConversationProps = {
   activeNav: string
+  agentStreaming: boolean
   composerValue: string
   currentUserName: string
   messages: ChatMessage[]
@@ -52,6 +56,7 @@ type MainConversationProps = {
 
 export function MainConversation({
   activeNav,
+  agentStreaming,
   composerValue,
   currentUserName,
   messages,
@@ -71,26 +76,20 @@ export function MainConversation({
   theme,
   unreadCount,
 }: MainConversationProps) {
-  const extraMessages = messages.slice(1)
   const scrollViewportRef = useRef<HTMLDivElement>(null)
   const bottomAnchorRef = useRef<HTMLDivElement>(null)
-  const previousMessageCountRef = useRef(messages.length)
+  const liveMessageKey = messages
+    .map((message) => `${message.id}:${message.body.length}:${message.trace?.length ?? 0}`)
+    .join("|")
 
   useEffect(() => {
-    const hasNewMessages = messages.length > previousMessageCountRef.current
-    previousMessageCountRef.current = messages.length
-
-    if (!hasNewMessages) {
-      return
-    }
-
     requestAnimationFrame(() => {
       bottomAnchorRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "end",
       })
     })
-  }, [messages.length])
+  }, [liveMessageKey])
 
   return (
     <main className="flex h-full min-w-0 flex-1 flex-col border-[#e8e8e8] bg-white xl:border-r">
@@ -154,13 +153,13 @@ export function MainConversation({
             ref={scrollViewportRef}
           >
             <div className="flex flex-col gap-[17px] pb-0">
-              <UserPromptCard message={messages[0]} />
-              <ThinkingCard
-                expanded={thinkingExpanded}
-                onToggle={onToggleThinking}
-              />
-              {extraMessages.map((message) => (
-                <ChatBubble key={message.id} message={message} />
+              {messages.map((message) => (
+                <ChatBubble
+                  key={message.id}
+                  message={message}
+                  onToggleThinking={onToggleThinking}
+                  thinkingExpanded={thinkingExpanded}
+                />
               ))}
               {activeNav !== "对话" ? (
                 <ModulePreview activeNav={activeNav} />
@@ -178,11 +177,12 @@ export function MainConversation({
             onEndConversation={onEndConversation}
             onKeyDown={onComposerKeyDown}
             onSend={onSendMessage}
+            sending={agentStreaming}
             value={composerValue}
           />
-          <div className="mt-3">
+          {/* <div className="mt-3">
             <QuickActions onQuickAction={onQuickAction} />
-          </div>
+          </div> */}
           <p className="mt-3 text-center text-[10px] text-[#9a9a9a]">
             Kratos
             提供的建议仅供健身参考，不构成医疗或诊断建议。如有严重不适，请及时就医。
@@ -237,67 +237,35 @@ function NotificationsPopover({
   )
 }
 
-function UserPromptCard({ message }: { message: ChatMessage }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(message.body)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error("复制失败", err)
-    }
-  }
-
-  return (
-    <section className="flex flex-col items-end px-5 pt-5 pb-5">
-      {/* 消息气泡 */}
-      <div className="max-w-[83.333%] rounded-2xl bg-[#f2f2f2] px-4 py-3">
-        <MarkdownMessage className="text-[#2f2f2f]">
-          {message.body}
-        </MarkdownMessage>
-      </div>
-
-      {/* 时间戳 + 复制图标 - 放在气泡外部下方靠右 */}
-      <div className="mt-1 flex items-center gap-3 text-[12px] text-[#8b8b8b]">
-        <span>{message.time}</span>
-        <button
-          onClick={handleCopy}
-          className="hover:text-black focus:outline-none"
-          aria-label="复制消息"
-        >
-          {copied ? (
-            <Check className="size-3.5 text-black" />
-          ) : (
-            <Copy className="size-3.5" />
-          )}
-        </button>
-      </div>
-    </section>
-  )
-}
-
 function ThinkingCard({
   expanded,
+  steps,
+  streaming,
   onToggle,
 }: {
   expanded: boolean
+  steps: AgentTraceStep[]
+  streaming?: boolean
   onToggle: () => void
 }) {
+  const visibleSteps = steps.filter(
+    (step) => step.type !== "final" && step.type !== "answer_delta"
+  )
+
   return (
-    // <section className="rounded-[12px] border border-[#e8e8e8] bg-white px-5 pt-5 pb-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
-    <section className="bg-white px-5 pb-5">
+    <section className="rounded-[12px] border border-[#eeeeee] bg-[#fbfbfa] px-4 py-4">
       <div className="flex items-start gap-4">
-        <div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#111111] text-white">
-          <span className="text-[18px] font-bold">K</span>
-        </div>
+        {/* <div className="grid size-8 shrink-0 place-items-center rounded-full bg-[#111111] text-white"> */}
+        {/* <Sparkles className="size-4" strokeWidth={2} /> */}
+        {/* </div> */}
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="text-[14px] leading-5 font-bold">Kratos</h3>
+              {/* <h3 className="text-[13px] leading-5 font-bold">内部思考</h3> */}
               <p className="mt-1 text-[12px] text-[#8a8a8a]">
-                {expanded ? "正在思考中..." : "思考过程已收起"}
+                {streaming
+                  ? "正在实时接收 Agent 推理事件"
+                  : `${visibleSteps.length} 条推理事件`}
               </p>
             </div>
             <button
@@ -319,9 +287,18 @@ function ThinkingCard({
             <div className="relative mt-5 pl-8">
               <div className="absolute top-2 bottom-3 left-[7px] w-px bg-[#e4e4e4]" />
               <div className="flex flex-col gap-3.5">
-                {timelineItems.map((item) => (
-                  <TimelineRow item={item} key={`${item.label}-${item.time}`} />
-                ))}
+                {visibleSteps.length > 0 ? (
+                  visibleSteps.map((step, index) => (
+                    <TimelineRow
+                      item={step}
+                      key={`${step.type}-${step.timestamp ?? index}-${step.content}`}
+                    />
+                  ))
+                ) : (
+                  <div className="relative text-[12px] leading-5 text-[#666666]">
+                    <ThinkingDots />
+                  </div>
+                )}
               </div>
             </div>
           ) : null}
@@ -331,13 +308,17 @@ function ThinkingCard({
   )
 }
 
-function TimelineRow({ item }: { item: (typeof timelineItems)[number] }) {
+function TimelineRow({ item }: { item: AgentTraceStep }) {
+  const meta = traceMeta[item.type] ?? traceMeta.status
+
   return (
     <div className="relative">
       <div className="absolute top-0.5 -left-[31px] grid size-3.5 place-items-center rounded-full border border-[#111111] bg-white">
-        {item.icon === "thought" ? (
+        {item.type === "thought" || item.type === "status" ? (
           <span className="size-1.5 rounded-full bg-[#111111]" />
-        ) : item.icon === "final" ? (
+        ) : item.type === "error" ? (
+          <span className="size-1.5 rounded-full bg-[#d64040]" />
+        ) : item.type === "reflection" ? (
           <Check className="size-2.5 text-[#111111]" strokeWidth={2.5} />
         ) : (
           <Sparkles className="size-2.5 text-[#111111]" strokeWidth={2.2} />
@@ -346,87 +327,81 @@ function TimelineRow({ item }: { item: (typeof timelineItems)[number] }) {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h4 className="text-[12px] leading-4 font-bold text-[#141414]">
-            {item.label}
+            {meta}
           </h4>
           <p className="mt-1 text-[12px] leading-[1.58] text-[#333333]">
-            {item.body}
+            {item.content}
           </p>
         </div>
-        <time className="shrink-0 text-[11px] leading-4 text-[#999999]">
-          {item.time}
-        </time>
+        {item.timestamp ? (
+          <time className="shrink-0 text-[11px] leading-4 text-[#999999]">
+            {formatTraceTime(item.timestamp)}
+          </time>
+        ) : null}
       </div>
     </div>
   )
 }
 
-function ChatBubble({ message }: { message: ChatMessage }) {
+const traceMeta: Record<AgentTraceStep["type"], string> = {
+  action: "Action",
+  answer_delta: "Answer",
+  done: "Done",
+  error: "Error",
+  final: "Final",
+  observation: "Observation",
+  reflection: "Reflection",
+  status: "Status",
+  thought: "Thought",
+}
+
+function formatTraceTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return ""
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date)
+}
+
+function ThinkingDots() {
+  return (
+    <span className="inline-flex items-center gap-1">
+      等待 Agent 事件
+      <span className="inline-flex gap-0.5">
+        <span className="size-1 animate-bounce rounded-full bg-[#777777]" />
+        <span className="size-1 animate-bounce rounded-full bg-[#777777] [animation-delay:120ms]" />
+        <span className="size-1 animate-bounce rounded-full bg-[#777777] [animation-delay:240ms]" />
+      </span>
+    </span>
+  )
+}
+
+function ChatBubble({
+  message,
+  onToggleThinking,
+  thinkingExpanded,
+}: {
+  message: ChatMessage
+  onToggleThinking: () => void
+  thinkingExpanded: boolean
+}) {
   const isAssistant = message.author === "assistant"
   const [copied, setCopied] = useState(false)
-
-  // 版本管理（仅用于助手消息）
-  const [versions, setVersions] = useState(() => {
-    if (!isAssistant) return []
-    return [{ body: message.body, time: message.time }]
-  })
-  const [currentVersionIndex, setCurrentVersionIndex] = useState(0)
-  const [isRegenerating, setIsRegenerating] = useState(false)
-
-  const currentMessage = isAssistant ? versions[currentVersionIndex] : message
-  const currentBody = currentMessage?.body || message.body
-  const currentTime = currentMessage?.time || message.time
 
   // 复制当前显示的内容
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(currentBody)
+      await navigator.clipboard.writeText(message.body)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
       console.error("复制失败", err)
-    }
-  }
-
-  // 重新生成（模拟 API 请求，实际替换为你的真实接口）
-  const handleRegenerate = async () => {
-    if (isRegenerating) return
-    setIsRegenerating(true)
-    try {
-      // 模拟延迟 + 新内容生成（实际应调用后端接口传入原始消息，返回新答案）
-      const newBody = await new Promise<string>((resolve) => {
-        setTimeout(() => {
-          // 这里替换成你的 API 调用，例如：
-          // const response = await fetch(`/api/regenerate?messageId=${message.id}`)
-          // const data = await response.json()
-          // resolve(data.body)
-          resolve(`${message.body} `)
-        }, 800)
-      })
-      const newTime = new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      })
-      const newVersion = { body: newBody, time: newTime }
-      setVersions((prev) => [...prev, newVersion])
-      setCurrentVersionIndex((prev) => prev + 1) // 切换到最新版本
-    } catch (err) {
-      console.error("重新生成失败", err)
-    } finally {
-      setIsRegenerating(false)
-    }
-  }
-
-  // 版本切换
-  const goToPreviousVersion = () => {
-    if (currentVersionIndex > 0) {
-      setCurrentVersionIndex((prev) => prev - 1)
-    }
-  }
-
-  const goToNextVersion = () => {
-    if (currentVersionIndex < versions.length - 1) {
-      setCurrentVersionIndex((prev) => prev + 1)
     }
   }
 
@@ -456,8 +431,6 @@ function ChatBubble({ message }: { message: ChatMessage }) {
     )
   }
 
-  const showVersionControls = versions.length > 1
-
   return (
     <section className="bg-white px-5 pt-0 pb-4">
       <div className="flex gap-4">
@@ -468,43 +441,40 @@ function ChatBubble({ message }: { message: ChatMessage }) {
           <div className="flex items-start justify-between gap-4">
             <h3 className="text-[14px] leading-5 font-bold">Kratos</h3>
           </div>
-          <MarkdownMessage className="mt-0.5 text-[#333333]">
-            {currentBody}
-          </MarkdownMessage>
+          {message.trace?.length ? (
+            <div className="mt-3">
+              <ThinkingCard
+                expanded={thinkingExpanded}
+                onToggle={onToggleThinking}
+                steps={message.trace}
+                streaming={message.streaming}
+              />
+            </div>
+          ) : null}
+          <div className="mt-3 min-h-7">
+            {message.body ? (
+              <MarkdownMessage className="text-[#333333]">
+                {message.body}
+              </MarkdownMessage>
+            ) : (
+              <ThinkingDots />
+            )}
+          </div>
+          {message.error ? (
+            <p className="mt-2 text-[12px] leading-5 text-[#b42318]">
+              {message.error}
+            </p>
+          ) : null}
 
           {/* 操作栏：重新生成、版本切换、时间戳、复制 (全部靠左) */}
           <div className="mt-2 flex items-center gap-3 text-[12px] text-[#8b8b8b]">
-            {/* 版本切换（多于1个版本时显示） */}
-            {showVersionControls && (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={goToPreviousVersion}
-                  disabled={currentVersionIndex === 0}
-                  className="hover:text-black focus:outline-none disabled:opacity-40"
-                  aria-label="上一个版本"
-                >
-                  <ChevronLeft className="size-3.5" />
-                </button>
-                <span className="text-[11px] font-medium text-[#5e5e5e]">
-                  {currentVersionIndex + 1}/{versions.length}
-                </span>
-                <button
-                  onClick={goToNextVersion}
-                  disabled={currentVersionIndex === versions.length - 1}
-                  className="hover:text-black focus:outline-none disabled:opacity-40"
-                  aria-label="下一个版本"
-                >
-                  <ChevronRight className="size-3.5" />
-                </button>
-              </div>
-            )}
-
             {/* 时间戳 */}
-            <span>{currentTime}</span>
+            <span>{message.time}</span>
 
             {/* 复制按钮 */}
             <button
               onClick={handleCopy}
+              disabled={!message.body}
               className="hover:text-black focus:outline-none"
               aria-label="复制消息"
             >
@@ -513,17 +483,6 @@ function ChatBubble({ message }: { message: ChatMessage }) {
               ) : (
                 <Copy className="size-3.5" />
               )}
-            </button>
-            {/* 重新生成按钮 */}
-            <button
-              onClick={handleRegenerate}
-              disabled={isRegenerating}
-              className="hover:text-black focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="重新生成"
-            >
-              <RefreshCw
-                className={cn("size-3.5", isRegenerating && "animate-spin")}
-              />
             </button>
           </div>
         </div>
@@ -559,6 +518,7 @@ function Composer({
   onEndConversation,
   onKeyDown,
   onSend,
+  sending,
   value,
 }: {
   onAttachment: (event: ChangeEvent<HTMLInputElement>) => void
@@ -566,6 +526,7 @@ function Composer({
   onEndConversation: () => void
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   onSend: () => void
+  sending: boolean
   value: string
 }) {
   const [mode, setMode] = useState<"write" | "preview">("write")
@@ -579,7 +540,7 @@ function Composer({
             className={cn(
               "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
               mode === "write" &&
-                "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
+              "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
             )}
             onClick={() => setMode("write")}
             title="编辑 Markdown"
@@ -593,7 +554,7 @@ function Composer({
             className={cn(
               "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
               mode === "preview" &&
-                "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
+              "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
             )}
             onClick={() => setMode("preview")}
             title="预览 Markdown"
@@ -606,10 +567,11 @@ function Composer({
       </div>
       {mode === "write" ? (
         <textarea
-          className="min-h-9 w-full resize-none bg-transparent text-[12px] leading-5 text-[#222222] outline-none placeholder:text-[#8c8c8c]"
+          className="min-h-9 w-full resize-none bg-transparent text-[12px] leading-5 text-[#222222] outline-none placeholder:text-[#8c8c8c] disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={sending}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="输入 Markdown 内容，Shift + Enter 换行"
+          placeholder={sending ? "Kratos 正在回复..." : "输入 Markdown 内容，Shift + Enter 换行"}
           rows={2}
           value={value}
         />
@@ -654,11 +616,16 @@ function Composer({
           <Button
             aria-label="Send"
             className="size-10 rounded-[9px] bg-[#0f0f0f] text-white hover:bg-[#0f0f0f]/90"
+            disabled={sending}
             onClick={onSend}
             size="icon"
             type="button"
           >
-            <SendHorizontal className="size-5" strokeWidth={2} />
+            {sending ? (
+              <span className="size-4 animate-pulse rounded-full bg-white" />
+            ) : (
+              <SendHorizontal className="size-5" strokeWidth={2} />
+            )}
           </Button>
         </div>
       </div>
@@ -666,34 +633,34 @@ function Composer({
   )
 }
 
-function QuickActions({
-  onQuickAction,
-}: {
-  onQuickAction: (action: QuickAction) => void
-}) {
-  return (
-    <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {quickActions.map((action) => (
-        <button
-          className="flex h-[56px] items-center gap-3 rounded-[12px] border border-[#e9e9e9] bg-white px-4 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#f8f8f7] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
-          key={action.title}
-          onClick={() => onQuickAction(action)}
-          type="button"
-        >
-          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#f2f2f2] text-[#242424]">
-            <action.icon className="size-4" strokeWidth={1.8} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[12px] font-bold text-[#181818]">
-              {action.title}
-            </span>
-            <span className="mt-0.5 block truncate text-[10px] text-[#898989]">
-              {action.description}
-            </span>
-          </span>
-          <span className="text-[16px] leading-none text-[#333333]">+</span>
-        </button>
-      ))}
-    </section>
-  )
-}
+// function QuickActions({
+//   onQuickAction,
+// }: {
+//   onQuickAction: (action: QuickAction) => void
+// }) {
+//   return (
+//     <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+//       {quickActions.map((action) => (
+//         <button
+//           className="flex h-[56px] items-center gap-3 rounded-[12px] border border-[#e9e9e9] bg-white px-4 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#f8f8f7] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+//           key={action.title}
+//           onClick={() => onQuickAction(action)}
+//           type="button"
+//         >
+//           <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#f2f2f2] text-[#242424]">
+//             <action.icon className="size-4" strokeWidth={1.8} />
+//           </span>
+//           <span className="min-w-0 flex-1">
+//             <span className="block text-[12px] font-bold text-[#181818]">
+//               {action.title}
+//             </span>
+//             <span className="mt-0.5 block truncate text-[10px] text-[#898989]">
+//               {action.description}
+//             </span>
+//           </span>
+//           <span className="text-[16px] leading-none text-[#333333]">+</span>
+//         </button>
+//       ))}
+//     </section>
+//   )
+// }

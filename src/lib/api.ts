@@ -1,4 +1,5 @@
 import type {
+  AgentStreamEvent,
   TokenResponse,
   UserProfile,
   UserRegisterPayload,
@@ -41,6 +42,70 @@ export async function updateCurrentUser(token: string, payload: UserUpdatePayloa
   })
 }
 
+export async function streamAgentChat({
+  message,
+  onEvent,
+  sessionId,
+  signal,
+  token,
+}: {
+  message: string
+  onEvent: (event: AgentStreamEvent) => void
+  sessionId: string | null
+  signal?: AbortSignal
+  token: string
+}) {
+  const response = await fetch(`${API_BASE_URL}/agent/chat/stream`, {
+    body: JSON.stringify({
+      message,
+      session_id: sessionId,
+    }),
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+    signal,
+  })
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null as unknown)
+    throw new Error(extractApiError(payload) ?? `请求失败：${response.status}`)
+  }
+
+  if (!response.body) {
+    throw new Error("当前浏览器不支持流式响应")
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) {
+      break
+    }
+
+    buffer += decoder.decode(value, { stream: true })
+    const parts = buffer.split(/\r?\n\r?\n/)
+    buffer = parts.pop() ?? ""
+
+    for (const part of parts) {
+      const event = parseServerSentEvent(part)
+      if (event) {
+        onEvent(event)
+      }
+    }
+  }
+
+  buffer += decoder.decode()
+  const event = parseServerSentEvent(buffer)
+  if (event) {
+    onEvent(event)
+  }
+}
+
 async function requestJson<T>(path: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers)
   if (options.body && !headers.has("Content-Type")) {
@@ -59,6 +124,20 @@ async function requestJson<T>(path: string, options: RequestInit = {}) {
   }
 
   return payload as T
+}
+
+function parseServerSentEvent(chunk: string): AgentStreamEvent | null {
+  const data = chunk
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trimStart())
+    .join("\n")
+
+  if (!data) {
+    return null
+  }
+
+  return JSON.parse(data) as AgentStreamEvent
 }
 
 function extractApiError(payload: unknown) {
