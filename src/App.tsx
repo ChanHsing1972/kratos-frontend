@@ -26,6 +26,7 @@ import {
   compactOptionalText,
   formatTime,
 } from "@/lib/kratos"
+import { createId } from "@/lib/id"
 import { MainConversation } from "@/components/kratos/MainConversation"
 import {
   AuthModal,
@@ -253,13 +254,13 @@ export function App() {
     setMessages((current) => [
       ...current,
       {
-        id: crypto.randomUUID(),
+        id: createId(),
         author: "user",
         body,
         time: formatTime(),
       },
       {
-        id: crypto.randomUUID(),
+        id: createId(),
         author: "assistant",
         body: buildAssistantReply(body),
         time: formatTime(),
