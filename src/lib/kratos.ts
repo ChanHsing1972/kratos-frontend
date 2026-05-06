@@ -3,6 +3,7 @@ import type {
   AgentRun,
   AgentRunTraceStep,
   AgentTraceStep,
+  ChatSession,
   BodyMetric,
   ChatMessage,
   DetailPanel,
@@ -218,6 +219,58 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
           .map(traceStepFromRun),
       },
     ])
+}
+
+export function chatSessionsFromAgentRuns(
+  runs: AgentRun[],
+  metadata: Record<string, Partial<ChatSession>> = {}
+): ChatSession[] {
+  const grouped = new Map<string, AgentRun[]>()
+
+  for (const run of runs) {
+    grouped.set(run.session_id, [...(grouped.get(run.session_id) ?? []), run])
+  }
+
+  return [...grouped.entries()]
+    .map(([sessionId, sessionRuns]) => {
+      const ordered = [...sessionRuns].sort(
+        (left, right) =>
+          new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+      )
+      const latest = ordered[ordered.length - 1]
+      const meta = metadata[sessionId] ?? {}
+      const firstQuestion = ordered[0]?.user_message ?? "新的训练对话"
+      const title = meta.title ?? titleFromPrompt(firstQuestion)
+
+      return {
+        id: sessionId,
+        title,
+        preview: latest?.answer || latest?.user_message || "还没有消息",
+        updatedAt: latest?.created_at ?? new Date().toISOString(),
+        messageCount: ordered.length * 2,
+        pinned: Boolean(meta.pinned),
+        deleted: Boolean(meta.deleted),
+      }
+    })
+    .filter((session) => !session.deleted)
+    .sort((left, right) => {
+      if (left.pinned !== right.pinned) {
+        return left.pinned ? -1 : 1
+      }
+
+      return (
+        new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+      )
+    })
+}
+
+export function titleFromPrompt(prompt: string) {
+  const compacted = prompt.replace(/\s+/g, " ").trim()
+  if (!compacted) {
+    return "新的训练对话"
+  }
+
+  return compacted.length > 18 ? `${compacted.slice(0, 18)}...` : compacted
 }
 
 function traceStepFromRun(step: AgentRunTraceStep) {

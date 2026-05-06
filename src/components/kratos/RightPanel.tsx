@@ -1,4 +1,5 @@
 import {
+  Activity,
   Check,
   ChevronRight,
   Dumbbell,
@@ -57,71 +58,26 @@ export function RightPanel({
   trainingStarted,
 }: RightPanelProps) {
   return (
-    <aside className="h-full w-full shrink-0 overflow-y-auto bg-white px-6 py-8 xl:w-[388px]">
+    <aside className="h-full w-full shrink-0 overflow-y-auto border-l border-[#ededed] bg-[#fbfbfa] px-5 py-6 xl:w-[410px]">
       <AgentReadinessCard
         latestMetric={latestMetric}
         onboarding={onboarding}
         onOpenOnboarding={onOpenOnboarding}
         profile={profile}
       />
-      <SectionHeader
-        action="更多数据"
-        onAction={() =>
-          onOpenPanel({
-            title: "身体与训练状态",
-            body: "登录后这里会展示后端同步的身体指标、训练日志和 Agent 打卡状态。",
-            items: [
-              "身体指标来自 /api/v1/body-metrics",
-              "训练记录来自 /api/v1/workout-logs",
-              "Agent 打卡来自 /api/v1/agent-checkins",
-            ],
-          })
-        }
-        title="当前状态"
-      />
-      <StatusCard metrics={metrics} />
-      {/* <button
-        className="mt-3 w-full rounded-[12px] border border-[#e8e8e8] bg-[#111111] px-4 py-3 text-left text-white shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#111111]/90 focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
-        onClick={onEditBodyData}
-        type="button"
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-[13px] font-bold">更新身体数据</h3>
-            <p className="mt-1 text-[11px] text-white/70">
-              只写入 body_metrics / agent_checkins
-            </p>
-          </div>
-          <ChevronRight className="size-4 text-white/80" />
-        </div>
-      </button> */}
 
-      <button
-        className="mt-3 w-full rounded-[12px] border border-[#e8e8e8] bg-white px-4 py-4 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
-        onClick={() =>
-          onOpenPanel(buildReminderPanel(activePlan))
-        }
-        type="button"
-      >
-        <div className="flex items-center gap-2">
-          <span className="grid size-5 place-items-center rounded-full text-[#111111]">
-            <Sparkles className="size-4 fill-[#111111]" strokeWidth={2} />
-          </span>
-          <h3 className="text-[14px] font-bold">Kratos 下一步</h3>
-        </div>
-        <p className="mt-2 text-[12px] leading-5 text-[#777777]">
-          {onboarding?.next_steps?.[0] ??
-            "你可以直接让 Agent 生成今日训练、饮食补给或恢复建议。"}
-        </p>
-      </button>
-
-      <div className="mt-9">
+      <div className="mt-6">
         <SectionHeader
           action="查看完整计划"
           onAction={() => onOpenPanel(buildPlanPanel(activePlan))}
-          title="今日训练计划"
+          title="训练计划"
         />
       </div>
+      {/* <PlanVisualizer
+        activePlan={activePlan}
+        completedExercises={completedExercises}
+        onOpenPanel={onOpenPanel}
+      /> */}
       <TrainingPlanCard
         activePlan={activePlan}
         completedExercises={completedExercises}
@@ -131,6 +87,54 @@ export function RightPanel({
         onTrainingButton={onTrainingButton}
         trainingStarted={trainingStarted}
       />
+
+      <div className="mt-7">
+        <SectionHeader
+          action="更多数据"
+          onAction={() =>
+            onOpenPanel({
+              title: "身体与训练状态",
+              body: "登录后这里会展示后端同步的身体指标、训练日志和 Agent 打卡状态。",
+              items: [
+                "身体指标来自 /api/v1/body-metrics",
+                "训练记录来自 /api/v1/workout-logs",
+                "Agent 打卡来自 /api/v1/agent-checkins",
+              ],
+            })
+          }
+          title="状态仪表"
+        />
+      </div>
+      <StatusCard metrics={metrics} />
+
+      <button
+        className="mt-3 w-full rounded-[10px] border border-[#e0e0e0] bg-white px-4 py-3 text-left transition-colors hover:bg-[#f6f6f5] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        onClick={onEditBodyData}
+        type="button"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Activity className="size-4 text-[#111111]" strokeWidth={1.8} />
+            <span className="text-[13px] font-bold">更新今日身体反馈</span>
+          </div>
+          <ChevronRight className="size-4 text-[#777777]" />
+        </div>
+      </button>
+
+      <button
+        className="mt-3 w-full rounded-[10px] border border-[#e0e0e0] bg-white px-4 py-4 text-left transition-colors hover:bg-[#f6f6f5] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        onClick={() => onOpenPanel(buildReminderPanel(activePlan))}
+        type="button"
+      >
+        <div className="flex items-center gap-2">
+          <Sparkles className="size-4 fill-[#111111]" strokeWidth={2} />
+          <h3 className="text-[14px] font-bold">Kratos 下一步</h3>
+        </div>
+        <p className="mt-2 text-[12px] leading-5 text-[#777777]">
+          {onboarding?.next_steps?.[0] ??
+            "让 Agent 生成今日训练、饮食补给或恢复建议。"}
+        </p>
+      </button>
     </aside>
   )
 }

@@ -49,6 +49,16 @@ export type QuickAction = {
   prompt: string
 }
 
+export type ChatSession = {
+  id: string
+  title: string
+  preview: string
+  updatedAt: string
+  messageCount: number
+  pinned?: boolean
+  deleted?: boolean
+}
+
 export type UserProfile = {
   id: number
   username: string

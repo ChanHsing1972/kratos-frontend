@@ -1,19 +1,26 @@
 import { useEffect, useState } from "react"
 import type { LucideIcon } from "lucide-react"
 import {
+  Activity,
+  BarChart3,
+  CalendarDays,
   ChevronDown,
   ChevronLeft,
   Edit3,
   LoaderCircle,
   LogIn,
   LogOut,
+  MessageCirclePlus,
+  MoreHorizontal,
+  Pin,
+  PinOff,
   RefreshCcw,
+  Trash2,
   User,
   UserPlus,
 } from "lucide-react"
 
-import { navItems } from "@/data/kratos"
-import type { UserProfile } from "@/types/kratos"
+import type { ChatSession, UserProfile } from "@/types/kratos"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { UserAvatar } from "@/components/kratos/UserAvatar"
@@ -21,16 +28,22 @@ import { UserAvatar } from "@/components/kratos/UserAvatar"
 type SidebarProps = {
   activeNav: string
   authLoading: boolean
+  chatSessions: ChatSession[]
   collapsed: boolean
   currentUser: UserProfile | null
   menuOpen: boolean
+  onCreateConversation: () => void
+  onDeleteConversation: (sessionId: string) => void
   onEditProfile: () => void
+  onRenameConversation: (sessionId: string, title: string) => void
   onLogin: () => void
   onLogout: () => void
   onNavSelect: (label: string) => void
   onOpenProfile: () => void
+  onSelectConversation: (sessionId: string) => void
   onRefreshProfile: () => void
   onRegister: () => void
+  onTogglePinConversation: (sessionId: string) => void
   onToggleCollapse: () => void
   onToggleMenu: () => void
 }
@@ -38,21 +51,33 @@ type SidebarProps = {
 export function Sidebar({
   activeNav,
   authLoading,
+  chatSessions,
   collapsed,
   currentUser,
   menuOpen,
+  onCreateConversation,
+  onDeleteConversation,
   onEditProfile,
+  onRenameConversation,
   onLogin,
   onLogout,
   onNavSelect,
   onOpenProfile,
+  onSelectConversation,
   onRefreshProfile,
   onRegister,
+  onTogglePinConversation,
   onToggleCollapse,
   onToggleMenu,
 }: SidebarProps) {
   const [expandTextReady, setExpandTextReady] = useState(!collapsed)
   const showExpandedText = !collapsed && expandTextReady
+  const primaryNavItems = [
+    { label: "新建对话", icon: MessageCirclePlus },
+    { label: "训练计划", icon: CalendarDays },
+    { label: "身体数据", icon: Activity },
+    { label: "评估平台", icon: BarChart3, badge: "Beta" },
+  ]
 
   useEffect(() => {
     if (collapsed) {
@@ -117,46 +142,80 @@ export function Sidebar({
         </Button>
       </div>
 
-      <nav className="mt-9 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto pr-0.5">
-        {navItems.map((item) => {
-          const active = item.label === activeNav
-
-          return (
+      <nav className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="mt-3 flex flex-col gap-1.5">
+          {primaryNavItems.map((item) => (
             <button
               className={cn(
-                "flex h-[46px] shrink-0 items-center gap-4 rounded-[9px] px-4 text-[14px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
-                active
-                  ? "bg-[#0f0f0f] text-white"
-                  : "text-[#303030] hover:bg-black/6",
-                collapsed && "xl:justify-center xl:gap-0 xl:px-0"
+                "flex h-12 w-full items-center gap-3 rounded-[9px] px-4 text-left text-[14px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
+                activeNav === item.label
+                  ? "bg-[#111111] text-white shadow-[0_8px_18px_rgba(0,0,0,0.08)]"
+                  : "text-[#202020] hover:bg-white/70",
+                collapsed && "xl:justify-center xl:px-0"
               )}
               key={item.label}
               onClick={() => onNavSelect(item.label)}
               title={collapsed ? item.label : undefined}
               type="button"
             >
-              <item.icon
-                className={cn("size-[19px]", active && "text-white")}
-                strokeWidth={1.8}
-              />
+              <item.icon className="size-5 shrink-0" strokeWidth={1.8} />
+              <span className={cn(showExpandedText ? "xl:inline" : "xl:hidden")}>
+                {item.label}
+              </span>
+              {item.badge ? (
+                <span
+                  className={cn(
+                    "ml-auto rounded-full bg-[#dedee2] px-2 py-0.5 text-[10px] font-bold text-[#888888]",
+                    activeNav === item.label && "bg-white/18 text-white/80",
+                    !showExpandedText && "xl:hidden"
+                  )}
+                >
+                  {item.badge}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-6 min-h-0 flex-1 overflow-y-auto pr-0.5">
+          <div
+            className={cn(
+              "mb-2 text-[11px] font-bold tracking-[0.08em] text-[#8b8b8b]",
+              !showExpandedText && "xl:hidden"
+            )}
+          >
+            对话历史
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {chatSessions.length > 0 ? (
+              chatSessions.map((session) => (
+                <ConversationRow
+                  active={activeNav === session.id}
+                  collapsed={collapsed}
+                  key={session.id}
+                  onDelete={() => onDeleteConversation(session.id)}
+                  onRename={(title) => onRenameConversation(session.id, title)}
+                  onSelect={() => {
+                    onNavSelect(session.id)
+                    onSelectConversation(session.id)
+                  }}
+                  onTogglePin={() => onTogglePinConversation(session.id)}
+                  session={session}
+                  showExpandedText={showExpandedText}
+                />
+              ))
+            ) : (
               <div
                 className={cn(
-                  "min-w-0 overflow-hidden transition-[max-width,opacity,transform] duration-200",
-                  showExpandedText
-                    ? "ml-0 flex max-w-[160px] flex-1 items-center gap-2 opacity-100 translate-x-0"
-                    : "ml-0 w-0 max-w-0 shrink-0 opacity-0 -translate-x-1"
+                  "rounded-[10px] border border-[#e5e5e5] bg-white px-3 py-3 text-[12px] leading-5 text-[#777777]",
+                  !showExpandedText && "xl:hidden"
                 )}
               >
-                <span className="truncate whitespace-nowrap">{item.label}</span>
-                {item.badge ? (
-                  <span className="ml-auto rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-[#777777]">
-                    {item.badge}
-                  </span>
-                ) : null}
+                还没有历史对话。发起一次训练规划后会自动保存。
               </div>
-            </button>
-          )
-        })}
+            )}
+          </div>
+        </div>
       </nav>
 
       <div className="sticky bottom-0 mt-4 shrink-0 pt-3">
@@ -176,6 +235,171 @@ export function Sidebar({
         />
       </div>
     </aside>
+  )
+}
+
+function ConversationRow({
+  active,
+  collapsed,
+  onDelete,
+  onRename,
+  onSelect,
+  onTogglePin,
+  session,
+  showExpandedText,
+}: {
+  active: boolean
+  collapsed: boolean
+  onDelete: () => void
+  onRename: (title: string) => void
+  onSelect: () => void
+  onTogglePin: () => void
+  session: ChatSession
+  showExpandedText: boolean
+}) {
+  const [editing, setEditing] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [title, setTitle] = useState(session.title)
+
+  const commitTitle = () => {
+    const nextTitle = title.trim()
+    if (nextTitle) {
+      onRename(nextTitle)
+    }
+    setEditing(false)
+  }
+
+  return (
+    <div className="group relative">
+      <button
+        className={cn(
+          "flex min-h-[52px] w-full items-center gap-3 rounded-[9px] px-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
+          active ? "bg-white shadow-[0_1px_5px_rgba(0,0,0,0.08)]" : "hover:bg-white/70",
+          collapsed && "xl:min-h-10 xl:justify-center xl:px-0 xl:py-0"
+        )}
+        onClick={onSelect}
+        title={collapsed ? session.title : undefined}
+        type="button"
+      >
+        {session.pinned ? (
+          <Pin className="size-4 shrink-0 text-[#111111]" strokeWidth={1.8} />
+        ) : (
+          <span className="size-2 shrink-0 rounded-full bg-[#b8b8b8]" />
+        )}
+        <span
+          className={cn(
+            "min-w-0 flex-1 overflow-hidden transition-[max-width,opacity,transform] duration-200",
+            showExpandedText
+              ? "max-w-[170px] opacity-100 translate-x-0"
+              : "max-w-0 opacity-0 -translate-x-1"
+          )}
+        >
+          {editing ? (
+            <input
+              autoFocus
+              className="h-7 w-full rounded-[7px] border border-[#d8d8d8] bg-white px-2 text-[12px] font-semibold outline-none focus:border-[#111111]"
+              onBlur={commitTitle}
+              onChange={(event) => setTitle(event.target.value)}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  commitTitle()
+                }
+                if (event.key === "Escape") {
+                  setEditing(false)
+                  setTitle(session.title)
+                }
+              }}
+              value={title}
+            />
+          ) : (
+            <>
+              <span className="block truncate text-[13px] font-semibold text-[#202020]">
+                {session.title}
+              </span>
+              <span className="mt-0.5 block truncate text-[11px] text-[#8a8a8a]">
+                {session.messageCount} 条消息
+              </span>
+            </>
+          )}
+        </span>
+      </button>
+      <div
+        className={cn(
+          "absolute top-2 right-2 flex items-center gap-0.5 rounded-[7px] bg-white/95 opacity-0 shadow-[0_1px_8px_rgba(0,0,0,0.08)] transition-opacity group-hover:opacity-100",
+          menuOpen && "opacity-100",
+          !showExpandedText && "xl:hidden"
+        )}
+      >
+        <button
+          aria-label="对话操作"
+          className="grid size-7 place-items-center rounded-[7px] text-[#555555] hover:bg-[#f1f1f1]"
+          onClick={(event) => {
+            event.stopPropagation()
+            setMenuOpen((current) => !current)
+          }}
+          type="button"
+        >
+          <MoreHorizontal className="size-4" />
+        </button>
+        {menuOpen ? (
+          <div className="absolute top-8 right-0 z-30 w-32 rounded-[10px] border border-[#e6e6e6] bg-white p-1 shadow-[0_14px_34px_rgba(0,0,0,0.14)]">
+            <MenuButton
+              icon={session.pinned ? PinOff : Pin}
+              label={session.pinned ? "取消置顶" : "置顶"}
+              onClick={() => {
+                onTogglePin()
+                setMenuOpen(false)
+              }}
+            />
+            <MenuButton
+              icon={Edit3}
+              label="重命名"
+              onClick={() => {
+                setTitle(session.title)
+                setEditing(true)
+                setMenuOpen(false)
+              }}
+            />
+            <MenuButton
+              danger
+              icon={Trash2}
+              label="删除"
+              onClick={() => {
+                onDelete()
+                setMenuOpen(false)
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function MenuButton({
+  danger,
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  danger?: boolean
+  icon: LucideIcon
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      className={cn(
+        "flex h-8 w-full items-center gap-2 rounded-[8px] px-2 text-[12px] font-medium hover:bg-[#f4f4f4]",
+        danger ? "text-[#b42318]" : "text-[#222222]"
+      )}
+      onClick={onClick}
+      type="button"
+    >
+      <Icon className="size-3.5" />
+      {label}
+    </button>
   )
 }
 

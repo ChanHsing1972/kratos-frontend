@@ -32,7 +32,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 type MainConversationProps = {
-  activeNav: string
+  activeSessionTitle: string
   agentStreaming: boolean
   composerValue: string
   currentUserName: string
@@ -55,7 +55,7 @@ type MainConversationProps = {
 }
 
 export function MainConversation({
-  activeNav,
+  activeSessionTitle,
   agentStreaming,
   composerValue,
   currentUserName,
@@ -96,19 +96,15 @@ export function MainConversation({
       <header className="flex shrink-0 flex-col gap-5 px-7 pt-8 pb-0 sm:px-10 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-[25px] leading-[1.1] font-extrabold tracking-[-0.04em]">
-            {activeNav === "对话" ? `下午好，${currentUserName}` : activeNav}
+            {messages.length ? activeSessionTitle : ``}
           </h2>
           <p className="mt-2 text-[13px] text-[#6d6d6d]">
-            {activeNav === "对话"
-              ? "我是你的 AI 健身教练 Kratos。每次回答前，我会先读取你的数据库上下文。"
-              : "当前产品已收敛为对话工作流，请通过 Kratos 直接完成计划、记录和复盘。"}
+            {messages.length
+              ? "Kratos 会把训练计划、工具调用和推理轨迹保存在这条会话里。"
+              : ""}
           </p>
         </div>
         <div className="relative flex items-center gap-7 pr-2">
-          {/* <div className="flex items-center gap-2 text-[12px] text-[#5e5e5e]">
-            <span className="size-1.5 rounded-full bg-[#4c9b4d]" />
-            在线
-          </div> */}
           <button
             aria-label="Toggle theme"
             className="grid size-6 place-items-center rounded-full text-[#161616] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
@@ -152,6 +148,9 @@ export function MainConversation({
             ref={scrollViewportRef}
           >
             <div className="flex flex-col gap-[17px] pb-0">
+              {messages.length === 0 ? (
+                <EmptyConversation onQuickAction={onQuickAction} />
+              ) : null}
               {messages.map((message) => (
                 <ChatBubble
                   key={message.id}
@@ -160,12 +159,12 @@ export function MainConversation({
                   thinkingExpanded={thinkingExpanded}
                 />
               ))}
-              {activeNav !== "对话" ? (
+              {/* {activeNav !== "对话" ? (
                 <ModulePreview
                   activeNav={activeNav}
                   onQuickAction={onQuickAction}
                 />
-              ) : null}
+              ) : null} */}
               <div ref={bottomAnchorRef} />
             </div>
           </div>
@@ -435,23 +434,20 @@ function TypewriterText({
   className: string
   text: string
 }) {
-  const [visibleLength, setVisibleLength] = useState(active ? 0 : text.length)
+  const [visibleLength, setVisibleLength] = useState(0)
 
   useEffect(() => {
     if (!active) {
-      setVisibleLength(text.length)
       return undefined
     }
 
-    setVisibleLength(0)
+    let currentLength = 0
     const timer = window.setInterval(() => {
-      setVisibleLength((current) => {
-        if (current >= text.length) {
-          window.clearInterval(timer)
-          return current
-        }
-        return Math.min(text.length, current + 3)
-      })
+      currentLength = Math.min(text.length, currentLength + 3)
+      setVisibleLength(currentLength)
+      if (currentLength >= text.length) {
+        window.clearInterval(timer)
+      }
     }, 18)
 
     return () => {
@@ -459,7 +455,7 @@ function TypewriterText({
     }
   }, [active, text])
 
-  return <p className={className}>{text.slice(0, visibleLength)}</p>
+  return <p className={className}>{text.slice(0, active ? visibleLength : text.length)}</p>
 }
 
 function useElapsedSeconds(
@@ -467,7 +463,7 @@ function useElapsedSeconds(
   completedAt?: number,
   streaming?: boolean
 ) {
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
     if (!streaming) {
@@ -595,122 +591,60 @@ function ChatBubble({
   )
 }
 
-function ModulePreview({
-  activeNav,
+function EmptyConversation({
   onQuickAction,
 }: {
-  activeNav: string
   onQuickAction: (action: QuickAction) => void
 }) {
-  const copy = {
-    训练计划: "今日计划来自后端 /plans，可在右侧开始训练并保存完成记录。",
-    营养分析: "把饮食发给 Kratos 后，Agent 会结合你的档案给出补给建议。",
-    身体数据: "身体指标会从 /body-metrics 同步，右侧状态卡展示最新记录。",
-    历史记录: "训练完成后会写入 /workout-logs，用于复盘训练负荷和恢复节奏。",
-    评估平台: "Beta 评估会结合身体反馈、训练负荷和 Agent 打卡输出风险等级。",
-    设置: "登录后可同步地区、饮食习惯和训练状态。",
-  }[activeNav]
-  const actions = moduleActions[activeNav] ?? []
+  const starters: QuickAction[] = [
+    {
+      description: "按你的档案生成今天可以直接执行的训练",
+      icon: Sparkles,
+      prompt: "请读取我的档案和最近状态，生成一份今天可执行的训练计划，包含热身、主训练、冷身和注意事项。",
+      title: "生成今日训练",
+    },
+    {
+      description: "把训练目标拆成一周节奏",
+      icon: Sparkles,
+      prompt: "请根据我的目标、可训练天数和恢复情况，生成下一周训练安排。",
+      title: "规划一周节奏",
+    },
+    {
+      description: "判断今天是否适合上强度",
+      icon: Sparkles,
+      prompt: "请结合我的身体数据、训练记录和打卡，评估今天训练风险并给出调整建议。",
+      title: "训练风险评估",
+    },
+  ]
 
   return (
-    <section className="rounded-[12px] border border-[#e8e8e8] bg-[#fbfbfa] px-5 py-4">
-      <div className="flex items-center gap-3">
-        <Sparkles className="size-4 text-[#111111]" />
-        <h3 className="text-[13px] font-bold">{activeNav}工作区</h3>
+    <section className="mx-auto flex min-h-[46vh] w-full max-w-[760px] flex-col justify-center px-2 py-8">
+      <div className="mb-6">
+        <h3 className="text-[30px] leading-tight font-black tracking-[-0.04em]">
+          你今天想完成什么？
+        </h3>
+        <p className="mt-2 max-w-[560px] text-[13px] leading-6 text-[#6d6d6d]">
+          Kratos 不只聊天：它会读取档案、生成训练计划、调用工具、保存记录，并在右侧把计划变成可视化面板。
+        </p>
       </div>
-      <p className="mt-2 text-[12px] leading-5 text-[#666666]">{copy}</p>
-      {actions.length > 0 ? (
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {actions.map((action) => (
-            <button
-              className="flex items-center justify-between gap-3 rounded-[10px] border border-[#e6e6e6] bg-white px-3 py-2.5 text-left text-[12px] font-semibold text-[#222222] transition-colors hover:bg-[#f7f7f6] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
-              key={action.title}
-              onClick={() => onQuickAction(action)}
-              type="button"
-            >
-              <span>{action.title}</span>
-              <ChevronRight className="size-3.5 text-[#777777]" />
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <div className="grid gap-2 sm:grid-cols-3">
+        {starters.map((action) => (
+          <button
+            className="min-h-[116px] rounded-[10px] border border-[#e8e8e8] bg-white p-4 text-left transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            key={action.title}
+            onClick={() => onQuickAction(action)}
+            type="button"
+          >
+            <action.icon className="size-4 text-[#111111]" strokeWidth={1.8} />
+            <h4 className="mt-3 text-[13px] font-bold">{action.title}</h4>
+            <p className="mt-1.5 text-[11px] leading-4 text-[#777777]">
+              {action.description}
+            </p>
+          </button>
+        ))}
+      </div>
     </section>
   )
-}
-
-const moduleActions: Record<string, QuickAction[]> = {
-  训练计划: [
-    {
-      description: "根据后端计划做今日调整",
-      icon: Sparkles,
-      prompt: "请读取我的当前训练状态，帮我把今日训练计划调整成可执行版本。",
-      title: "调整今日计划",
-    },
-    {
-      description: "生成下一周训练节奏",
-      icon: Sparkles,
-      prompt: "请根据我的训练记录和恢复情况，生成下一周训练安排。",
-      title: "生成周计划",
-    },
-  ],
-  营养分析: [
-    {
-      description: "记录一餐并估算营养",
-      icon: Sparkles,
-      prompt: "我刚吃了一餐，请帮我记录并估算热量、蛋白质、碳水和脂肪。",
-      title: "记录一餐",
-    },
-    {
-      description: "按训练目标给建议",
-      icon: Sparkles,
-      prompt: "请根据我的训练目标和饮食习惯，给我今天剩余餐食建议。",
-      title: "今日补给建议",
-    },
-  ],
-  身体数据: [
-    {
-      description: "解释身体指标变化",
-      icon: Sparkles,
-      prompt: "请结合我的身体指标和训练记录，解释最近的状态变化。",
-      title: "分析状态",
-    },
-    {
-      description: "写入一组身体反馈",
-      icon: Sparkles,
-      prompt: "我想记录一组身体反馈：体重、睡眠、酸痛和精神状态，请引导我补全。",
-      title: "记录反馈",
-    },
-  ],
-  历史记录: [
-    {
-      description: "复盘训练日志",
-      icon: Sparkles,
-      prompt: "请复盘我最近 7 天的训练记录，指出恢复不足和进步点。",
-      title: "7 天复盘",
-    },
-    {
-      description: "查找训练风险",
-      icon: Sparkles,
-      prompt: "请从我的历史训练记录里找出可能的过载风险。",
-      title: "风险检查",
-    },
-  ],
-  评估平台: [
-    {
-      description: "输出综合评估",
-      icon: Sparkles,
-      prompt: "请结合我的档案、训练记录、身体数据和打卡，输出一次综合健身评估。",
-      title: "开始评估",
-    },
-  ],
-  设置: [
-    {
-      description: "完善个人档案",
-      icon: Sparkles,
-      prompt: "请帮我检查当前个人档案还缺哪些信息，并说明为什么这些信息重要。",
-      title: "检查档案完整度",
-    },
-  ],
 }
 
 function Composer({

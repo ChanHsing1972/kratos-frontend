@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -8,8 +7,6 @@ import {
 } from "react"
 
 import {
-  baseMetrics,
-  completionMetricIcon,
   initialMessages,
   initialNotifications,
 } from "@/data/kratos"
@@ -31,14 +28,15 @@ import {
   updateMyFitnessProfile,
 } from "@/lib/api"
 import {
-  buildDashboardPanel,
   buildDefaultTrainingPlan,
   buildPlanPanel,
   buildProfilePanel,
   chatMessagesFromAgentRuns,
+  chatSessionsFromAgentRuns,
   compactOptionalText,
   formatTime,
   getLatestByDate,
+  titleFromPrompt,
   toDateInputValue,
 } from "@/lib/kratos"
 import { createId } from "@/lib/id"
@@ -51,7 +49,11 @@ import {
   ProfileEditModal,
   Toast,
 } from "@/components/kratos/Modals"
-import { RightPanel } from "@/components/kratos/RightPanel"
+import {
+  BodyDataPage,
+  EvaluationPage,
+  TrainingPlanPage,
+} from "@/components/kratos/DashboardPages"
 import { Sidebar } from "@/components/kratos/Sidebar"
 import { useTheme } from "@/components/theme-provider"
 import type {
@@ -60,12 +62,12 @@ import type {
   AuthMode,
   BodyMetric,
   BodyMetricForm,
+  ChatSession,
   ChatMessage,
   DetailPanel,
   FitnessContext,
   FitnessProfile,
   FitnessProfilePayload,
-  Metric,
   OnboardingStatus,
   NotificationItem,
   ProfileForm,
@@ -75,10 +77,16 @@ import type {
   WorkoutLog,
 } from "@/types/kratos"
 
+const CHAT_SESSION_META_KEY = "kratos-chat-session-meta"
+
 export function App() {
   const { setTheme, theme } = useTheme()
-  const [activeNav, setActiveNav] = useState("对话")
+  const [activeNav, setActiveNav] = useState("new")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [chatSessionMeta, setChatSessionMeta] = useState<
+    Record<string, Partial<ChatSession>>
+  >(() => readChatSessionMeta())
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [authMode, setAuthMode] = useState<AuthMode>("login")
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
@@ -122,49 +130,15 @@ export function App() {
     trainingPlans.find((plan) => plan.status === "active") ??
     getLatestByDate(trainingPlans, (plan) => plan.updated_at) ??
     null
+  const activeSession =
+    chatSessions.find((session) => session.id === agentSessionId) ?? null
+  const activeSessionTitle = activeSession?.title ?? "新的训练对话"
   const latestMetric =
     getLatestByDate(bodyMetrics, (metric) => metric.recorded_at) ?? null
   const latestCheckin =
     getLatestByDate(agentCheckins, (checkin) => checkin.created_at) ?? null
   const onboardingStatus: OnboardingStatus | null =
     fitnessContext?.onboarding ?? null
-  const displayWeight = latestMetric?.weight_kg ?? null
-  const displaySleep =
-    latestCheckin?.sleep_quality ?? latestMetric?.sleep_hours ?? null
-  const metrics = useMemo<Metric[]>(
-    () => [
-      {
-        ...baseMetrics[0],
-        label: "当前体重",
-        unit: displayWeight ? "kg" : undefined,
-        value: displayWeight?.toString() ?? "未录",
-      },
-      {
-        ...baseMetrics[1],
-        label: "训练记录",
-        unit: "次",
-        value: workoutLogs.length.toString(),
-      },
-      {
-        ...baseMetrics[2],
-        label: latestCheckin?.sleep_quality ? "睡眠质量" : "睡眠时长",
-        unit: latestCheckin?.sleep_quality ? "/10" : displaySleep ? "h" : undefined,
-        value: displaySleep?.toString() ?? "未录",
-      },
-      {
-        label: "今日训练完成度",
-        value: `${Math.min(2 + completedExercises.length, 3)}/3`,
-        icon: completionMetricIcon,
-      },
-    ],
-    [
-      completedExercises.length,
-      displaySleep,
-      displayWeight,
-      latestCheckin?.sleep_quality,
-      workoutLogs.length,
-    ]
-  )
 
   useEffect(() => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
@@ -204,6 +178,10 @@ export function App() {
       window.clearTimeout(timer)
     }
   }, [toast])
+
+  useEffect(() => {
+    localStorage.setItem(CHAT_SESSION_META_KEY, JSON.stringify(chatSessionMeta))
+  }, [chatSessionMeta])
 
   const openAuth = (mode: AuthMode) => {
     setAuthMode(mode)
@@ -254,6 +232,7 @@ export function App() {
     setAgentCheckins([])
     setMessages(initialMessages)
     setAgentSessionId(null)
+    setChatSessions([])
     setProfileMenuOpen(false)
     setProfileModalOpen(false)
     setOnboardingOpen(false)
@@ -367,14 +346,78 @@ export function App() {
 
   const handleNavSelect = (label: string) => {
     setActiveNav(label)
-    if (label === "历史记录") {
-      setComposerValue("帮我整理最近 7 天的训练历史和恢复情况。")
-    }
-    if (label === "设置" && !currentUser) {
+  }
+
+  const handleCreateConversation = () => {
+    activeStreamRef.current?.abort()
+    setMessages(initialMessages)
+    setAgentSessionId(null)
+    setComposerValue("")
+    setAgentStreaming(false)
+    setActiveNav("new")
+    setToast("已新建对话")
+  }
+
+  const handleSelectConversation = async (sessionId: string) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
       openAuth("login")
       return
     }
-    setToast(`已切换到${label}`)
+
+    try {
+      const runs = await listAgentRuns(token, 200)
+      const sessionRuns = runs.filter((run) => run.session_id === sessionId)
+      setMessages(chatMessagesFromAgentRuns(sessionRuns))
+      setAgentSessionId(sessionId)
+      setToast("对话已切换")
+    } catch (error) {
+      setToast(getErrorMessage(error))
+    }
+  }
+
+  const updateSessionMeta = (
+    sessionId: string,
+    update: Partial<ChatSession> | ((current: Partial<ChatSession>) => Partial<ChatSession>)
+  ) => {
+    setChatSessionMeta((current) => {
+      const previous = current[sessionId] ?? {}
+      const next = typeof update === "function" ? update(previous) : update
+      return {
+        ...current,
+        [sessionId]: {
+          ...previous,
+          ...next,
+        },
+      }
+    })
+    setChatSessions((current) =>
+      current
+        .map((session) =>
+          session.id === sessionId ? { ...session, ...resolveSessionUpdate(session, update) } : session
+        )
+        .filter((session) => !session.deleted)
+        .sort(sortChatSessions)
+    )
+  }
+
+  const handleRenameConversation = (sessionId: string, title: string) => {
+    updateSessionMeta(sessionId, { title })
+    setToast("对话已重命名")
+  }
+
+  const handleTogglePinConversation = (sessionId: string) => {
+    updateSessionMeta(sessionId, (current) => ({ pinned: !current.pinned }))
+  }
+
+  const handleDeleteConversation = (sessionId: string) => {
+    updateSessionMeta(sessionId, { deleted: true })
+    if (agentSessionId === sessionId) {
+      setMessages(initialMessages)
+      setAgentSessionId(null)
+      setActiveNav("new")
+    }
+    setToast("对话已从侧边栏移除")
   }
 
   const parseOptionalNumber = (value: string, label: string) => {
@@ -698,7 +741,7 @@ export function App() {
       const [context, plans, runs] = await Promise.all([
         getFitnessContext(token),
         listTrainingPlans(token),
-        listAgentRuns(token),
+        listAgentRuns(token, 200),
       ])
       const hydratedPlans =
         plans.length > 0
@@ -711,9 +754,21 @@ export function App() {
       setBodyMetrics(context.recent_body_metrics)
       setWorkoutLogs(context.recent_workout_logs)
       setAgentCheckins(context.recent_checkins)
+      const restoredSessions = chatSessionsFromAgentRuns(runs, chatSessionMeta)
+      setChatSessions(restoredSessions)
       if (!options.preserveMessages) {
-        setMessages(runs.length ? chatMessagesFromAgentRuns(runs) : initialMessages)
-        setAgentSessionId(runs[0]?.session_id ?? null)
+        const currentSessionId =
+          agentSessionId && restoredSessions.some((session) => session.id === agentSessionId)
+            ? agentSessionId
+            : restoredSessions[0]?.id ?? null
+        const sessionRuns = currentSessionId
+          ? runs.filter((run) => run.session_id === currentSessionId)
+          : []
+        setMessages(
+          sessionRuns.length ? chatMessagesFromAgentRuns(sessionRuns) : initialMessages
+        )
+        setAgentSessionId(currentSessionId)
+        setActiveNav(currentSessionId ?? "new")
       }
       return context
     } catch (error) {
@@ -835,7 +890,25 @@ export function App() {
         message: body,
         onEvent: (event) => {
           if (event.session_id) {
-            setAgentSessionId(event.session_id)
+            const nextSessionId = event.session_id
+            setAgentSessionId(nextSessionId)
+            setActiveNav(nextSessionId)
+            setChatSessions((current) => {
+              if (current.some((session) => session.id === nextSessionId)) {
+                return current
+              }
+
+              return [
+                {
+                  id: nextSessionId,
+                  title: titleFromPrompt(body),
+                  preview: body,
+                  updatedAt: new Date().toISOString(),
+                  messageCount: 2,
+                },
+                ...current,
+              ]
+            })
           }
 
           setMessages((current) =>
@@ -1007,16 +1080,92 @@ export function App() {
     setToast("通知已全部标记为已读")
   }
 
+  const renderWorkspace = () => {
+    if (activeNav === "训练计划") {
+      return (
+        <TrainingPlanPage
+          activePlan={activePlan}
+          completedExercises={completedExercises}
+          dashboardLoading={dashboardLoading}
+          onOpenPanel={(panel) => {
+            if (panel.title === "完整训练计划") {
+              setDetailPanel(buildPlanPanel(activePlan))
+              return
+            }
+
+            setDetailPanel(panel)
+          }}
+          onToggleExercise={toggleExercise}
+          onTrainingButton={handleTrainingButton}
+          trainingStarted={trainingStarted}
+          workoutLogs={workoutLogs}
+        />
+      )
+    }
+
+    if (activeNav === "身体数据") {
+      return (
+        <BodyDataPage
+          latestCheckin={latestCheckin}
+          latestMetric={latestMetric}
+          onEditBodyData={openBodyMetricEditor}
+          onboarding={onboardingStatus}
+          profile={fitnessProfile}
+          workoutLogs={workoutLogs}
+        />
+      )
+    }
+
+    if (activeNav === "评估平台") {
+      return <EvaluationPage />
+    }
+
+    return (
+      <MainConversation
+        activeSessionTitle={activeSessionTitle}
+        agentStreaming={agentStreaming}
+        composerValue={composerValue}
+        currentUserName={displayName}
+        messages={messages}
+        notifications={notifications}
+        notificationsOpen={notificationsOpen}
+        onAttachment={handleAttachment}
+        onComposerChange={setComposerValue}
+        onComposerKeyDown={handleComposerKeyDown}
+        onEndConversation={handleCreateConversation}
+        onMarkNotificationsRead={markAllNotificationsRead}
+        onQuickAction={handleQuickAction}
+        onSendMessage={handleSendMessage}
+        onToggleNotifications={() =>
+          setNotificationsOpen((current) => !current)
+        }
+        onToggleTheme={() => {
+          const nextTheme = theme === "dark" ? "light" : "dark"
+          setTheme(nextTheme)
+          setToast(`已切换到${nextTheme === "dark" ? "深色" : "浅色"}模式`)
+        }}
+        onToggleThinking={() => setThinkingExpanded((current) => !current)}
+        thinkingExpanded={thinkingExpanded}
+        theme={theme}
+        unreadCount={unreadCount}
+      />
+    )
+  }
+
   return (
     <div className="min-h-svh bg-[#efefee] text-[#111111]">
       <div className="mx-auto flex h-[100svh] w-full max-w-[1488px] overflow-hidden bg-white shadow-[0_18px_55px_rgba(0,0,0,0.12)] max-xl:h-auto max-xl:min-h-[calc(100svh-2rem)] max-xl:flex-col max-xl:overflow-visible">
         <Sidebar
           activeNav={activeNav}
           authLoading={authLoading}
+          chatSessions={chatSessions}
           collapsed={sidebarCollapsed}
           currentUser={currentUser}
           menuOpen={profileMenuOpen}
+          onCreateConversation={handleCreateConversation}
+          onDeleteConversation={handleDeleteConversation}
           onEditProfile={openProfileEditor}
+          onRenameConversation={handleRenameConversation}
           onLogin={() => openAuth("login")}
           onLogout={handleLogout}
           onNavSelect={handleNavSelect}
@@ -1031,85 +1180,14 @@ export function App() {
               )
             )
           }
+          onSelectConversation={handleSelectConversation}
           onRefreshProfile={handleRefreshProfile}
           onRegister={() => openAuth("register")}
+          onTogglePinConversation={handleTogglePinConversation}
           onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
           onToggleMenu={() => setProfileMenuOpen((current) => !current)}
         />
-        <MainConversation
-          activeNav={activeNav}
-          agentStreaming={agentStreaming}
-          composerValue={composerValue}
-          currentUserName={displayName}
-          messages={messages}
-          notifications={notifications}
-          notificationsOpen={notificationsOpen}
-          onAttachment={handleAttachment}
-          onComposerChange={setComposerValue}
-          onComposerKeyDown={handleComposerKeyDown}
-          onEndConversation={() => {
-            activeStreamRef.current?.abort()
-            setMessages(initialMessages)
-            setComposerValue("")
-            setAgentSessionId(null)
-            setAgentStreaming(false)
-            setToast("对话已回到初始状态")
-          }}
-          onMarkNotificationsRead={markAllNotificationsRead}
-          onQuickAction={handleQuickAction}
-          onSendMessage={handleSendMessage}
-          onToggleNotifications={() =>
-            setNotificationsOpen((current) => !current)
-          }
-          onToggleTheme={() => {
-            const nextTheme = theme === "dark" ? "light" : "dark"
-            setTheme(nextTheme)
-            setToast(`已切换到${nextTheme === "dark" ? "深色" : "浅色"}模式`)
-          }}
-          onToggleThinking={() =>
-            setThinkingExpanded((current) => !current)
-          }
-          thinkingExpanded={thinkingExpanded}
-          theme={theme}
-          unreadCount={unreadCount}
-        />
-        <RightPanel
-          activePlan={activePlan}
-          completedExercises={completedExercises}
-          dashboardLoading={dashboardLoading}
-          latestMetric={latestMetric}
-          metrics={metrics}
-          onboarding={onboardingStatus}
-          onEditBodyData={openBodyMetricEditor}
-          onOpenOnboarding={() => {
-            setOnboardingError(null)
-            setOnboardingOpen(true)
-          }}
-          onOpenPanel={(panel) => {
-            if (panel.title === "身体与训练状态") {
-              setDetailPanel(
-                buildDashboardPanel({
-                  checkin: latestCheckin,
-                  logs: workoutLogs,
-                  metric: latestMetric,
-                  onboarding: onboardingStatus,
-                })
-              )
-              return
-            }
-
-            if (panel.title === "完整训练计划") {
-              setDetailPanel(buildPlanPanel(activePlan))
-              return
-            }
-
-            setDetailPanel(panel)
-          }}
-          onToggleExercise={toggleExercise}
-          onTrainingButton={handleTrainingButton}
-          profile={fitnessProfile}
-          trainingStarted={trainingStarted}
-        />
+        {renderWorkspace()}
       </div>
 
       <AuthModal
@@ -1164,3 +1242,36 @@ export function App() {
 }
 
 export default App
+
+function readChatSessionMeta(): Record<string, Partial<ChatSession>> {
+  try {
+    const raw = localStorage.getItem(CHAT_SESSION_META_KEY)
+    if (!raw) {
+      return {}
+    }
+
+    const parsed = JSON.parse(raw) as unknown
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, Partial<ChatSession>>)
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+function resolveSessionUpdate(
+  session: ChatSession,
+  update:
+    | Partial<ChatSession>
+    | ((current: Partial<ChatSession>) => Partial<ChatSession>)
+) {
+  return typeof update === "function" ? update(session) : update
+}
+
+function sortChatSessions(left: ChatSession, right: ChatSession) {
+  if (left.pinned !== right.pinned) {
+    return left.pinned ? -1 : 1
+  }
+
+  return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+}
