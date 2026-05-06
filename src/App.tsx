@@ -626,6 +626,7 @@ export function App() {
         signal: controller.signal,
         token,
       })
+      await refreshDashboard(token, { preserveMessages: true })
     } catch (error) {
       if (controller.signal.aborted) {
         return
@@ -807,6 +808,7 @@ export function App() {
           completedExercises={completedExercises}
           dashboardLoading={dashboardLoading}
           metrics={metrics}
+          onEditBodyData={openBodyMetricEditor}
           onOpenPanel={(panel) => {
             if (panel.title === "身体与训练状态") {
               setDetailPanel(
@@ -855,6 +857,14 @@ export function App() {
         open={profileModalOpen}
         profile={fitnessProfile}
         user={currentUser}
+      />
+      <BodyMetricModal
+        error={bodyMetricError}
+        key={bodyMetricModalOpen ? "body-open" : "body-closed"}
+        loading={bodyMetricSubmitting}
+        onClose={() => setBodyMetricModalOpen(false)}
+        onSubmit={handleBodyMetricSubmit}
+        open={bodyMetricModalOpen}
       />
       <DetailModal
         panel={detailPanel}

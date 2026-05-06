@@ -330,7 +330,7 @@ function TimelineRow({ item }: { item: AgentTraceStep }) {
             {meta}
           </h4>
           <p className="mt-1 text-[12px] leading-[1.58] text-[#333333]">
-            {item.content}
+            {formatTraceContent(item)}
           </p>
         </div>
         {item.timestamp ? (
@@ -340,6 +340,35 @@ function TimelineRow({ item }: { item: AgentTraceStep }) {
         ) : null}
       </div>
     </div>
+  )
+}
+
+function formatTraceContent(item: AgentTraceStep) {
+  if (item.type === "action") {
+    const toolName = item.content.match(/调用工具\s*([^(（]+)/)?.[1]?.trim()
+    return toolName ? `调用工具 ${toolName}（参数已隐藏）` : "调用工具（参数已隐藏）"
+  }
+
+  if (item.type === "observation" && isVerboseTrace(item.content)) {
+    return "工具返回结果已收到，原始数据已折叠。"
+  }
+
+  if (isVerboseTrace(item.content)) {
+    return `${item.content.slice(0, 220)}...`
+  }
+
+  return item.content
+}
+
+function isVerboseTrace(content: string) {
+  return (
+    content.length > 360 ||
+    content.startsWith("{") ||
+    content.startsWith("[") ||
+    content.includes("'headers':") ||
+    content.includes('"headers":') ||
+    content.includes("Transfer-Encoding") ||
+    content.includes("Access-Control-")
   )
 }
 
