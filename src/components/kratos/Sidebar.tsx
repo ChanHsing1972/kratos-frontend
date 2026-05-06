@@ -323,7 +323,7 @@ function ConversationRow({
               <span className="block truncate text-[13px] font-semibold text-[#202020]">
                 {session.title}
               </span>
-              <span className="mt-0.5 block truncate text-[11px] text-[#8a8a8a]">
+              <span className=" block truncate text-[11px] text-[#8a8a8a]">
                 {session.messageCount} 条消息
               </span>
             </>

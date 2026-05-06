@@ -90,7 +90,7 @@ export function MainConversation({
 
   return (
     <main className="flex h-full min-w-0 flex-1 flex-col border-[#e8e8e8] bg-white xl:border-r">
-      <header className="flex shrink-0 flex-col gap-2 px-0 pt-5 pb-0 sm:px-6 lg:flex-row lg:items-start lg:justify-between">
+      <header className="flex shrink-0 flex-col gap-2 px-0 pt-5 pb-0 sm:px-6 lg:flex-row lg:items-start lg:justify-between bg-gray-50">
         <div>
           <h2 className="text-[25px] leading-[1.1] font-extrabold tracking-[-0.04em]">
             {messages.length ? activeSessionTitle : ``}
@@ -138,7 +138,7 @@ export function MainConversation({
 
       <div className="flex min-h-0 flex-1 flex-col">
         {isEmptyConversation ? (
-          <div className="flex min-h-0 flex-1 items-center px-5 py-8 sm:px-6">
+          <div className="flex min-h-0 flex-1 items-center px-5 pb-8 pt-2 sm:px-6 bg-gray-50">
             <div className="mx-auto w-full max-w-[820px]">
               <EmptyConversation
                 composer={
@@ -639,26 +639,26 @@ function EmptyConversation({
 
   return (
     <section className="mx-auto flex w-full flex-col justify-center px-0">
-      <div className="mb-4">
-        <h3 className="text-[30px] leading-tight font-black tracking-[-0.04em]">
+      <div className="mb-6">
+        <h3 className="text-[32px] leading-tight font-black tracking-[-0.04em]">
           你今天想完成什么？
         </h3>
-        <p className="mt-2 max-w-[560px] text-[13px] leading-6 text-[#6d6d6d]">
-          Kratos 不只聊天：它会读取档案、生成训练计划、调用工具、保存记录，并在右侧把计划变成可视化面板。
+        <p className="mt-1 max-w-[560px] text-[13px] leading-6 text-[#6d6d6d]">
+          Kratos 会根据你的训练目标、身体状况和恢复情况，提供个性化的训练建议和计划。
         </p>
       </div>
-      <div className="mb-5">{composer}</div>
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="mb-8">{composer}</div>
+      <div className="grid gap-3 sm:grid-cols-3">
         {starters.map((action) => (
           <button
-            className="min-h-[116px] rounded-[10px] border border-[#e8e8e8] bg-white p-4 text-left transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            className="min-h-[100px] rounded-[10px] border border-[#e8e8e8] bg-white p-4 text-left transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
             key={action.title}
             onClick={() => onQuickAction(action)}
             type="button"
           >
             <action.icon className="size-4 text-[#111111]" strokeWidth={1.8} />
             <h4 className="mt-3 text-[13px] font-bold">{action.title}</h4>
-            <p className="mt-1.5 text-[11px] leading-4 text-[#777777]">
+            <p className="mt-0.5 text-[11px] leading-4 text-[#777777]">
               {action.description}
             </p>
           </button>
@@ -686,7 +686,7 @@ function Composer({
   const [mode, setMode] = useState<"write" | "preview">("write")
 
   return (
-    <section className="rounded-[12px] border border-[#e7e7e7] bg-white px-4 pt-3 pb-2 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors focus-within:border-[#111111] focus-within:shadow-[0_0_0_3px_rgba(17,17,17,0.08)]">
+    <section className="rounded-[12px] border border-[#e7e7e7] bg-white pl-4 pr-2 pt-3 pb-2 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors focus-within:border-[#111111] focus-within:shadow-[0_0_0_3px_rgba(17,17,17,0.08)]">
 
       {mode === "write" ? (
         <textarea
@@ -717,35 +717,35 @@ function Composer({
             <input className="hidden" onChange={onAttachment} type="file" />
             <Paperclip className="size-4.5" strokeWidth={1.8} />
           </label>
-            <div className="flex items-center rounded-[8px] bg-[#f3f3f3] p-0.5">
-              <button
-                aria-label="编辑 Markdown"
-                className={cn(
-                  "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
-                  mode === "write" &&
-                  "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
-                )}
-                onClick={() => setMode("write")}
-                title="编辑 Markdown"
-                type="button"
-              >
-                <PencilLine className="size-3.5" strokeWidth={1.8} />
-                编辑
-              </button>
-              <button
-                aria-label="预览 Markdown"
-                className={cn(
-                  "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
-                  mode === "preview" &&
-                  "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
-                )}
-                onClick={() => setMode("preview")}
-                title="预览 Markdown"
-                type="button"
-              >
-                <Eye className="size-3.5" strokeWidth={1.8} />
-                预览
-              </button>
+          <div className="flex items-center rounded-[8px] bg-[#f3f3f3] p-0.5">
+            <button
+              aria-label="编辑 Markdown"
+              className={cn(
+                "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
+                mode === "write" &&
+                "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
+              )}
+              onClick={() => setMode("write")}
+              title="编辑 Markdown"
+              type="button"
+            >
+              <PencilLine className="size-3.5" strokeWidth={1.8} />
+              编辑
+            </button>
+            <button
+              aria-label="预览 Markdown"
+              className={cn(
+                "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
+                mode === "preview" &&
+                "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
+              )}
+              onClick={() => setMode("preview")}
+              title="预览 Markdown"
+              type="button"
+            >
+              <Eye className="size-3.5" strokeWidth={1.8} />
+              预览
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-3">
