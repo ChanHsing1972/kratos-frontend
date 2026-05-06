@@ -1,9 +1,20 @@
 import type {
+  AgentCheckin,
+  AgentCheckinPayload,
+  AgentRun,
   AgentStreamEvent,
+  BodyMetric,
+  BodyMetricPayload,
+  FitnessProfile,
+  FitnessProfilePayload,
   TokenResponse,
+  TrainingPlan,
+  TrainingPlanPayload,
   UserProfile,
   UserRegisterPayload,
   UserUpdatePayload,
+  WorkoutLog,
+  WorkoutLogPayload,
 } from "@/types/kratos"
 
 export const API_BASE_URL =
@@ -40,6 +51,87 @@ export async function updateCurrentUser(token: string, payload: UserUpdatePayloa
     },
     method: "PUT",
   })
+}
+
+export async function listTrainingPlans(token: string) {
+  return authorizedJson<TrainingPlan[]>("/plans", token)
+}
+
+export async function createTrainingPlan(
+  token: string,
+  payload: TrainingPlanPayload
+) {
+  return authorizedJson<TrainingPlan>("/plans", token, {
+    body: JSON.stringify(payload),
+    method: "POST",
+  })
+}
+
+export async function listBodyMetrics(token: string) {
+  return authorizedJson<BodyMetric[]>("/body-metrics", token)
+}
+
+export async function createBodyMetric(token: string, payload: BodyMetricPayload) {
+  return authorizedJson<BodyMetric>("/body-metrics", token, {
+    body: JSON.stringify(payload),
+    method: "POST",
+  })
+}
+
+export async function listWorkoutLogs(token: string) {
+  return authorizedJson<WorkoutLog[]>("/workout-logs", token)
+}
+
+export async function createWorkoutLog(token: string, payload: WorkoutLogPayload) {
+  return authorizedJson<WorkoutLog>("/workout-logs", token, {
+    body: JSON.stringify(payload),
+    method: "POST",
+  })
+}
+
+export async function listAgentCheckins(token: string) {
+  return authorizedJson<AgentCheckin[]>("/agent-checkins", token)
+}
+
+export async function createAgentCheckin(
+  token: string,
+  payload: AgentCheckinPayload
+) {
+  return authorizedJson<AgentCheckin>("/agent-checkins", token, {
+    body: JSON.stringify(payload),
+    method: "POST",
+  })
+}
+
+export async function getMyFitnessProfile(token: string) {
+  return authorizedJson<FitnessProfile>("/profile/me", token)
+}
+
+export async function createMyFitnessProfile(
+  token: string,
+  payload: FitnessProfilePayload
+) {
+  return authorizedJson<FitnessProfile>("/profile/me", token, {
+    body: JSON.stringify(payload),
+    method: "POST",
+  })
+}
+
+export async function updateMyFitnessProfile(
+  token: string,
+  payload: FitnessProfilePayload
+) {
+  return authorizedJson<FitnessProfile>("/profile/me", token, {
+    body: JSON.stringify(payload),
+    method: "PATCH",
+  })
+}
+
+export async function listAgentRuns(token: string, limit = 50) {
+  return authorizedJson<AgentRun[]>(
+    `/agent/runs?limit=${encodeURIComponent(limit)}`,
+    token
+  )
 }
 
 export async function streamAgentChat({
@@ -104,6 +196,20 @@ export async function streamAgentChat({
   if (event) {
     onEvent(event)
   }
+}
+
+async function authorizedJson<T>(
+  path: string,
+  token: string,
+  options: RequestInit = {}
+) {
+  const headers = new Headers(options.headers)
+  headers.set("Authorization", `Bearer ${token}`)
+
+  return requestJson<T>(path, {
+    ...options,
+    headers,
+  })
 }
 
 async function requestJson<T>(path: string, options: RequestInit = {}) {

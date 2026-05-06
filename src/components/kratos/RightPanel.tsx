@@ -1,12 +1,20 @@
 import { Check, ChevronRight, LoaderCircle, Play, Sparkles } from "lucide-react"
 
-import type { DetailPanel, Metric } from "@/types/kratos"
+import type { DetailPanel, Metric, TrainingPlan } from "@/types/kratos"
 import { Button } from "@/components/ui/button"
+import {
+  buildPlanPanel,
+  buildReminderPanel,
+  getPlanExerciseLines,
+} from "@/lib/kratos"
 import { cn } from "@/lib/utils"
 
 type RightPanelProps = {
+  activePlan: TrainingPlan | null
   completedExercises: string[]
+  dashboardLoading: boolean
   metrics: Metric[]
+  onEditBodyData: () => void
   onOpenPanel: (panel: DetailPanel) => void
   onToggleExercise: (title: string) => void
   onTrainingButton: () => void
@@ -14,8 +22,11 @@ type RightPanelProps = {
 }
 
 export function RightPanel({
+  activePlan,
   completedExercises,
+  dashboardLoading,
   metrics,
+  onEditBodyData,
   onOpenPanel,
   onToggleExercise,
   onTrainingButton,
@@ -28,30 +39,37 @@ export function RightPanel({
         onAction={() =>
           onOpenPanel({
             title: "身体与训练状态",
-            body: "这些是当前界面的本地假数据，用于模拟可交互状态面板。",
+            body: "登录后这里会展示后端同步的身体指标、训练日志和 Agent 打卡状态。",
             items: [
-              "静息心率 72 bpm",
-              "昨晚睡眠 6.5 小时",
-              "今日训练完成度动态跟随动作完成情况",
+              "身体指标来自 /api/v1/body-metrics",
+              "训练记录来自 /api/v1/workout-logs",
+              "Agent 打卡来自 /api/v1/agent-checkins",
             ],
           })
         }
         title="当前状态"
       />
       <StatusCard metrics={metrics} />
+      <button
+        className="mt-3 w-full rounded-[12px] border border-[#e8e8e8] bg-[#111111] px-4 py-3 text-left text-white shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#111111]/90 focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        onClick={onEditBodyData}
+        type="button"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-[13px] font-bold">更新身体数据</h3>
+            <p className="mt-1 text-[11px] text-white/70">
+              写入 body_metrics / user_profiles
+            </p>
+          </div>
+          <ChevronRight className="size-4 text-white/80" />
+        </div>
+      </button>
 
       <button
         className="mt-3 w-full rounded-[12px] border border-[#e8e8e8] bg-white px-4 py-4 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
         onClick={() =>
-          onOpenPanel({
-            title: "Kratos 提醒",
-            body: "右膝恢复期建议选择髋主导动作，避免大量深蹲、弓步跳、箱跳等高冲击训练。",
-            items: [
-              "训练中疼痛超过 3/10 时停止",
-              "热身时重点激活臀部和髋关节",
-              "训练后观察 24 小时反馈",
-            ],
-          })
+          onOpenPanel(buildReminderPanel(activePlan))
         }
         type="button"
       >
@@ -69,22 +87,14 @@ export function RightPanel({
       <div className="mt-9">
         <SectionHeader
           action="查看完整计划"
-          onAction={() =>
-            onOpenPanel({
-              title: "完整训练计划",
-              body: "20 分钟酒店护膝下肢训练：4 分钟热身，两个主动作各 4 组，组间休息 45 秒。",
-              items: [
-                "哑铃罗马尼亚硬拉 4 组 × 12 次",
-                "哑铃臀桥 4 组 × 15 次",
-                "训练后做轻度拉伸 2 分钟",
-              ],
-            })
-          }
+          onAction={() => onOpenPanel(buildPlanPanel(activePlan))}
           title="今日训练计划"
         />
       </div>
       <TrainingPlanCard
+        activePlan={activePlan}
         completedExercises={completedExercises}
+        dashboardLoading={dashboardLoading}
         onOpenPanel={onOpenPanel}
         onToggleExercise={onToggleExercise}
         onTrainingButton={onTrainingButton}
@@ -167,21 +177,26 @@ function MetricCell({
 }
 
 function TrainingPlanCard({
+  activePlan,
   completedExercises,
+  dashboardLoading,
   onOpenPanel,
   onToggleExercise,
   onTrainingButton,
   trainingStarted,
 }: {
+  activePlan: TrainingPlan | null
   completedExercises: string[]
+  dashboardLoading: boolean
   onOpenPanel: (panel: DetailPanel) => void
   onToggleExercise: (title: string) => void
   onTrainingButton: () => void
   trainingStarted: boolean
 }) {
+  const exercises = getPlanExerciseLines(activePlan)
   const allDone = completedExercises.length >= 2
   const buttonLabel = allDone
-    ? "重新开始"
+    ? "保存完成记录"
     : trainingStarted
       ? "训练进行中"
       : "开始训练"
@@ -191,7 +206,7 @@ function TrainingPlanCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-[13px] leading-5 font-bold">
-            酒店护膝下肢训练（20 分钟）
+            {activePlan?.title ?? "酒店护膝下肢训练"}（20 分钟）
           </h3>
         </div>
         <span
@@ -208,18 +223,16 @@ function TrainingPlanCard({
 
       <div className="mt-3 overflow-hidden rounded-[8px] border border-[#eeeeee]">
         <ExerciseRow
-          completed={completedExercises.includes("哑铃罗马尼亚硬拉")}
+          completed={completedExercises.includes(exercises[0])}
           illustration="hinge"
-          onToggle={() => onToggleExercise("哑铃罗马尼亚硬拉")}
-          reps="4 组 × 12 次"
-          title="哑铃罗马尼亚硬拉"
+          onToggle={() => onToggleExercise(exercises[0])}
+          title={exercises[0]}
         />
         <ExerciseRow
-          completed={completedExercises.includes("哑铃臀桥")}
+          completed={completedExercises.includes(exercises[1])}
           illustration="bridge"
-          onToggle={() => onToggleExercise("哑铃臀桥")}
-          reps="4 组 × 15 次"
-          title="哑铃臀桥"
+          onToggle={() => onToggleExercise(exercises[1])}
+          title={exercises[1]}
         />
       </div>
 
@@ -251,10 +264,11 @@ function TrainingPlanCard({
       </button>
       <Button
         className="mt-3 h-12 w-full rounded-[8px] bg-[#101010] text-[15px] font-semibold text-white hover:bg-[#101010]/90"
+        disabled={dashboardLoading}
         onClick={onTrainingButton}
         type="button"
       >
-        {trainingStarted && !allDone ? (
+        {dashboardLoading || (trainingStarted && !allDone) ? (
           <LoaderCircle className="size-4 animate-spin" />
         ) : (
           <Play className="size-4" />
@@ -269,15 +283,15 @@ function ExerciseRow({
   completed,
   illustration,
   onToggle,
-  reps,
   title,
 }: {
   completed: boolean
   illustration: "hinge" | "bridge"
   onToggle: () => void
-  reps: string
   title: string
 }) {
+  const [name, detail] = title.split(/\s+(?=\d+\s*组)/)
+
   return (
     <button
       className={cn(
@@ -303,8 +317,10 @@ function ExerciseRow({
           )}
         </span>
         <div>
-          <h4 className="text-[12px] font-bold">{title}</h4>
-          <p className="mt-2 text-[12px] text-[#555555]">{reps}</p>
+          <h4 className="text-[12px] font-bold">{name}</h4>
+          <p className="mt-2 text-[12px] text-[#555555]">
+            {detail ?? "按计划完成"}
+          </p>
         </div>
       </div>
       <ExerciseIllustration type={illustration} />

@@ -77,6 +77,8 @@ export type ProfileForm = {
   gender: string
   age: string
   location: string
+  weightKg: string
+  sleepHours: string
   dietaryHabits: string
   fitnessStatus: string
 }
@@ -94,6 +96,175 @@ export type UserUpdatePayload = {
   location?: string | null
   dietary_habits?: string | null
   fitness_status?: string | null
+}
+
+export type FitnessProfile = {
+  id: number
+  user_id: number
+  gender: string | null
+  age: number | null
+  location: string | null
+  height_cm: number | null
+  weight_kg: number | null
+  target_weight_kg: number | null
+  body_fat_percentage: number | null
+  fitness_goal: string | null
+  fitness_summary: string | null
+  activity_level: string | null
+  experience_level: string | null
+  available_days_per_week: number | null
+  workout_minutes_per_session: number | null
+  equipment_access: string | null
+  injury_history: string | null
+  medical_conditions: string | null
+  preferred_workout_types: string | null
+  dietary_habits: string | null
+  dietary_restrictions: string | null
+  sleep_hours: number | null
+  created_at: string
+  updated_at: string
+}
+
+export type FitnessProfilePayload = Partial<
+  Omit<FitnessProfile, "created_at" | "id" | "updated_at" | "user_id">
+>
+
+export type TrainingPlan = {
+  id: number
+  user_id: number
+  title: string
+  goal: string | null
+  status: string
+  start_date: string | null
+  end_date: string | null
+  summary: string | null
+  weekly_schedule: string | null
+  nutrition_guidance: string | null
+  recovery_guidance: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type TrainingPlanPayload = {
+  title: string
+  goal?: string | null
+  status?: string
+  start_date?: string | null
+  end_date?: string | null
+  summary?: string | null
+  weekly_schedule?: string | null
+  nutrition_guidance?: string | null
+  recovery_guidance?: string | null
+}
+
+export type BodyMetric = {
+  id: number
+  user_id: number
+  weight_kg: number | null
+  body_fat_percentage: number | null
+  skeletal_muscle_mass_kg: number | null
+  bmi: number | null
+  chest_cm: number | null
+  waist_cm: number | null
+  hip_cm: number | null
+  notes: string | null
+  recorded_at: string
+}
+
+export type WorkoutLog = {
+  id: number
+  user_id: number
+  training_plan_id: number | null
+  workout_date: string
+  workout_type: string | null
+  title: string | null
+  duration_minutes: number | null
+  perceived_exertion: number | null
+  calories_burned: number | null
+  completed: boolean
+  notes: string | null
+  created_at: string
+}
+
+export type WorkoutLogPayload = {
+  training_plan_id?: number | null
+  workout_date: string
+  workout_type?: string | null
+  title?: string | null
+  duration_minutes?: number | null
+  perceived_exertion?: number | null
+  calories_burned?: number | null
+  completed?: boolean
+  notes?: string | null
+}
+
+export type BodyMetricForm = {
+  weightKg: string
+  bodyFatPercentage: string
+  bmi: string
+  sleepHours: string
+  sleepQuality: string
+  notes: string
+}
+
+export type BodyMetricPayload = {
+  weight_kg?: number | null
+  body_fat_percentage?: number | null
+  skeletal_muscle_mass_kg?: number | null
+  bmi?: number | null
+  chest_cm?: number | null
+  waist_cm?: number | null
+  hip_cm?: number | null
+  notes?: string | null
+}
+
+export type AgentCheckinPayload = {
+  training_plan_id?: number | null
+  energy_level?: number | null
+  sleep_quality?: number | null
+  soreness_level?: number | null
+  adherence_score?: number | null
+  mood?: string | null
+  summary?: string | null
+}
+
+export type AgentCheckin = {
+  id: number
+  user_id: number
+  training_plan_id: number | null
+  energy_level: number | null
+  sleep_quality: number | null
+  soreness_level: number | null
+  adherence_score: number | null
+  mood: string | null
+  summary: string | null
+  created_at: string
+}
+
+export type AgentRunTraceStep = {
+  id: number
+  run_id: number
+  position: number
+  step_type: AgentTraceStep["type"] | string
+  content: string
+  raw: unknown | null
+  created_at: string
+}
+
+export type AgentRun = {
+  id: number
+  user_id: number
+  session_id: string
+  user_message: string
+  answer: string
+  status: string
+  intent: unknown | null
+  task_results: unknown | null
+  tool_results: unknown | null
+  reflection: unknown | null
+  result_payload: unknown | null
+  created_at: string
+  trace_steps: AgentRunTraceStep[]
 }
 
 export type ChatMessage = {

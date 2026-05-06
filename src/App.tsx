@@ -15,22 +15,41 @@ import {
 } from "@/data/kratos"
 import {
   AUTH_TOKEN_KEY,
+  createAgentCheckin,
+  createBodyMetric,
+  createMyFitnessProfile,
+  createTrainingPlan,
+  createWorkoutLog,
   getCurrentUser,
+  getMyFitnessProfile,
   getErrorMessage,
+  listAgentCheckins,
+  listAgentRuns,
+  listBodyMetrics,
+  listTrainingPlans,
+  listWorkoutLogs,
   loginUser,
   registerUser,
   streamAgentChat,
   updateCurrentUser,
+  updateMyFitnessProfile,
 } from "@/lib/api"
 import {
+  buildDashboardPanel,
+  buildDefaultTrainingPlan,
+  buildPlanPanel,
   buildProfilePanel,
+  chatMessagesFromAgentRuns,
   compactOptionalText,
   formatTime,
+  getLatestByDate,
+  toDateInputValue,
 } from "@/lib/kratos"
 import { createId } from "@/lib/id"
 import { MainConversation } from "@/components/kratos/MainConversation"
 import {
   AuthModal,
+  BodyMetricModal,
   DetailModal,
   ProfileEditModal,
   Toast,
@@ -39,16 +58,23 @@ import { RightPanel } from "@/components/kratos/RightPanel"
 import { Sidebar } from "@/components/kratos/Sidebar"
 import { useTheme } from "@/components/theme-provider"
 import type {
+  AgentCheckin,
   AuthForm,
   AuthMode,
+  BodyMetric,
+  BodyMetricForm,
   ChatMessage,
   DetailPanel,
+  FitnessProfile,
+  FitnessProfilePayload,
   Metric,
   NotificationItem,
   ProfileForm,
   QuickAction,
+  TrainingPlan,
   UserProfile,
   UserUpdatePayload,
+  WorkoutLog,
 } from "@/types/kratos"
 
 export function App() {
@@ -65,11 +91,20 @@ export function App() {
   const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [profileSubmitting, setProfileSubmitting] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
+  const [bodyMetricModalOpen, setBodyMetricModalOpen] = useState(false)
+  const [bodyMetricSubmitting, setBodyMetricSubmitting] = useState(false)
+  const [bodyMetricError, setBodyMetricError] = useState<string | null>(null)
   const [thinkingExpanded, setThinkingExpanded] = useState(true)
   const [composerValue, setComposerValue] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [agentSessionId, setAgentSessionId] = useState<string | null>(null)
   const [agentStreaming, setAgentStreaming] = useState(false)
+  const [dashboardLoading, setDashboardLoading] = useState(false)
+  const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>([])
+  const [fitnessProfile, setFitnessProfile] = useState<FitnessProfile | null>(null)
+  const [bodyMetrics, setBodyMetrics] = useState<BodyMetric[]>([])
+  const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([])
+  const [agentCheckins, setAgentCheckins] = useState<AgentCheckin[]>([])
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifications, setNotifications] =
     useState<NotificationItem[]>(initialNotifications)
@@ -81,16 +116,50 @@ export function App() {
 
   const unreadCount = notifications.filter((item) => !item.read).length
   const displayName = currentUser?.username ?? "请登录"
+  const activePlan =
+    trainingPlans.find((plan) => plan.status === "active") ??
+    getLatestByDate(trainingPlans, (plan) => plan.updated_at) ??
+    null
+  const latestMetric =
+    getLatestByDate(bodyMetrics, (metric) => metric.recorded_at) ?? null
+  const latestCheckin =
+    getLatestByDate(agentCheckins, (checkin) => checkin.created_at) ?? null
+  const displayWeight = latestMetric?.weight_kg ?? fitnessProfile?.weight_kg ?? null
+  const displaySleep =
+    latestCheckin?.sleep_quality ?? fitnessProfile?.sleep_hours ?? null
   const metrics = useMemo<Metric[]>(
     () => [
-      ...baseMetrics,
+      {
+        ...baseMetrics[0],
+        label: "当前体重",
+        unit: displayWeight ? "kg" : undefined,
+        value: displayWeight?.toString() ?? "未录",
+      },
+      {
+        ...baseMetrics[1],
+        label: "训练记录",
+        unit: "次",
+        value: workoutLogs.length.toString(),
+      },
+      {
+        ...baseMetrics[2],
+        label: latestCheckin?.sleep_quality ? "睡眠质量" : "睡眠时长",
+        unit: latestCheckin?.sleep_quality ? "/10" : displaySleep ? "h" : undefined,
+        value: displaySleep?.toString() ?? "未录",
+      },
       {
         label: "今日训练完成度",
         value: `${Math.min(2 + completedExercises.length, 3)}/3`,
         icon: completionMetricIcon,
       },
     ],
-    [completedExercises.length]
+    [
+      completedExercises.length,
+      displaySleep,
+      displayWeight,
+      latestCheckin?.sleep_quality,
+      workoutLogs.length,
+    ]
   )
 
   useEffect(() => {
@@ -101,8 +170,9 @@ export function App() {
     }
 
     getCurrentUser(token)
-      .then((user) => {
+      .then(async (user) => {
         setCurrentUser(user)
+        await refreshDashboard(token)
         setToast(`欢迎回来，${user.username}`)
       })
       .catch(() => {
@@ -112,6 +182,8 @@ export function App() {
       .finally(() => {
         setAuthLoading(false)
       })
+    // Only restore persisted auth state on first mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -153,6 +225,7 @@ export function App() {
       localStorage.setItem(AUTH_TOKEN_KEY, token.access_token)
       const user = await getCurrentUser(token.access_token)
       setCurrentUser(user)
+      await refreshDashboard(token.access_token)
       setAuthModalOpen(false)
       setToast(authMode === "register" ? "注册并登录成功" : "登录成功")
     } catch (error) {
@@ -165,8 +238,16 @@ export function App() {
   const handleLogout = () => {
     localStorage.removeItem(AUTH_TOKEN_KEY)
     setCurrentUser(null)
+    setTrainingPlans([])
+    setFitnessProfile(null)
+    setBodyMetrics([])
+    setWorkoutLogs([])
+    setAgentCheckins([])
+    setMessages(initialMessages)
+    setAgentSessionId(null)
     setProfileMenuOpen(false)
     setProfileModalOpen(false)
+    setBodyMetricModalOpen(false)
     setToast("已退出登录")
   }
 
@@ -180,6 +261,7 @@ export function App() {
     try {
       const user = await getCurrentUser(token)
       setCurrentUser(user)
+      await refreshDashboard(token)
       setToast("个人资料已刷新")
     } catch (error) {
       localStorage.removeItem(AUTH_TOKEN_KEY)
@@ -199,6 +281,16 @@ export function App() {
     setProfileModalOpen(true)
   }
 
+  const openBodyMetricEditor = () => {
+    if (!currentUser) {
+      openAuth("login")
+      return
+    }
+
+    setBodyMetricError(null)
+    setBodyMetricModalOpen(true)
+  }
+
   const handleProfileSubmit = async (form: ProfileForm) => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
@@ -210,6 +302,16 @@ export function App() {
     const parsedAge = age ? Number(age) : null
     if (parsedAge !== null && (!Number.isInteger(parsedAge) || parsedAge < 0)) {
       setProfileError("年龄必须是 0 或更大的整数")
+      return
+    }
+    const parsedWeight = parseOptionalNumber(form.weightKg, "体重")
+    if (typeof parsedWeight === "string") {
+      setProfileError(parsedWeight)
+      return
+    }
+    const parsedSleep = parseOptionalNumber(form.sleepHours, "平均睡眠")
+    if (typeof parsedSleep === "string") {
+      setProfileError(parsedSleep)
       return
     }
 
@@ -226,7 +328,17 @@ export function App() {
 
     try {
       const updatedUser = await updateCurrentUser(token, payload)
+      const updatedProfile = await upsertFitnessProfile(token, {
+        age: parsedAge,
+        dietary_habits: compactOptionalText(form.dietaryHabits),
+        fitness_summary: compactOptionalText(form.fitnessStatus),
+        gender: compactOptionalText(form.gender),
+        location: compactOptionalText(form.location),
+        sleep_hours: parsedSleep,
+        weight_kg: parsedWeight,
+      })
       setCurrentUser(updatedUser)
+      setFitnessProfile(updatedProfile)
       setProfileModalOpen(false)
       setToast("个人资料已更新")
     } catch (error) {
@@ -248,6 +360,169 @@ export function App() {
     setToast(`已切换到${label}`)
   }
 
+  const parseOptionalNumber = (value: string, label: string) => {
+    const trimmed = value.trim()
+    if (!trimmed) {
+      return null
+    }
+
+    const parsed = Number(trimmed)
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return `${label}必须是 0 或更大的数字`
+    }
+
+    return parsed
+  }
+
+  const parseOptionalInteger = (value: string, label: string) => {
+    const parsed = parseOptionalNumber(value, label)
+    if (parsed === null || typeof parsed === "string") {
+      return parsed
+    }
+
+    if (!Number.isInteger(parsed)) {
+      return `${label}必须是整数`
+    }
+
+    return parsed
+  }
+
+  const handleBodyMetricSubmit = async (form: BodyMetricForm) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      return
+    }
+
+    const weightKg = parseOptionalNumber(form.weightKg, "体重")
+    if (typeof weightKg === "string") {
+      setBodyMetricError(weightKg)
+      return
+    }
+    const bodyFatPercentage = parseOptionalNumber(form.bodyFatPercentage, "体脂率")
+    if (typeof bodyFatPercentage === "string") {
+      setBodyMetricError(bodyFatPercentage)
+      return
+    }
+    const bmi = parseOptionalNumber(form.bmi, "BMI")
+    if (typeof bmi === "string") {
+      setBodyMetricError(bmi)
+      return
+    }
+    const sleepHours = parseOptionalNumber(form.sleepHours, "睡眠时长")
+    if (typeof sleepHours === "string") {
+      setBodyMetricError(sleepHours)
+      return
+    }
+    const sleepQuality = parseOptionalInteger(form.sleepQuality, "睡眠质量")
+    if (typeof sleepQuality === "string") {
+      setBodyMetricError(sleepQuality)
+      return
+    }
+    if (sleepQuality !== null && (sleepQuality < 1 || sleepQuality > 10)) {
+      setBodyMetricError("睡眠质量必须在 1 到 10 之间")
+      return
+    }
+
+    setBodyMetricSubmitting(true)
+    setBodyMetricError(null)
+
+    try {
+      if (weightKg !== null || bodyFatPercentage !== null || bmi !== null) {
+        const metric = await createBodyMetric(token, {
+          bmi,
+          body_fat_percentage: bodyFatPercentage,
+          notes: compactOptionalText(form.notes),
+          weight_kg: weightKg,
+        })
+        setBodyMetrics((current) => [metric, ...current])
+      }
+
+      if (sleepHours !== null) {
+        const profile = await upsertFitnessProfile(token, {
+          sleep_hours: sleepHours,
+        })
+        setFitnessProfile(profile)
+      }
+
+      if (sleepQuality !== null) {
+        const checkin = await createAgentCheckin(token, {
+          sleep_quality: sleepQuality,
+          summary: compactOptionalText(form.notes) ?? "手动更新身体数据",
+          training_plan_id: activePlan?.id ?? null,
+        })
+        setAgentCheckins((current) => [checkin, ...current])
+      }
+
+      await refreshDashboard(token, { preserveMessages: true })
+      setBodyMetricModalOpen(false)
+      setToast("身体数据已写入数据库")
+    } catch (error) {
+      setBodyMetricError(getErrorMessage(error))
+    } finally {
+      setBodyMetricSubmitting(false)
+    }
+  }
+
+  const refreshDashboard = async (
+    token: string,
+    options: { preserveMessages?: boolean } = {}
+  ) => {
+    setDashboardLoading(true)
+
+    try {
+      const [plans, metrics, logs, checkins, runs] = await Promise.all([
+        listTrainingPlans(token),
+        listBodyMetrics(token),
+        listWorkoutLogs(token),
+        listAgentCheckins(token),
+        listAgentRuns(token),
+      ])
+      const profile = await loadFitnessProfile(token)
+      const hydratedPlans =
+        plans.length > 0
+          ? plans
+          : [await createTrainingPlan(token, buildDefaultTrainingPlan())]
+
+      setTrainingPlans(hydratedPlans)
+      setFitnessProfile(profile)
+      setBodyMetrics(metrics)
+      setWorkoutLogs(logs)
+      setAgentCheckins(checkins)
+      if (!options.preserveMessages) {
+        setMessages(runs.length ? chatMessagesFromAgentRuns(runs) : initialMessages)
+        setAgentSessionId(runs[0]?.session_id ?? null)
+      }
+    } catch (error) {
+      setToast(getErrorMessage(error))
+    } finally {
+      setDashboardLoading(false)
+    }
+  }
+
+  const loadFitnessProfile = async (token: string) => {
+    try {
+      return await getMyFitnessProfile(token)
+    } catch {
+      try {
+        return await createMyFitnessProfile(token, {})
+      } catch {
+        return null
+      }
+    }
+  }
+
+  const upsertFitnessProfile = async (
+    token: string,
+    payload: FitnessProfilePayload
+  ) => {
+    try {
+      return await updateMyFitnessProfile(token, payload)
+    } catch {
+      return createMyFitnessProfile(token, payload)
+    }
+  }
+
   const handleSendMessage = async () => {
     const body = composerValue.trim()
     if (!body) {
@@ -267,7 +542,7 @@ export function App() {
       return
     }
 
-    const assistantMessageId = crypto.randomUUID()
+    const assistantMessageId = createId()
     const controller = new AbortController()
     activeStreamRef.current = controller
     setAgentStreaming(true)
@@ -280,7 +555,7 @@ export function App() {
         time: formatTime(),
       },
       {
-        id: createId(),
+        id: assistantMessageId,
         author: "assistant",
         body: "",
         streaming: true,
@@ -417,15 +692,46 @@ export function App() {
   }
 
   const handleTrainingButton = () => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      setToast("登录后可以保存训练记录")
+      return
+    }
+
     if (completedExercises.length >= 2) {
-      setCompletedExercises([])
-      setTrainingStarted(false)
-      setToast("训练计划已重置")
+      void saveCompletedWorkout(token)
       return
     }
 
     setTrainingStarted(true)
     setToast("训练已开始，点击动作卡可标记完成")
+  }
+
+  const saveCompletedWorkout = async (token: string) => {
+    setDashboardLoading(true)
+
+    try {
+      const log = await createWorkoutLog(token, {
+        calories_burned: 180,
+        completed: true,
+        duration_minutes: 20,
+        notes: `已完成：${completedExercises.join("、")}`,
+        perceived_exertion: 6,
+        title: activePlan?.title ?? "酒店护膝下肢训练",
+        training_plan_id: activePlan?.id ?? null,
+        workout_date: toDateInputValue(new Date()),
+        workout_type: "strength",
+      })
+      setWorkoutLogs((current) => [log, ...current])
+      setCompletedExercises([])
+      setTrainingStarted(false)
+      setToast("训练完成记录已同步到后端")
+    } catch (error) {
+      setToast(getErrorMessage(error))
+    } finally {
+      setDashboardLoading(false)
+    }
   }
 
   const markAllNotificationsRead = () => {
@@ -497,9 +803,30 @@ export function App() {
           unreadCount={unreadCount}
         />
         <RightPanel
+          activePlan={activePlan}
           completedExercises={completedExercises}
+          dashboardLoading={dashboardLoading}
           metrics={metrics}
-          onOpenPanel={setDetailPanel}
+          onOpenPanel={(panel) => {
+            if (panel.title === "身体与训练状态") {
+              setDetailPanel(
+                buildDashboardPanel({
+                  checkin: latestCheckin,
+                  logs: workoutLogs,
+                  metric: latestMetric,
+                  profile: fitnessProfile,
+                })
+              )
+              return
+            }
+
+            if (panel.title === "完整训练计划") {
+              setDetailPanel(buildPlanPanel(activePlan))
+              return
+            }
+
+            setDetailPanel(panel)
+          }}
           onToggleExercise={toggleExercise}
           onTrainingButton={handleTrainingButton}
           trainingStarted={trainingStarted}
@@ -526,6 +853,7 @@ export function App() {
         onClose={() => setProfileModalOpen(false)}
         onSubmit={handleProfileSubmit}
         open={profileModalOpen}
+        profile={fitnessProfile}
         user={currentUser}
       />
       <DetailModal

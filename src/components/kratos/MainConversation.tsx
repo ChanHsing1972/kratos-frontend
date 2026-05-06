@@ -67,7 +67,7 @@ export function MainConversation({
   onComposerKeyDown,
   onEndConversation,
   onMarkNotificationsRead,
-  // onQuickAction,
+  onQuickAction,
   onSendMessage,
   onToggleNotifications,
   onToggleTheme,
@@ -102,7 +102,7 @@ export function MainConversation({
           <p className="mt-2 text-[13px] text-[#6d6d6d]">
             {activeNav === "对话"
               ? "我是你的 AI 健身教练 Kratos， 有什么可以帮你?"
-              : "该模块已接入界面状态，当前使用本地假数据预览。"}
+              : "该模块已接入后端同步状态，可通过对话和右侧面板继续更新。"}
           </p>
         </div>
         <div className="relative flex items-center gap-7 pr-2">
@@ -162,7 +162,10 @@ export function MainConversation({
                 />
               ))}
               {activeNav !== "对话" ? (
-                <ModulePreview activeNav={activeNav} />
+                <ModulePreview
+                  activeNav={activeNav}
+                  onQuickAction={onQuickAction}
+                />
               ) : null}
               <div ref={bottomAnchorRef} />
             </div>
@@ -488,25 +491,122 @@ function ChatBubble({
   )
 }
 
-function ModulePreview({ activeNav }: { activeNav: string }) {
+function ModulePreview({
+  activeNav,
+  onQuickAction,
+}: {
+  activeNav: string
+  onQuickAction: (action: QuickAction) => void
+}) {
   const copy = {
-    训练计划: "今日计划已生成，可在右侧开始训练并逐项标记完成。",
-    营养分析: "今日蛋白质目标 125g，已记录 62g；晚餐建议补充瘦肉或豆制品。",
-    身体数据: "最近 7 天静息心率稳定，睡眠略低，建议今晚提前 30 分钟入睡。",
-    历史记录: "最近 7 天完成 4 次训练，下肢训练后恢复间隔偏短。",
-    评估平台: "Beta 评估会结合身体反馈、训练负荷和恢复数据输出风险等级。",
+    训练计划: "今日计划来自后端 /plans，可在右侧开始训练并保存完成记录。",
+    营养分析: "把饮食发给 Kratos 后，Agent 会结合你的档案给出补给建议。",
+    身体数据: "身体指标会从 /body-metrics 同步，右侧状态卡展示最新记录。",
+    历史记录: "训练完成后会写入 /workout-logs，用于复盘训练负荷和恢复节奏。",
+    评估平台: "Beta 评估会结合身体反馈、训练负荷和 Agent 打卡输出风险等级。",
     设置: "登录后可同步地区、饮食习惯和训练状态。",
   }[activeNav]
+  const actions = moduleActions[activeNav] ?? []
 
   return (
     <section className="rounded-[12px] border border-[#e8e8e8] bg-[#fbfbfa] px-5 py-4">
       <div className="flex items-center gap-3">
         <Sparkles className="size-4 text-[#111111]" />
-        <h3 className="text-[13px] font-bold">{activeNav}预览</h3>
+        <h3 className="text-[13px] font-bold">{activeNav}工作区</h3>
       </div>
       <p className="mt-2 text-[12px] leading-5 text-[#666666]">{copy}</p>
+      {actions.length > 0 ? (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {actions.map((action) => (
+            <button
+              className="flex items-center justify-between gap-3 rounded-[10px] border border-[#e6e6e6] bg-white px-3 py-2.5 text-left text-[12px] font-semibold text-[#222222] transition-colors hover:bg-[#f7f7f6] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+              key={action.title}
+              onClick={() => onQuickAction(action)}
+              type="button"
+            >
+              <span>{action.title}</span>
+              <ChevronRight className="size-3.5 text-[#777777]" />
+            </button>
+          ))}
+        </div>
+      ) : null}
     </section>
   )
+}
+
+const moduleActions: Record<string, QuickAction[]> = {
+  训练计划: [
+    {
+      description: "根据后端计划做今日调整",
+      icon: Sparkles,
+      prompt: "请读取我的当前训练状态，帮我把今日训练计划调整成可执行版本。",
+      title: "调整今日计划",
+    },
+    {
+      description: "生成下一周训练节奏",
+      icon: Sparkles,
+      prompt: "请根据我的训练记录和恢复情况，生成下一周训练安排。",
+      title: "生成周计划",
+    },
+  ],
+  营养分析: [
+    {
+      description: "记录一餐并估算营养",
+      icon: Sparkles,
+      prompt: "我刚吃了一餐，请帮我记录并估算热量、蛋白质、碳水和脂肪。",
+      title: "记录一餐",
+    },
+    {
+      description: "按训练目标给建议",
+      icon: Sparkles,
+      prompt: "请根据我的训练目标和饮食习惯，给我今天剩余餐食建议。",
+      title: "今日补给建议",
+    },
+  ],
+  身体数据: [
+    {
+      description: "解释身体指标变化",
+      icon: Sparkles,
+      prompt: "请结合我的身体指标和训练记录，解释最近的状态变化。",
+      title: "分析状态",
+    },
+    {
+      description: "写入一组身体反馈",
+      icon: Sparkles,
+      prompt: "我想记录一组身体反馈：体重、睡眠、酸痛和精神状态，请引导我补全。",
+      title: "记录反馈",
+    },
+  ],
+  历史记录: [
+    {
+      description: "复盘训练日志",
+      icon: Sparkles,
+      prompt: "请复盘我最近 7 天的训练记录，指出恢复不足和进步点。",
+      title: "7 天复盘",
+    },
+    {
+      description: "查找训练风险",
+      icon: Sparkles,
+      prompt: "请从我的历史训练记录里找出可能的过载风险。",
+      title: "风险检查",
+    },
+  ],
+  评估平台: [
+    {
+      description: "输出综合评估",
+      icon: Sparkles,
+      prompt: "请结合我的档案、训练记录、身体数据和打卡，输出一次综合健身评估。",
+      title: "开始评估",
+    },
+  ],
+  设置: [
+    {
+      description: "完善个人档案",
+      icon: Sparkles,
+      prompt: "请帮我检查当前个人档案还缺哪些信息，并说明为什么这些信息重要。",
+      title: "检查档案完整度",
+    },
+  ],
 }
 
 function Composer({

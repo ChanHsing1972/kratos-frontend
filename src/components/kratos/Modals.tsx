@@ -4,7 +4,9 @@ import { Check, CircleAlert, LoaderCircle, X } from "lucide-react"
 import type {
   AuthForm,
   AuthMode,
+  BodyMetricForm,
   DetailPanel,
+  FitnessProfile,
   ProfileForm,
   UserProfile,
 } from "@/types/kratos"
@@ -158,6 +160,7 @@ export function ProfileEditModal({
   onClose,
   onSubmit,
   open,
+  profile,
   user,
 }: {
   error: string | null
@@ -165,15 +168,18 @@ export function ProfileEditModal({
   onClose: () => void
   onSubmit: (form: ProfileForm) => void
   open: boolean
+  profile: FitnessProfile | null
   user: UserProfile | null
 }) {
   const [form, setForm] = useState<ProfileForm>(() =>
     user
-      ? profileFormFromUser(user)
+      ? profileFormFromUser(user, profile)
       : {
           gender: "",
           age: "",
           location: "",
+          sleepHours: "",
+          weightKg: "",
           dietaryHabits: "",
           fitnessStatus: "",
         }
@@ -200,7 +206,7 @@ export function ProfileEditModal({
               编辑个人资料
             </h2>
             <p className="mt-2 text-[12px] leading-5 text-[#777777]">
-              将通过 PUT /api/v1/auth/me 同步到后端。
+              基础资料写入 users，身体画像写入 user_profiles。
             </p>
           </div>
           <button
@@ -248,6 +254,29 @@ export function ProfileEditModal({
             placeholder="例如 中级训练者"
             value={form.fitnessStatus}
           />
+          <FormInput
+            label="体重 (kg)"
+            min={0}
+            onChange={(value) =>
+              setForm((current) => ({ ...current, weightKg: value }))
+            }
+            placeholder="例如 68.5"
+            step="0.1"
+            type="number"
+            value={form.weightKg}
+          />
+          <FormInput
+            label="平均睡眠 (小时)"
+            max={24}
+            min={0}
+            onChange={(value) =>
+              setForm((current) => ({ ...current, sleepHours: value }))
+            }
+            placeholder="例如 7.5"
+            step="0.1"
+            type="number"
+            value={form.sleepHours}
+          />
         </div>
         <FormTextarea
           label="饮食习惯"
@@ -276,6 +305,154 @@ export function ProfileEditModal({
           >
             {loading ? <LoaderCircle className="size-4 animate-spin" /> : null}
             保存更新
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+export function BodyMetricModal({
+  error,
+  loading,
+  onClose,
+  onSubmit,
+  open,
+}: {
+  error: string | null
+  loading: boolean
+  onClose: () => void
+  onSubmit: (form: BodyMetricForm) => void
+  open: boolean
+}) {
+  const [form, setForm] = useState<BodyMetricForm>({
+    bmi: "",
+    bodyFatPercentage: "",
+    notes: "",
+    sleepHours: "",
+    sleepQuality: "",
+    weightKg: "",
+  })
+
+  if (!open) {
+    return null
+  }
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    onSubmit(form)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4 backdrop-blur-[2px]">
+      <form
+        className="w-full max-w-[480px] rounded-[20px] border border-white/80 bg-white p-5 shadow-[0_22px_70px_rgba(0,0,0,0.25)]"
+        onSubmit={submit}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-[20px] font-black tracking-[-0.04em]">
+              更新身体数据
+            </h2>
+            <p className="mt-2 text-[12px] leading-5 text-[#777777]">
+              体重等指标写入 body_metrics；睡眠写入 user_profiles，睡眠质量写入 agent_checkins。
+            </p>
+          </div>
+          <button
+            className="grid size-8 place-items-center rounded-full hover:bg-[#f4f4f4] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            onClick={onClose}
+            type="button"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <FormInput
+            label="体重 (kg)"
+            min={0}
+            onChange={(value) =>
+              setForm((current) => ({ ...current, weightKg: value }))
+            }
+            placeholder="例如 70"
+            step="0.1"
+            type="number"
+            value={form.weightKg}
+          />
+          <FormInput
+            label="体脂率 (%)"
+            max={100}
+            min={0}
+            onChange={(value) =>
+              setForm((current) => ({ ...current, bodyFatPercentage: value }))
+            }
+            placeholder="例如 18.5"
+            step="0.1"
+            type="number"
+            value={form.bodyFatPercentage}
+          />
+          <FormInput
+            label="BMI"
+            min={0}
+            onChange={(value) =>
+              setForm((current) => ({ ...current, bmi: value }))
+            }
+            placeholder="例如 23.1"
+            step="0.1"
+            type="number"
+            value={form.bmi}
+          />
+          <FormInput
+            label="睡眠时长 (小时)"
+            max={24}
+            min={0}
+            onChange={(value) =>
+              setForm((current) => ({ ...current, sleepHours: value }))
+            }
+            placeholder="例如 7.5"
+            step="0.1"
+            type="number"
+            value={form.sleepHours}
+          />
+          <FormInput
+            label="睡眠质量 (1-10)"
+            max={10}
+            min={1}
+            onChange={(value) =>
+              setForm((current) => ({ ...current, sleepQuality: value }))
+            }
+            placeholder="例如 8"
+            type="number"
+            value={form.sleepQuality}
+          />
+        </div>
+        <FormTextarea
+          label="备注"
+          onChange={(value) =>
+            setForm((current) => ({ ...current, notes: value }))
+          }
+          placeholder="例如 早晨空腹称重，训练后恢复良好"
+          value={form.notes}
+        />
+
+        {error ? <ErrorMessage message={error} /> : null}
+
+        <div className="mt-5 flex items-center justify-end gap-3">
+          <Button
+            className="h-10 rounded-[10px] border-[#dedede] px-4 text-[13px]"
+            onClick={onClose}
+            type="button"
+            variant="outline"
+          >
+            取消
+          </Button>
+          <Button
+            className="h-10 rounded-[10px] bg-[#111111] px-5 text-[13px] font-bold text-white hover:bg-[#111111]/90"
+            disabled={loading}
+            type="submit"
+          >
+            {loading ? <LoaderCircle className="size-4 animate-spin" /> : null}
+            保存身体数据
           </Button>
         </div>
       </form>
