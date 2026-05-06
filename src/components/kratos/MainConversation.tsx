@@ -67,7 +67,7 @@ export function MainConversation({
   onComposerKeyDown,
   onEndConversation,
   onMarkNotificationsRead,
-  onQuickAction,
+  // onQuickAction,
   onSendMessage,
   onToggleNotifications,
   onToggleTheme,
@@ -255,16 +255,13 @@ function ThinkingCard({
   return (
     <section className="rounded-[12px] border border-[#eeeeee] bg-[#fbfbfa] px-4 py-4">
       <div className="flex items-start gap-4">
-        {/* <div className="grid size-8 shrink-0 place-items-center rounded-full bg-[#111111] text-white"> */}
-        {/* <Sparkles className="size-4" strokeWidth={2} /> */}
-        {/* </div> */}
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-4">
             <div>
-              {/* <h3 className="text-[13px] leading-5 font-bold">内部思考</h3> */}
+              <h3 className="text-[13px] leading-5 font-bold">思考过程</h3>
               <p className="mt-1 text-[12px] text-[#8a8a8a]">
                 {streaming
-                  ? "正在实时接收 Agent 推理事件"
+                  ? "正在思考中..."
                   : `${visibleSteps.length} 条推理事件`}
               </p>
             </div>
@@ -407,7 +404,7 @@ function ChatBubble({
 
   if (!isAssistant) {
     return (
-      <section className="flex flex-col items-end px-5 pb-5">
+      <section className="flex flex-col items-end px-5 pb-5 pt-5">
         <div className="max-w-[83.333%] rounded-2xl bg-[#f2f2f2] px-4 py-3">
           <MarkdownMessage className="text-[#2f2f2f]">
             {message.body}

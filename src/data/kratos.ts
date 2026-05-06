@@ -113,12 +113,6 @@ export const quickActions: QuickAction[] = [
 ]
 
 export const initialMessages: ChatMessage[] = [
-  {
-    id: "initial-user",
-    author: "user",
-    time: "10:30",
-    body: "我今天在酒店，只有一对 10 kg 的哑铃和一张床，时间只有 20 分钟。另外我昨天深蹲完右膝盖有点疼，今天还能练腿吗?",
-  },
 ]
 
 export const initialNotifications: NotificationItem[] = [
