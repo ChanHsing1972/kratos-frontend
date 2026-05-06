@@ -297,7 +297,17 @@ function PersonalInfoModule({
   const expPercent = Math.min(Math.round((expNow / expTotal) * 100), 100)
 
   return (
-    <section className="relative w-full rounded-[12px] border border-[#e8e8e8] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)] xl:w-auto">
+
+    <section
+      className={cn(
+        // 基础样式
+        "w-full transition-all duration-300",
+        // 展开状态：有边框、背景、内边距和阴影
+        !collapsed && "rounded-[12px] border border-[#e8e8e8] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)] xl:w-auto",
+        // 收起状态：隐藏背景、边框、阴影，调整宽度和内边距以居中头像
+        collapsed && "xl:border-none xl:bg-transparent xl:p-0 xl:shadow-none xl:w-full"
+      )}
+    >
       <button
         className={cn(
           "flex w-full items-center gap-3 rounded-[10px] text-left focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
@@ -312,7 +322,7 @@ function PersonalInfoModule({
             "min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-200",
             showExpandedText
               ? "max-w-[150px] opacity-100 translate-x-0"
-              : "max-w-0 opacity-0 -translate-x-1"
+              : "hidden"
           )}
         >
           <span className="block truncate text-[14px] leading-5 font-bold">
@@ -324,7 +334,7 @@ function PersonalInfoModule({
           className={cn(
             "size-4 text-[#777777] transition-transform",
             menuOpen && "rotate-180",
-            !showExpandedText && "opacity-0"
+            !showExpandedText && "hidden"
           )}
         />
       </button>

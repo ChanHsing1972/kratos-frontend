@@ -1,15 +1,11 @@
 import {
-  Activity,
-  CalendarDays,
   ChartNoAxesColumn,
   CircleCheck,
-  ClipboardList,
   Flame,
   Heart,
   History,
   MessageCircle,
   Moon,
-  Settings,
   Utensils,
 } from "lucide-react"
 
@@ -24,12 +20,6 @@ import type {
 
 export const navItems: NavItem[] = [
   { label: "对话", icon: MessageCircle },
-  { label: "训练计划", icon: CalendarDays },
-  { label: "营养分析", icon: Utensils },
-  { label: "身体数据", icon: Activity },
-  { label: "历史记录", icon: ClipboardList },
-  { label: "评估平台", icon: ChartNoAxesColumn, badge: "Beta" },
-  { label: "设置", icon: Settings },
 ]
 
 export const timelineItems: TimelineItem[] = [
@@ -118,20 +108,20 @@ export const initialMessages: ChatMessage[] = [
 export const initialNotifications: NotificationItem[] = [
   {
     id: "knee",
-    title: "恢复提醒",
-    body: "右膝反馈仍需观察，今天避免跳跃和深蹲。",
+    title: "上下文提醒",
+    body: "Agent 会在每次回答前读取你的档案和最新身体数据。",
     read: false,
   },
   {
     id: "hydration",
-    title: "补水建议",
-    body: "训练前 30 分钟补充 300ml 水。",
+    title: "新用户引导",
+    body: "先补目标、训练经验、身高体重，回答会明显更准。",
     read: false,
   },
   {
     id: "plan",
-    title: "计划已生成",
-    body: "20 分钟酒店护膝训练已经准备好。",
+    title: "数据分离",
+    body: "个人信息写入 user_profiles，身体指标写入 body_metrics。",
     read: true,
   },
 ]

@@ -96,13 +96,12 @@ export function MainConversation({
       <header className="flex shrink-0 flex-col gap-5 px-7 pt-8 pb-0 sm:px-10 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-[25px] leading-[1.1] font-extrabold tracking-[-0.04em]">
-            {activeNav === "对话" ? `下午好， ${currentUserName}` : activeNav}{" "}
-            <span className="tracking-normal">👋</span>
+            {activeNav === "对话" ? `下午好，${currentUserName}` : activeNav}
           </h2>
           <p className="mt-2 text-[13px] text-[#6d6d6d]">
             {activeNav === "对话"
-              ? "我是你的 AI 健身教练 Kratos， 有什么可以帮你?"
-              : "该模块已接入后端同步状态，可通过对话和右侧面板继续更新。"}
+              ? "我是你的 AI 健身教练 Kratos。每次回答前，我会先读取你的数据库上下文。"
+              : "当前产品已收敛为对话工作流，请通过 Kratos 直接完成计划、记录和复盘。"}
           </p>
         </div>
         <div className="relative flex items-center gap-7 pr-2">
@@ -241,12 +240,16 @@ function NotificationsPopover({
 }
 
 function ThinkingCard({
+  completedAt,
   expanded,
+  startedAt,
   steps,
   streaming,
   onToggle,
 }: {
+  completedAt?: number
   expanded: boolean
+  startedAt?: number
   steps: AgentTraceStep[]
   streaming?: boolean
   onToggle: () => void
@@ -254,17 +257,20 @@ function ThinkingCard({
   const visibleSteps = steps.filter(
     (step) => step.type !== "final" && step.type !== "answer_delta"
   )
+  const elapsedSeconds = useElapsedSeconds(startedAt, completedAt, streaming)
 
   return (
-    <section className="rounded-[12px] border border-[#eeeeee] bg-[#fbfbfa] px-4 py-4">
+    <section className="animate-fade-slide-in rounded-[12px] border border-[#eeeeee] bg-[#fbfbfa] px-4 py-4">
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="text-[13px] leading-5 font-bold">思考过程</h3>
-              <p className="mt-1 text-[12px] text-[#8a8a8a]">
+              <h3 className="text-[13px] leading-5 font-bold">
+                思考过程 · {elapsedSeconds}s
+              </h3>
+              <p className="thinking-status-sweep mt-1 text-[12px] text-[#8a8a8a]">
                 {streaming
-                  ? "正在思考中..."
+                  ? "正在读取资料、规划工具和组织回答"
                   : `${visibleSteps.length} 条推理事件`}
               </p>
             </div>
@@ -290,6 +296,7 @@ function ThinkingCard({
                 {visibleSteps.length > 0 ? (
                   visibleSteps.map((step, index) => (
                     <TimelineRow
+                      animate={Boolean(streaming)}
                       item={step}
                       key={`${step.type}-${step.timestamp ?? index}-${step.content}`}
                     />
@@ -308,11 +315,17 @@ function ThinkingCard({
   )
 }
 
-function TimelineRow({ item }: { item: AgentTraceStep }) {
+function TimelineRow({
+  animate,
+  item,
+}: {
+  animate: boolean
+  item: AgentTraceStep
+}) {
   const meta = traceMeta[item.type] ?? traceMeta.status
 
   return (
-    <div className="relative">
+    <div className="animate-fade-slide-in relative">
       <div className="absolute top-0.5 -left-[31px] grid size-3.5 place-items-center rounded-full border border-[#111111] bg-white">
         {item.type === "thought" || item.type === "status" ? (
           <span className="size-1.5 rounded-full bg-[#111111]" />
@@ -329,9 +342,11 @@ function TimelineRow({ item }: { item: AgentTraceStep }) {
           <h4 className="text-[12px] leading-4 font-bold text-[#141414]">
             {meta}
           </h4>
-          <p className="mt-1 text-[12px] leading-[1.58] text-[#333333]">
-            {formatTraceContent(item)}
-          </p>
+          <TypewriterText
+            active={animate}
+            className="mt-1 text-[12px] leading-[1.58] text-[#333333]"
+            text={formatTraceContent(item)}
+          />
         </div>
         {item.timestamp ? (
           <time className="shrink-0 text-[11px] leading-4 text-[#999999]">
@@ -411,6 +426,64 @@ function ThinkingDots() {
   )
 }
 
+function TypewriterText({
+  active,
+  className,
+  text,
+}: {
+  active: boolean
+  className: string
+  text: string
+}) {
+  const [visibleLength, setVisibleLength] = useState(active ? 0 : text.length)
+
+  useEffect(() => {
+    if (!active) {
+      setVisibleLength(text.length)
+      return undefined
+    }
+
+    setVisibleLength(0)
+    const timer = window.setInterval(() => {
+      setVisibleLength((current) => {
+        if (current >= text.length) {
+          window.clearInterval(timer)
+          return current
+        }
+        return Math.min(text.length, current + 3)
+      })
+    }, 18)
+
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [active, text])
+
+  return <p className={className}>{text.slice(0, visibleLength)}</p>
+}
+
+function useElapsedSeconds(
+  startedAt?: number,
+  completedAt?: number,
+  streaming?: boolean
+) {
+  const [now, setNow] = useState(Date.now())
+
+  useEffect(() => {
+    if (!streaming) {
+      return undefined
+    }
+    const timer = window.setInterval(() => setNow(Date.now()), 250)
+    return () => window.clearInterval(timer)
+  }, [streaming])
+
+  if (!startedAt) {
+    return 0
+  }
+  const end = completedAt ?? now
+  return Math.max(0, Math.floor((end - startedAt) / 1000))
+}
+
 function ChatBubble({
   message,
   onToggleThinking,
@@ -473,8 +546,10 @@ function ChatBubble({
           {message.trace?.length ? (
             <div className="mt-3">
               <ThinkingCard
+                completedAt={message.completedAt}
                 expanded={thinkingExpanded}
                 onToggle={onToggleThinking}
+                startedAt={message.startedAt}
                 steps={message.trace}
                 streaming={message.streaming}
               />

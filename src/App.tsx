@@ -21,17 +21,13 @@ import {
   createTrainingPlan,
   createWorkoutLog,
   getCurrentUser,
-  getMyFitnessProfile,
+  getFitnessContext,
   getErrorMessage,
-  listAgentCheckins,
   listAgentRuns,
-  listBodyMetrics,
   listTrainingPlans,
-  listWorkoutLogs,
   loginUser,
   registerUser,
   streamAgentChat,
-  updateCurrentUser,
   updateMyFitnessProfile,
 } from "@/lib/api"
 import {
@@ -51,6 +47,7 @@ import {
   AuthModal,
   BodyMetricModal,
   DetailModal,
+  OnboardingModal,
   ProfileEditModal,
   Toast,
 } from "@/components/kratos/Modals"
@@ -65,15 +62,16 @@ import type {
   BodyMetricForm,
   ChatMessage,
   DetailPanel,
+  FitnessContext,
   FitnessProfile,
   FitnessProfilePayload,
   Metric,
+  OnboardingStatus,
   NotificationItem,
   ProfileForm,
   QuickAction,
   TrainingPlan,
   UserProfile,
-  UserUpdatePayload,
   WorkoutLog,
 } from "@/types/kratos"
 
@@ -91,6 +89,9 @@ export function App() {
   const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [profileSubmitting, setProfileSubmitting] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
+  const [onboardingSubmitting, setOnboardingSubmitting] = useState(false)
+  const [onboardingError, setOnboardingError] = useState<string | null>(null)
   const [bodyMetricModalOpen, setBodyMetricModalOpen] = useState(false)
   const [bodyMetricSubmitting, setBodyMetricSubmitting] = useState(false)
   const [bodyMetricError, setBodyMetricError] = useState<string | null>(null)
@@ -101,6 +102,7 @@ export function App() {
   const [agentStreaming, setAgentStreaming] = useState(false)
   const [dashboardLoading, setDashboardLoading] = useState(false)
   const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>([])
+  const [fitnessContext, setFitnessContext] = useState<FitnessContext | null>(null)
   const [fitnessProfile, setFitnessProfile] = useState<FitnessProfile | null>(null)
   const [bodyMetrics, setBodyMetrics] = useState<BodyMetric[]>([])
   const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([])
@@ -124,9 +126,11 @@ export function App() {
     getLatestByDate(bodyMetrics, (metric) => metric.recorded_at) ?? null
   const latestCheckin =
     getLatestByDate(agentCheckins, (checkin) => checkin.created_at) ?? null
-  const displayWeight = latestMetric?.weight_kg ?? fitnessProfile?.weight_kg ?? null
+  const onboardingStatus: OnboardingStatus | null =
+    fitnessContext?.onboarding ?? null
+  const displayWeight = latestMetric?.weight_kg ?? null
   const displaySleep =
-    latestCheckin?.sleep_quality ?? fitnessProfile?.sleep_hours ?? null
+    latestCheckin?.sleep_quality ?? latestMetric?.sleep_hours ?? null
   const metrics = useMemo<Metric[]>(
     () => [
       {
@@ -172,7 +176,8 @@ export function App() {
     getCurrentUser(token)
       .then(async (user) => {
         setCurrentUser(user)
-        await refreshDashboard(token)
+        const context = await refreshDashboard(token)
+        setOnboardingOpen(!context?.onboarding.ready_for_agent)
         setToast(`欢迎回来，${user.username}`)
       })
       .catch(() => {
@@ -216,8 +221,6 @@ export function App() {
         await registerUser({
           username: form.username,
           password: form.password,
-          location: form.location || null,
-          fitness_status: form.fitnessStatus || null,
         })
       }
 
@@ -225,9 +228,14 @@ export function App() {
       localStorage.setItem(AUTH_TOKEN_KEY, token.access_token)
       const user = await getCurrentUser(token.access_token)
       setCurrentUser(user)
-      await refreshDashboard(token.access_token)
+      const context = await refreshDashboard(token.access_token)
       setAuthModalOpen(false)
-      setToast(authMode === "register" ? "注册并登录成功" : "登录成功")
+      setOnboardingOpen(authMode === "register" || !context?.onboarding.ready_for_agent)
+      setToast(
+        authMode === "register"
+          ? "账号已创建，先完成 2 分钟建档"
+          : "登录成功"
+      )
     } catch (error) {
       setAuthError(getErrorMessage(error))
     } finally {
@@ -238,6 +246,7 @@ export function App() {
   const handleLogout = () => {
     localStorage.removeItem(AUTH_TOKEN_KEY)
     setCurrentUser(null)
+    setFitnessContext(null)
     setTrainingPlans([])
     setFitnessProfile(null)
     setBodyMetrics([])
@@ -247,6 +256,7 @@ export function App() {
     setAgentSessionId(null)
     setProfileMenuOpen(false)
     setProfileModalOpen(false)
+    setOnboardingOpen(false)
     setBodyMetricModalOpen(false)
     setToast("已退出登录")
   }
@@ -261,7 +271,8 @@ export function App() {
     try {
       const user = await getCurrentUser(token)
       setCurrentUser(user)
-      await refreshDashboard(token)
+      const context = await refreshDashboard(token)
+      setOnboardingOpen(!context?.onboarding.ready_for_agent)
       setToast("个人资料已刷新")
     } catch (error) {
       localStorage.removeItem(AUTH_TOKEN_KEY)
@@ -304,41 +315,47 @@ export function App() {
       setProfileError("年龄必须是 0 或更大的整数")
       return
     }
-    const parsedWeight = parseOptionalNumber(form.weightKg, "体重")
-    if (typeof parsedWeight === "string") {
-      setProfileError(parsedWeight)
+    const parsedDays = parseOptionalInteger(form.availableDaysPerWeek, "每周可训练天数")
+    if (typeof parsedDays === "string") {
+      setProfileError(parsedDays)
       return
     }
-    const parsedSleep = parseOptionalNumber(form.sleepHours, "平均睡眠")
-    if (typeof parsedSleep === "string") {
-      setProfileError(parsedSleep)
+    if (parsedDays !== null && parsedDays > 7) {
+      setProfileError("每周可训练天数不能超过 7")
       return
     }
-
-    const payload: UserUpdatePayload = {
-      gender: compactOptionalText(form.gender),
-      age: parsedAge,
-      location: compactOptionalText(form.location),
-      dietary_habits: compactOptionalText(form.dietaryHabits),
-      fitness_status: compactOptionalText(form.fitnessStatus),
+    const parsedMinutes = parseOptionalInteger(
+      form.workoutMinutesPerSession,
+      "单次训练时长"
+    )
+    if (typeof parsedMinutes === "string") {
+      setProfileError(parsedMinutes)
+      return
     }
 
     setProfileSubmitting(true)
     setProfileError(null)
 
     try {
-      const updatedUser = await updateCurrentUser(token, payload)
       const updatedProfile = await upsertFitnessProfile(token, {
         age: parsedAge,
+        activity_level: compactOptionalText(form.activityLevel),
+        available_days_per_week: parsedDays,
         dietary_habits: compactOptionalText(form.dietaryHabits),
-        fitness_summary: compactOptionalText(form.fitnessStatus),
+        dietary_restrictions: compactOptionalText(form.dietaryRestrictions),
+        equipment_access: compactOptionalText(form.equipmentAccess),
+        experience_level: compactOptionalText(form.experienceLevel),
+        fitness_goal: compactOptionalText(form.fitnessGoal),
+        fitness_summary: compactOptionalText(form.fitnessSummary),
         gender: compactOptionalText(form.gender),
+        injury_history: compactOptionalText(form.injuryHistory),
         location: compactOptionalText(form.location),
-        sleep_hours: parsedSleep,
-        weight_kg: parsedWeight,
+        medical_conditions: compactOptionalText(form.medicalConditions),
+        preferred_workout_types: compactOptionalText(form.preferredWorkoutTypes),
+        workout_minutes_per_session: parsedMinutes,
       })
-      setCurrentUser(updatedUser)
       setFitnessProfile(updatedProfile)
+      await refreshDashboard(token, { preserveMessages: true })
       setProfileModalOpen(false)
       setToast("个人资料已更新")
     } catch (error) {
@@ -387,6 +404,163 @@ export function App() {
     return parsed
   }
 
+  const buildProfilePayload = (
+    form: ProfileForm,
+    setError: (message: string | null) => void
+  ): FitnessProfilePayload | null => {
+    const age = form.age.trim()
+    const parsedAge = age ? Number(age) : null
+    if (parsedAge !== null && (!Number.isInteger(parsedAge) || parsedAge < 0)) {
+      setError("年龄必须是 0 或更大的整数")
+      return null
+    }
+
+    const parsedDays = parseOptionalInteger(form.availableDaysPerWeek, "每周可训练天数")
+    if (typeof parsedDays === "string") {
+      setError(parsedDays)
+      return null
+    }
+    if (parsedDays !== null && parsedDays > 7) {
+      setError("每周可训练天数不能超过 7")
+      return null
+    }
+
+    const parsedMinutes = parseOptionalInteger(
+      form.workoutMinutesPerSession,
+      "单次训练时长"
+    )
+    if (typeof parsedMinutes === "string") {
+      setError(parsedMinutes)
+      return null
+    }
+
+    return {
+      age: parsedAge,
+      activity_level: compactOptionalText(form.activityLevel),
+      available_days_per_week: parsedDays,
+      dietary_habits: compactOptionalText(form.dietaryHabits),
+      dietary_restrictions: compactOptionalText(form.dietaryRestrictions),
+      equipment_access: compactOptionalText(form.equipmentAccess),
+      experience_level: compactOptionalText(form.experienceLevel),
+      fitness_goal: compactOptionalText(form.fitnessGoal),
+      fitness_summary: compactOptionalText(form.fitnessSummary),
+      gender: compactOptionalText(form.gender),
+      injury_history: compactOptionalText(form.injuryHistory),
+      location: compactOptionalText(form.location),
+      medical_conditions: compactOptionalText(form.medicalConditions),
+      preferred_workout_types: compactOptionalText(form.preferredWorkoutTypes),
+      workout_minutes_per_session: parsedMinutes,
+    }
+  }
+
+  const buildBodyPayload = (
+    form: BodyMetricForm,
+    setError: (message: string | null) => void
+  ) => {
+    const heightCm = parseOptionalNumber(form.heightCm, "身高")
+    if (typeof heightCm === "string") {
+      setError(heightCm)
+      return null
+    }
+    const weightKg = parseOptionalNumber(form.weightKg, "体重")
+    if (typeof weightKg === "string") {
+      setError(weightKg)
+      return null
+    }
+    const targetWeightKg = parseOptionalNumber(form.targetWeightKg, "目标体重")
+    if (typeof targetWeightKg === "string") {
+      setError(targetWeightKg)
+      return null
+    }
+    const bodyFatPercentage = parseOptionalNumber(form.bodyFatPercentage, "体脂率")
+    if (typeof bodyFatPercentage === "string") {
+      setError(bodyFatPercentage)
+      return null
+    }
+    const skeletalMuscleMassKg = parseOptionalNumber(
+      form.skeletalMuscleMassKg,
+      "骨骼肌"
+    )
+    if (typeof skeletalMuscleMassKg === "string") {
+      setError(skeletalMuscleMassKg)
+      return null
+    }
+    const bmi = parseOptionalNumber(form.bmi, "BMI")
+    if (typeof bmi === "string") {
+      setError(bmi)
+      return null
+    }
+    const waistCm = parseOptionalNumber(form.waistCm, "腰围")
+    if (typeof waistCm === "string") {
+      setError(waistCm)
+      return null
+    }
+    const sleepHours = parseOptionalNumber(form.sleepHours, "睡眠时长")
+    if (typeof sleepHours === "string") {
+      setError(sleepHours)
+      return null
+    }
+    const energyLevel = parseOptionalInteger(form.energyLevel, "精力")
+    if (typeof energyLevel === "string") {
+      setError(energyLevel)
+      return null
+    }
+    const sleepQuality = parseOptionalInteger(form.sleepQuality, "睡眠质量")
+    if (typeof sleepQuality === "string") {
+      setError(sleepQuality)
+      return null
+    }
+    const sorenessLevel = parseOptionalInteger(form.sorenessLevel, "酸痛")
+    if (typeof sorenessLevel === "string") {
+      setError(sorenessLevel)
+      return null
+    }
+
+    for (const [label, value] of [
+      ["精力", energyLevel],
+      ["睡眠质量", sleepQuality],
+      ["酸痛", sorenessLevel],
+    ] as const) {
+      if (value !== null && (value < 1 || value > 10)) {
+        setError(`${label}必须在 1 到 10 之间`)
+        return null
+      }
+    }
+
+    const metric = {
+      height_cm: heightCm,
+      weight_kg: weightKg,
+      target_weight_kg: targetWeightKg,
+      body_fat_percentage: bodyFatPercentage,
+      skeletal_muscle_mass_kg: skeletalMuscleMassKg,
+      bmi,
+      waist_cm: waistCm,
+      sleep_hours: sleepHours,
+      notes: compactOptionalText(form.notes),
+    }
+    const checkin = {
+      energy_level: energyLevel,
+      sleep_quality: sleepQuality,
+      soreness_level: sorenessLevel,
+    }
+
+    return {
+      checkin,
+      hasCheckinData:
+        energyLevel !== null || sleepQuality !== null || sorenessLevel !== null,
+      hasMetricData:
+        heightCm !== null ||
+        weightKg !== null ||
+        targetWeightKg !== null ||
+        bodyFatPercentage !== null ||
+        skeletalMuscleMassKg !== null ||
+        bmi !== null ||
+        waistCm !== null ||
+        sleepHours !== null,
+      metric,
+    }
+  }
+
   const handleBodyMetricSubmit = async (form: BodyMetricForm) => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
@@ -394,9 +568,19 @@ export function App() {
       return
     }
 
+    const heightCm = parseOptionalNumber(form.heightCm, "身高")
+    if (typeof heightCm === "string") {
+      setBodyMetricError(heightCm)
+      return
+    }
     const weightKg = parseOptionalNumber(form.weightKg, "体重")
     if (typeof weightKg === "string") {
       setBodyMetricError(weightKg)
+      return
+    }
+    const targetWeightKg = parseOptionalNumber(form.targetWeightKg, "目标体重")
+    if (typeof targetWeightKg === "string") {
+      setBodyMetricError(targetWeightKg)
       return
     }
     const bodyFatPercentage = parseOptionalNumber(form.bodyFatPercentage, "体脂率")
@@ -404,9 +588,22 @@ export function App() {
       setBodyMetricError(bodyFatPercentage)
       return
     }
+    const skeletalMuscleMassKg = parseOptionalNumber(
+      form.skeletalMuscleMassKg,
+      "骨骼肌"
+    )
+    if (typeof skeletalMuscleMassKg === "string") {
+      setBodyMetricError(skeletalMuscleMassKg)
+      return
+    }
     const bmi = parseOptionalNumber(form.bmi, "BMI")
     if (typeof bmi === "string") {
       setBodyMetricError(bmi)
+      return
+    }
+    const waistCm = parseOptionalNumber(form.waistCm, "腰围")
+    if (typeof waistCm === "string") {
+      setBodyMetricError(waistCm)
       return
     }
     const sleepHours = parseOptionalNumber(form.sleepHours, "睡眠时长")
@@ -414,13 +611,31 @@ export function App() {
       setBodyMetricError(sleepHours)
       return
     }
+    const energyLevel = parseOptionalInteger(form.energyLevel, "精力")
+    if (typeof energyLevel === "string") {
+      setBodyMetricError(energyLevel)
+      return
+    }
     const sleepQuality = parseOptionalInteger(form.sleepQuality, "睡眠质量")
     if (typeof sleepQuality === "string") {
       setBodyMetricError(sleepQuality)
       return
     }
+    const sorenessLevel = parseOptionalInteger(form.sorenessLevel, "酸痛")
+    if (typeof sorenessLevel === "string") {
+      setBodyMetricError(sorenessLevel)
+      return
+    }
+    if (energyLevel !== null && (energyLevel < 1 || energyLevel > 10)) {
+      setBodyMetricError("精力必须在 1 到 10 之间")
+      return
+    }
     if (sleepQuality !== null && (sleepQuality < 1 || sleepQuality > 10)) {
       setBodyMetricError("睡眠质量必须在 1 到 10 之间")
+      return
+    }
+    if (sorenessLevel !== null && (sorenessLevel < 1 || sorenessLevel > 10)) {
+      setBodyMetricError("酸痛必须在 1 到 10 之间")
       return
     }
 
@@ -428,25 +643,34 @@ export function App() {
     setBodyMetricError(null)
 
     try {
-      if (weightKg !== null || bodyFatPercentage !== null || bmi !== null) {
+      if (
+        heightCm !== null ||
+        weightKg !== null ||
+        targetWeightKg !== null ||
+        bodyFatPercentage !== null ||
+        skeletalMuscleMassKg !== null ||
+        bmi !== null ||
+        waistCm !== null ||
+        sleepHours !== null
+      ) {
         const metric = await createBodyMetric(token, {
+          height_cm: heightCm,
           bmi,
           body_fat_percentage: bodyFatPercentage,
+          skeletal_muscle_mass_kg: skeletalMuscleMassKg,
           notes: compactOptionalText(form.notes),
+          sleep_hours: sleepHours,
+          target_weight_kg: targetWeightKg,
+          waist_cm: waistCm,
           weight_kg: weightKg,
         })
         setBodyMetrics((current) => [metric, ...current])
       }
 
-      if (sleepHours !== null) {
-        const profile = await upsertFitnessProfile(token, {
-          sleep_hours: sleepHours,
-        })
-        setFitnessProfile(profile)
-      }
-
-      if (sleepQuality !== null) {
+      if (energyLevel !== null || sleepQuality !== null || sorenessLevel !== null) {
         const checkin = await createAgentCheckin(token, {
+          energy_level: energyLevel,
+          soreness_level: sorenessLevel,
           sleep_quality: sleepQuality,
           summary: compactOptionalText(form.notes) ?? "手动更新身体数据",
           training_plan_id: activePlan?.id ?? null,
@@ -467,48 +691,36 @@ export function App() {
   const refreshDashboard = async (
     token: string,
     options: { preserveMessages?: boolean } = {}
-  ) => {
+  ): Promise<FitnessContext | null> => {
     setDashboardLoading(true)
 
     try {
-      const [plans, metrics, logs, checkins, runs] = await Promise.all([
+      const [context, plans, runs] = await Promise.all([
+        getFitnessContext(token),
         listTrainingPlans(token),
-        listBodyMetrics(token),
-        listWorkoutLogs(token),
-        listAgentCheckins(token),
         listAgentRuns(token),
       ])
-      const profile = await loadFitnessProfile(token)
       const hydratedPlans =
         plans.length > 0
           ? plans
           : [await createTrainingPlan(token, buildDefaultTrainingPlan())]
 
+      setFitnessContext(context)
       setTrainingPlans(hydratedPlans)
-      setFitnessProfile(profile)
-      setBodyMetrics(metrics)
-      setWorkoutLogs(logs)
-      setAgentCheckins(checkins)
+      setFitnessProfile(context.profile)
+      setBodyMetrics(context.recent_body_metrics)
+      setWorkoutLogs(context.recent_workout_logs)
+      setAgentCheckins(context.recent_checkins)
       if (!options.preserveMessages) {
         setMessages(runs.length ? chatMessagesFromAgentRuns(runs) : initialMessages)
         setAgentSessionId(runs[0]?.session_id ?? null)
       }
+      return context
     } catch (error) {
       setToast(getErrorMessage(error))
+      return null
     } finally {
       setDashboardLoading(false)
-    }
-  }
-
-  const loadFitnessProfile = async (token: string) => {
-    try {
-      return await getMyFitnessProfile(token)
-    } catch {
-      try {
-        return await createMyFitnessProfile(token, {})
-      } catch {
-        return null
-      }
     }
   }
 
@@ -520,6 +732,53 @@ export function App() {
       return await updateMyFitnessProfile(token, payload)
     } catch {
       return createMyFitnessProfile(token, payload)
+    }
+  }
+
+  const handleOnboardingSubmit = async (
+    profileForm: ProfileForm,
+    bodyForm: BodyMetricForm
+  ) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      return
+    }
+
+    const profilePayload = buildProfilePayload(profileForm, setOnboardingError)
+    if (!profilePayload) {
+      return
+    }
+    const bodyPayload = buildBodyPayload(bodyForm, setOnboardingError)
+    if (!bodyPayload) {
+      return
+    }
+
+    setOnboardingSubmitting(true)
+    setOnboardingError(null)
+
+    try {
+      const updatedProfile = await upsertFitnessProfile(token, profilePayload)
+      setFitnessProfile(updatedProfile)
+
+      if (bodyPayload.hasMetricData) {
+        await createBodyMetric(token, bodyPayload.metric)
+      }
+      if (bodyPayload.hasCheckinData) {
+        await createAgentCheckin(token, {
+          ...bodyPayload.checkin,
+          summary: compactOptionalText(bodyForm.notes) ?? "新用户引导记录",
+          training_plan_id: activePlan?.id ?? null,
+        })
+      }
+
+      const context = await refreshDashboard(token, { preserveMessages: true })
+      setOnboardingOpen(!context?.onboarding.ready_for_agent)
+      setToast("建档完成，Kratos 现在有上下文了")
+    } catch (error) {
+      setOnboardingError(getErrorMessage(error))
+    } finally {
+      setOnboardingSubmitting(false)
     }
   }
 
@@ -558,6 +817,7 @@ export function App() {
         id: assistantMessageId,
         author: "assistant",
         body: "",
+        startedAt: Date.now(),
         streaming: true,
         time: formatTime(),
         trace: [
@@ -588,6 +848,7 @@ export function App() {
                 return {
                   ...message,
                   body: event.answer ?? message.body,
+                  completedAt: Date.now(),
                   streaming: false,
                 }
               }
@@ -602,6 +863,7 @@ export function App() {
               if (event.type === "error") {
                 return {
                   ...message,
+                  completedAt: Date.now(),
                   error: event.content,
                   streaming: false,
                   trace: [...(message.trace ?? []), event],
@@ -759,7 +1021,15 @@ export function App() {
           onLogout={handleLogout}
           onNavSelect={handleNavSelect}
           onOpenProfile={() =>
-            setDetailPanel(buildProfilePanel(currentUser, completedExercises))
+            setDetailPanel(
+              buildProfilePanel(
+                currentUser,
+                fitnessProfile,
+                latestMetric,
+                onboardingStatus,
+                completedExercises
+              )
+            )
           }
           onRefreshProfile={handleRefreshProfile}
           onRegister={() => openAuth("register")}
@@ -807,8 +1077,14 @@ export function App() {
           activePlan={activePlan}
           completedExercises={completedExercises}
           dashboardLoading={dashboardLoading}
+          latestMetric={latestMetric}
           metrics={metrics}
+          onboarding={onboardingStatus}
           onEditBodyData={openBodyMetricEditor}
+          onOpenOnboarding={() => {
+            setOnboardingError(null)
+            setOnboardingOpen(true)
+          }}
           onOpenPanel={(panel) => {
             if (panel.title === "身体与训练状态") {
               setDetailPanel(
@@ -816,7 +1092,7 @@ export function App() {
                   checkin: latestCheckin,
                   logs: workoutLogs,
                   metric: latestMetric,
-                  profile: fitnessProfile,
+                  onboarding: onboardingStatus,
                 })
               )
               return
@@ -831,6 +1107,7 @@ export function App() {
           }}
           onToggleExercise={toggleExercise}
           onTrainingButton={handleTrainingButton}
+          profile={fitnessProfile}
           trainingStarted={trainingStarted}
         />
       </div>
@@ -847,6 +1124,17 @@ export function App() {
         }}
         onSubmit={handleAuthSubmit}
         open={authModalOpen}
+      />
+      <OnboardingModal
+        bodyMetric={latestMetric}
+        error={onboardingError}
+        key={`${currentUser?.id ?? "guest"}-${onboardingOpen ? "open" : "closed"}-${fitnessProfile?.updated_at ?? "no-profile"}-${latestMetric?.id ?? "no-metric"}`}
+        loading={onboardingSubmitting}
+        onClose={() => setOnboardingOpen(false)}
+        onSubmit={handleOnboardingSubmit}
+        open={onboardingOpen && Boolean(currentUser)}
+        profile={fitnessProfile}
+        status={onboardingStatus}
       />
       <ProfileEditModal
         error={profileError}

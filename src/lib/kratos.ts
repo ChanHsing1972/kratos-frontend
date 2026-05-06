@@ -7,6 +7,7 @@ import type {
   ChatMessage,
   DetailPanel,
   FitnessProfile,
+  OnboardingStatus,
   ProfileForm,
   TrainingPlan,
   UserProfile,
@@ -60,6 +61,9 @@ export function buildAssistantReply(prompt: string) {
 
 export function buildProfilePanel(
   user: UserProfile | null,
+  profile: FitnessProfile | null,
+  metric: BodyMetric | null,
+  onboarding: OnboardingStatus | null,
   completedExercises: string[]
 ): DetailPanel {
   if (!user) {
@@ -70,15 +74,16 @@ export function buildProfilePanel(
   }
 
   return {
-    title: "个人信息",
-    body: `${user.username} 的训练档案已从后端同步。当前经验值为本地演示数据，用户基础资料来自 /api/v1/auth/me。`,
+    title: "用户上下文",
+    body: `${user.username} 的 Agent 上下文来自 /profile/context：账号、个人信息、身体数据已分离读取。`,
     items: [
       `用户 ID：${user.id}`,
-      `性别：${user.gender ?? "未设置"}`,
-      `年龄：${user.age ?? "未设置"}`,
-      `地区：${user.location ?? "未设置"}`,
-      `训练状态：${user.fitness_status ?? "未设置"}`,
-      `饮食习惯：${user.dietary_habits ?? "未设置"}`,
+      `性别：${profile?.gender ?? "未设置"}`,
+      `年龄：${profile?.age ?? "未设置"}`,
+      `地区：${profile?.location ?? "未设置"}`,
+      `目标：${profile?.fitness_goal ?? "未设置"}`,
+      `体重：${metric?.weight_kg ? `${metric.weight_kg} kg` : "未记录"}`,
+      `档案状态：${onboarding?.ready_for_agent ? "可直接使用 Agent" : "需要继续完善"}`,
       `今日已完成动作：${completedExercises.length}/2`,
     ],
   }
@@ -87,30 +92,30 @@ export function buildProfilePanel(
 export function buildDashboardPanel({
   checkin,
   metric,
-  profile,
   logs,
+  onboarding,
 }: {
   checkin: AgentCheckin | null
   metric: BodyMetric | null
-  profile: FitnessProfile | null
   logs: WorkoutLog[]
+  onboarding: OnboardingStatus | null
 }): DetailPanel {
-  const weight = metric?.weight_kg ?? profile?.weight_kg ?? null
-  const bodyFat = metric?.body_fat_percentage ?? profile?.body_fat_percentage ?? null
-  const sleep = checkin?.sleep_quality ?? profile?.sleep_hours ?? null
+  const sleep = checkin?.sleep_quality ?? metric?.sleep_hours ?? null
 
   return {
     title: "身体与训练状态",
     body:
-      "这些数据来自数据库：users/user_profiles、body_metrics、workout_logs 和 agent_checkins。时间序列表优先，用户画像作为新用户兜底。",
+      "身体指标只来自 body_metrics；个人目标与偏好只来自 user_profiles；训练记录和打卡分别来自 workout_logs 与 agent_checkins。",
     items: [
-      weight ? `体重：${weight} kg` : "体重：未记录",
-      bodyFat
-        ? `体脂率：${bodyFat}%`
+      metric?.height_cm ? `身高：${metric.height_cm} cm` : "身高：未记录",
+      metric?.weight_kg ? `体重：${metric.weight_kg} kg` : "体重：未记录",
+      metric?.body_fat_percentage
+        ? `体脂率：${metric.body_fat_percentage}%`
         : "体脂率：未记录",
       metric?.bmi ? `BMI：${metric.bmi}` : "BMI：未记录",
       `训练记录：${logs.length} 条`,
       sleep ? `睡眠：${sleep}${checkin?.sleep_quality ? "/10" : " 小时"}` : "睡眠：未记录",
+      onboarding?.next_steps?.[0] ?? "上下文已可用于 Agent 回答",
       checkin?.summary
         ? `最近打卡：${checkin.summary}`
         : "最近打卡：暂无 Agent 打卡",
@@ -268,17 +273,25 @@ export function formatTime() {
 }
 
 export function profileFormFromUser(
-  user: UserProfile,
   profile: FitnessProfile | null = null
 ): ProfileForm {
   return {
-    gender: user.gender ?? "",
-    age: user.age?.toString() ?? "",
-    location: user.location ?? "",
-    sleepHours: profile?.sleep_hours?.toString() ?? "",
-    weightKg: profile?.weight_kg?.toString() ?? "",
-    dietaryHabits: user.dietary_habits ?? "",
-    fitnessStatus: user.fitness_status ?? "",
+    gender: profile?.gender ?? "",
+    age: profile?.age?.toString() ?? "",
+    location: profile?.location ?? "",
+    fitnessGoal: profile?.fitness_goal ?? "",
+    fitnessSummary: profile?.fitness_summary ?? "",
+    activityLevel: profile?.activity_level ?? "",
+    experienceLevel: profile?.experience_level ?? "",
+    availableDaysPerWeek: profile?.available_days_per_week?.toString() ?? "",
+    workoutMinutesPerSession:
+      profile?.workout_minutes_per_session?.toString() ?? "",
+    equipmentAccess: profile?.equipment_access ?? "",
+    injuryHistory: profile?.injury_history ?? "",
+    medicalConditions: profile?.medical_conditions ?? "",
+    preferredWorkoutTypes: profile?.preferred_workout_types ?? "",
+    dietaryHabits: profile?.dietary_habits ?? "",
+    dietaryRestrictions: profile?.dietary_restrictions ?? "",
   }
 }
 

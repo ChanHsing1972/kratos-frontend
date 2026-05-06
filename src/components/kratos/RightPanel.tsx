@@ -1,6 +1,22 @@
-import { Check, ChevronRight, LoaderCircle, Play, Sparkles } from "lucide-react"
+import {
+  Check,
+  ChevronRight,
+  Dumbbell,
+  LoaderCircle,
+  Play,
+  Sparkles,
+  Target,
+} from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 
-import type { DetailPanel, Metric, TrainingPlan } from "@/types/kratos"
+import type {
+  BodyMetric,
+  DetailPanel,
+  FitnessProfile,
+  Metric,
+  OnboardingStatus,
+  TrainingPlan,
+} from "@/types/kratos"
 import { Button } from "@/components/ui/button"
 import {
   buildPlanPanel,
@@ -13,11 +29,15 @@ type RightPanelProps = {
   activePlan: TrainingPlan | null
   completedExercises: string[]
   dashboardLoading: boolean
+  latestMetric: BodyMetric | null
   metrics: Metric[]
+  onboarding: OnboardingStatus | null
   onEditBodyData: () => void
+  onOpenOnboarding: () => void
   onOpenPanel: (panel: DetailPanel) => void
   onToggleExercise: (title: string) => void
   onTrainingButton: () => void
+  profile: FitnessProfile | null
   trainingStarted: boolean
 }
 
@@ -25,15 +45,25 @@ export function RightPanel({
   activePlan,
   completedExercises,
   dashboardLoading,
+  latestMetric,
   metrics,
+  onboarding,
   onEditBodyData,
+  onOpenOnboarding,
   onOpenPanel,
   onToggleExercise,
   onTrainingButton,
+  profile,
   trainingStarted,
 }: RightPanelProps) {
   return (
     <aside className="h-full w-full shrink-0 overflow-y-auto bg-white px-6 py-8 xl:w-[388px]">
+      <AgentReadinessCard
+        latestMetric={latestMetric}
+        onboarding={onboarding}
+        onOpenOnboarding={onOpenOnboarding}
+        profile={profile}
+      />
       <SectionHeader
         action="更多数据"
         onAction={() =>
@@ -50,7 +80,7 @@ export function RightPanel({
         title="当前状态"
       />
       <StatusCard metrics={metrics} />
-      <button
+      {/* <button
         className="mt-3 w-full rounded-[12px] border border-[#e8e8e8] bg-[#111111] px-4 py-3 text-left text-white shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#111111]/90 focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
         onClick={onEditBodyData}
         type="button"
@@ -59,12 +89,12 @@ export function RightPanel({
           <div>
             <h3 className="text-[13px] font-bold">更新身体数据</h3>
             <p className="mt-1 text-[11px] text-white/70">
-              写入 body_metrics / user_profiles
+              只写入 body_metrics / agent_checkins
             </p>
           </div>
           <ChevronRight className="size-4 text-white/80" />
         </div>
-      </button>
+      </button> */}
 
       <button
         className="mt-3 w-full rounded-[12px] border border-[#e8e8e8] bg-white px-4 py-4 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
@@ -77,10 +107,11 @@ export function RightPanel({
           <span className="grid size-5 place-items-center rounded-full text-[#111111]">
             <Sparkles className="size-4 fill-[#111111]" strokeWidth={2} />
           </span>
-          <h3 className="text-[14px] font-bold">Kratos 提醒</h3>
+          <h3 className="text-[14px] font-bold">Kratos 下一步</h3>
         </div>
         <p className="mt-2 text-[12px] leading-5 text-[#777777]">
-          注意右膝恢复，建议避免大量深蹲和跳跃类动作。
+          {onboarding?.next_steps?.[0] ??
+            "你可以直接让 Agent 生成今日训练、饮食补给或恢复建议。"}
         </p>
       </button>
 
@@ -101,6 +132,89 @@ export function RightPanel({
         trainingStarted={trainingStarted}
       />
     </aside>
+  )
+}
+
+function AgentReadinessCard({
+  latestMetric,
+  onboarding,
+  onOpenOnboarding,
+  profile,
+}: {
+  latestMetric: BodyMetric | null
+  onboarding: OnboardingStatus | null
+  onOpenOnboarding: () => void
+  profile: FitnessProfile | null
+}) {
+  const ready = onboarding?.ready_for_agent ?? false
+
+  return (
+    <section className="mb-7 rounded-[12px] border border-[#e8e8e8] bg-[#fbfbfa] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-[16px] font-black tracking-[-0.02em]">
+            Agent 上下文
+          </h2>
+          <p className="mt-1 text-[12px] leading-5 text-[#666666]">
+            {ready
+              ? "每次回复前都会读取你的目标、身体数据和近期记录。"
+              : "先补齐关键字段，训练和饮食建议会更像真的为你定制。"}
+          </p>
+        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold",
+            ready ? "bg-[#111111] text-white" : "bg-[#fff3d6] text-[#8a6100]"
+          )}
+        >
+          {ready ? "已就绪" : "待完善"}
+        </span>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <ContextPill
+          icon={Target}
+          label="目标"
+          value={profile?.fitness_goal ?? "未设置"}
+        />
+        <ContextPill
+          icon={Dumbbell}
+          label="体重"
+          value={latestMetric?.weight_kg ? `${latestMetric.weight_kg} kg` : "未记录"}
+        />
+      </div>
+
+      <button
+        className="mt-3 flex w-full items-center justify-between gap-3 rounded-[10px] border border-[#e3e3e3] bg-white px-3 py-2.5 text-left text-[12px] font-bold text-[#222222] transition-colors hover:bg-[#f6f6f5] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        onClick={onOpenOnboarding}
+        type="button"
+      >
+        {ready ? "查看或更新建档信息" : onboarding?.next_steps?.[0] ?? "开始 2 分钟建档"}
+        <ChevronRight className="size-3.5 text-[#777777]" />
+      </button>
+    </section>
+  )
+}
+
+function ContextPill({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon
+  label: string
+  value: string
+}) {
+  return (
+    <div className="rounded-[10px] border border-[#eeeeee] bg-white px-3 py-2">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#777777]">
+        <Icon className="size-3.5" strokeWidth={1.8} />
+        {label}
+      </div>
+      <p className="mt-1 truncate text-[13px] font-black text-[#111111]">
+        {value}
+      </p>
+    </div>
   )
 }
 

@@ -52,11 +52,7 @@ export type QuickAction = {
 export type UserProfile = {
   id: number
   username: string
-  gender: string | null
-  age: number | null
-  location: string | null
-  dietary_habits: string | null
-  fitness_status: string | null
+  created_at: string
 }
 
 export type TokenResponse = {
@@ -69,34 +65,32 @@ export type AuthMode = "login" | "register"
 export type AuthForm = {
   username: string
   password: string
-  location: string
-  fitnessStatus: string
 }
 
 export type ProfileForm = {
   gender: string
   age: string
   location: string
-  weightKg: string
-  sleepHours: string
+  fitnessGoal: string
+  fitnessSummary: string
+  activityLevel: string
+  experienceLevel: string
+  availableDaysPerWeek: string
+  workoutMinutesPerSession: string
+  equipmentAccess: string
+  injuryHistory: string
+  medicalConditions: string
+  preferredWorkoutTypes: string
   dietaryHabits: string
-  fitnessStatus: string
+  dietaryRestrictions: string
 }
 
 export type UserRegisterPayload = {
   username: string
   password: string
-  location: string | null
-  fitness_status: string | null
 }
 
-export type UserUpdatePayload = {
-  gender?: string | null
-  age?: number | null
-  location?: string | null
-  dietary_habits?: string | null
-  fitness_status?: string | null
-}
+export type UserUpdatePayload = Record<string, never>
 
 export type FitnessProfile = {
   id: number
@@ -104,10 +98,6 @@ export type FitnessProfile = {
   gender: string | null
   age: number | null
   location: string | null
-  height_cm: number | null
-  weight_kg: number | null
-  target_weight_kg: number | null
-  body_fat_percentage: number | null
   fitness_goal: string | null
   fitness_summary: string | null
   activity_level: string | null
@@ -120,7 +110,6 @@ export type FitnessProfile = {
   preferred_workout_types: string | null
   dietary_habits: string | null
   dietary_restrictions: string | null
-  sleep_hours: number | null
   created_at: string
   updated_at: string
 }
@@ -160,13 +149,16 @@ export type TrainingPlanPayload = {
 export type BodyMetric = {
   id: number
   user_id: number
+  height_cm: number | null
   weight_kg: number | null
+  target_weight_kg: number | null
   body_fat_percentage: number | null
   skeletal_muscle_mass_kg: number | null
   bmi: number | null
   chest_cm: number | null
   waist_cm: number | null
   hip_cm: number | null
+  sleep_hours: number | null
   notes: string | null
   recorded_at: string
 }
@@ -199,23 +191,52 @@ export type WorkoutLogPayload = {
 }
 
 export type BodyMetricForm = {
+  heightCm: string
   weightKg: string
+  targetWeightKg: string
   bodyFatPercentage: string
+  skeletalMuscleMassKg: string
   bmi: string
+  waistCm: string
   sleepHours: string
+  energyLevel: string
   sleepQuality: string
+  sorenessLevel: string
   notes: string
 }
 
 export type BodyMetricPayload = {
+  height_cm?: number | null
   weight_kg?: number | null
+  target_weight_kg?: number | null
   body_fat_percentage?: number | null
   skeletal_muscle_mass_kg?: number | null
   bmi?: number | null
   chest_cm?: number | null
   waist_cm?: number | null
   hip_cm?: number | null
+  sleep_hours?: number | null
   notes?: string | null
+}
+
+export type OnboardingStatus = {
+  profile_complete: boolean
+  body_metrics_complete: boolean
+  ready_for_agent: boolean
+  missing_profile_fields: string[]
+  missing_body_metric_fields: string[]
+  next_steps: string[]
+}
+
+export type FitnessContext = {
+  user: UserProfile
+  profile: FitnessProfile | null
+  latest_body_metric: BodyMetric | null
+  recent_body_metrics: BodyMetric[]
+  recent_workout_logs: WorkoutLog[]
+  recent_checkins: AgentCheckin[]
+  active_plan: TrainingPlan | null
+  onboarding: OnboardingStatus
 }
 
 export type AgentCheckinPayload = {
@@ -272,7 +293,9 @@ export type ChatMessage = {
   author: "user" | "assistant"
   body: string
   time: string
+  completedAt?: number
   error?: string
+  startedAt?: number
   streaming?: boolean
   trace?: AgentTraceStep[]
 }

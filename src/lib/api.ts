@@ -5,6 +5,7 @@ import type {
   AgentStreamEvent,
   BodyMetric,
   BodyMetricPayload,
+  FitnessContext,
   FitnessProfile,
   FitnessProfilePayload,
   TokenResponse,
@@ -105,6 +106,10 @@ export async function createAgentCheckin(
 
 export async function getMyFitnessProfile(token: string) {
   return authorizedJson<FitnessProfile>("/profile/me", token)
+}
+
+export async function getFitnessContext(token: string) {
+  return authorizedJson<FitnessContext>("/profile/context", token)
 }
 
 export async function createMyFitnessProfile(

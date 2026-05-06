@@ -134,3 +134,44 @@
     min-height: 100svh;
     }
 }
+
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes status-sweep {
+  0% {
+    background-position: 140% 0;
+  }
+  100% {
+    background-position: -140% 0;
+  }
+}
+
+.animate-fade-slide-in {
+  animation: fade-slide-in 240ms ease-out both;
+}
+
+.thinking-status-sweep {
+  background:
+    linear-gradient(
+      100deg,
+      #8a8a8a 0%,
+      #8a8a8a 35%,
+      #111111 50%,
+      #8a8a8a 65%,
+      #8a8a8a 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  background-size: 220% 100%;
+  color: transparent;
+  animation: status-sweep 1.8s ease-in-out infinite;
+}
