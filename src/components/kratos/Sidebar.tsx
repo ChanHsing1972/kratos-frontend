@@ -73,10 +73,10 @@ export function Sidebar({
   const [expandTextReady, setExpandTextReady] = useState(!collapsed)
   const showExpandedText = !collapsed && expandTextReady
   const primaryNavItems = [
-    { label: "新建对话", icon: MessageCirclePlus },
-    { label: "训练计划", icon: CalendarDays },
-    { label: "身体数据", icon: Activity },
-    { label: "评估平台", icon: BarChart3, badge: "Beta" },
+    { id: "new", label: "新建对话", icon: MessageCirclePlus },
+    { id: "训练计划", label: "训练计划", icon: CalendarDays },
+    { id: "身体数据", label: "身体数据", icon: Activity },
+    { id: "评估平台", label: "评估平台", icon: BarChart3, badge: "Beta" },
   ]
 
   useEffect(() => {
@@ -102,11 +102,11 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "flex min-h-0 w-full shrink-0 flex-col border-b border-[#e8e8e8] bg-gray-100 pt-7 pb-4 transition-all duration-300 xl:h-full xl:border-r xl:border-b-0",
-        collapsed ? "px-4 xl:w-[86px]" : "px-6 xl:w-[270px]"
+        "flex min-h-0 w-full shrink-0 flex-col border-b border-[#e8e8e8] bg-gray-100 pt-5 pb-4 transition-all duration-300 xl:h-full xl:border-r xl:border-b-0",
+        collapsed ? "px-4 xl:w-[86px]" : "px-2 xl:w-[260px]"
       )}
     >
-      <div className="flex shrink-0 items-start justify-between gap-3">
+      <div className={cn("flex shrink-0 items-start justify-between gap-3 ", collapsed ? "" : "ml-4")}>
         <div className={cn("min-w-0", collapsed && "xl:text-center")}>
           <h1 className="text-[28px] leading-none font-black tracking-[-0.06em]">
             <span className={cn(showExpandedText ? "xl:inline" : "xl:hidden")}>
@@ -116,7 +116,7 @@ export function Sidebar({
           </h1>
           <p
             className={cn(
-              "mt-1 overflow-hidden whitespace-nowrap text-[13px] tracking-[0.01em] text-[#8b8b8b] transition-[max-height,opacity,transform] duration-200",
+              "mt-0 overflow-hidden whitespace-nowrap text-[13px] tracking-[0.01em] text-[#8b8b8b] transition-[max-height,opacity,transform] duration-200",
               showExpandedText
                 ? "max-h-6 opacity-100 translate-y-0"
                 : "max-h-0 opacity-0 -translate-y-1"
@@ -142,19 +142,25 @@ export function Sidebar({
         </Button>
       </div>
 
-      <nav className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="mt-3 flex flex-col gap-1.5">
+      <nav className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="mt-3 flex flex-col gap-1">
           {primaryNavItems.map((item) => (
             <button
               className={cn(
-                "flex h-12 w-full items-center gap-3 rounded-[9px] px-4 text-left text-[14px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
-                activeNav === item.label
+                "flex h-10 w-full items-center gap-3 rounded-[12px] px-4 text-left text-[14px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
+                activeNav === item.id
                   ? "bg-[#111111] text-white shadow-[0_8px_18px_rgba(0,0,0,0.08)]"
                   : "text-[#202020] hover:bg-white/70",
                 collapsed && "xl:justify-center xl:px-0"
               )}
               key={item.label}
-              onClick={() => onNavSelect(item.label)}
+              onClick={() => {
+                if (item.id === "new") {
+                  onCreateConversation()
+                  return
+                }
+                onNavSelect(item.id)
+              }}
               title={collapsed ? item.label : undefined}
               type="button"
             >
@@ -166,7 +172,7 @@ export function Sidebar({
                 <span
                   className={cn(
                     "ml-auto rounded-full bg-[#dedee2] px-2 py-0.5 text-[10px] font-bold text-[#888888]",
-                    activeNav === item.label && "bg-white/18 text-white/80",
+                    activeNav === item.id && "bg-white/18 text-white/80",
                     !showExpandedText && "xl:hidden"
                   )}
                 >
@@ -177,16 +183,16 @@ export function Sidebar({
           ))}
         </div>
 
-        <div className="mt-6 min-h-0 flex-1 overflow-y-auto pr-0.5">
+        <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
           <div
             className={cn(
-              "mb-2 text-[11px] font-bold tracking-[0.08em] text-[#8b8b8b]",
+              "mb-2 ml-4 text-[11px] font-bold tracking-[0.08em] text-[#8b8b8b]",
               !showExpandedText && "xl:hidden"
             )}
           >
             对话历史
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             {chatSessions.length > 0 ? (
               chatSessions.map((session) => (
                 <ConversationRow
@@ -207,7 +213,7 @@ export function Sidebar({
             ) : (
               <div
                 className={cn(
-                  "rounded-[10px] border border-[#e5e5e5] bg-white px-3 py-3 text-[12px] leading-5 text-[#777777]",
+                  "mx-2 rounded-[10px] border border-[#e5e5e5] bg-white px-3 py-3 text-[12px] leading-5 text-[#777777]",
                   !showExpandedText && "xl:hidden"
                 )}
               >
@@ -234,7 +240,7 @@ export function Sidebar({
           user={currentUser}
         />
       </div>
-    </aside>
+    </aside >
   )
 }
 

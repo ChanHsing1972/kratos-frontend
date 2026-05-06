@@ -312,7 +312,8 @@ function TrainingPlanCard({
   trainingStarted: boolean
 }) {
   const exercises = getPlanExerciseLines(activePlan)
-  const allDone = completedExercises.length >= 2
+  const requiredCount = Math.min(2, exercises.length)
+  const allDone = requiredCount > 0 && completedExercises.length >= requiredCount
   const buttonLabel = allDone
     ? "保存完成记录"
     : trainingStarted
@@ -324,7 +325,7 @@ function TrainingPlanCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-[13px] leading-5 font-bold">
-            {activePlan?.title ?? "酒店护膝下肢训练"}（20 分钟）
+            {activePlan?.title ?? "暂无训练计划"}
           </h3>
         </div>
         <span
@@ -335,24 +336,28 @@ function TrainingPlanCard({
               : "bg-[#e9f5e6] text-[#5d9a5c]"
           )}
         >
-          {allDone ? "已完成" : "已生成"}
+          {allDone ? "已完成" : activePlan ? "已同步" : "未录入"}
         </span>
       </div>
 
-      <div className="mt-3 overflow-hidden rounded-[8px] border border-[#eeeeee]">
-        <ExerciseRow
-          completed={completedExercises.includes(exercises[0])}
-          illustration="hinge"
-          onToggle={() => onToggleExercise(exercises[0])}
-          title={exercises[0]}
-        />
-        <ExerciseRow
-          completed={completedExercises.includes(exercises[1])}
-          illustration="bridge"
-          onToggle={() => onToggleExercise(exercises[1])}
-          title={exercises[1]}
-        />
-      </div>
+      {exercises.length > 0 ? (
+        <div className="mt-3 overflow-hidden rounded-[8px] border border-[#eeeeee]">
+          {exercises.slice(0, 2).map((exercise, index) => (
+            <ExerciseRow
+              completed={completedExercises.includes(exercise)}
+              illustration={index === 0 ? "hinge" : "bridge"}
+              key={exercise}
+              onToggle={() => onToggleExercise(exercise)}
+              title={exercise}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-3 rounded-[8px] border border-dashed border-[#dedede] bg-[#fbfbfa] px-4 py-5 text-[12px] leading-5 text-[#777777]">
+          数据库中还没有训练动作。请先让 Agent 生成训练计划，或在后端写入
+          weekly_schedule。
+        </div>
+      )}
 
       <button
         className="mt-3 w-full rounded-[12px] border border-[#ededed] bg-white p-4 text-left transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
@@ -382,7 +387,7 @@ function TrainingPlanCard({
       </button>
       <Button
         className="mt-3 h-12 w-full rounded-[8px] bg-[#101010] text-[15px] font-semibold text-white hover:bg-[#101010]/90"
-        disabled={dashboardLoading}
+        disabled={dashboardLoading || exercises.length === 0}
         onClick={onTrainingButton}
         type="button"
       >

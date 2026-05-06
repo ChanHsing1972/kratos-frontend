@@ -15,7 +15,6 @@ import {
   createAgentCheckin,
   createBodyMetric,
   createMyFitnessProfile,
-  createTrainingPlan,
   createWorkoutLog,
   getCurrentUser,
   getFitnessContext,
@@ -28,13 +27,13 @@ import {
   updateMyFitnessProfile,
 } from "@/lib/api"
 import {
-  buildDefaultTrainingPlan,
   buildPlanPanel,
   buildProfilePanel,
   chatMessagesFromAgentRuns,
   chatSessionsFromAgentRuns,
   compactOptionalText,
   formatTime,
+  getPlanExerciseLines,
   getLatestByDate,
   titleFromPrompt,
   toDateInputValue,
@@ -125,7 +124,6 @@ export function App() {
   const activeStreamRef = useRef<AbortController | null>(null)
 
   const unreadCount = notifications.filter((item) => !item.read).length
-  const displayName = currentUser?.username ?? "请登录"
   const activePlan =
     trainingPlans.find((plan) => plan.status === "active") ??
     getLatestByDate(trainingPlans, (plan) => plan.updated_at) ??
@@ -743,13 +741,9 @@ export function App() {
         listTrainingPlans(token),
         listAgentRuns(token, 200),
       ])
-      const hydratedPlans =
-        plans.length > 0
-          ? plans
-          : [await createTrainingPlan(token, buildDefaultTrainingPlan())]
 
       setFitnessContext(context)
-      setTrainingPlans(hydratedPlans)
+      setTrainingPlans(plans)
       setFitnessProfile(context.profile)
       setBodyMetrics(context.recent_body_metrics)
       setWorkoutLogs(context.recent_workout_logs)
@@ -1035,7 +1029,13 @@ export function App() {
       return
     }
 
-    if (completedExercises.length >= 2) {
+    const requiredExercises = Math.min(2, getPlanExerciseLines(activePlan).length)
+    if (requiredExercises === 0) {
+      setToast("当前计划没有可记录的训练动作")
+      return
+    }
+
+    if (completedExercises.length >= requiredExercises) {
       void saveCompletedWorkout(token)
       return
     }
@@ -1054,7 +1054,7 @@ export function App() {
         duration_minutes: 20,
         notes: `已完成：${completedExercises.join("、")}`,
         perceived_exertion: 6,
-        title: activePlan?.title ?? "酒店护膝下肢训练",
+        title: activePlan?.title ?? "未命名训练",
         training_plan_id: activePlan?.id ?? null,
         workout_date: toDateInputValue(new Date()),
         workout_type: "strength",
@@ -1097,6 +1097,8 @@ export function App() {
           }}
           onToggleExercise={toggleExercise}
           onTrainingButton={handleTrainingButton}
+          profile={fitnessProfile}
+          trainingPlans={trainingPlans}
           trainingStarted={trainingStarted}
           workoutLogs={workoutLogs}
         />
@@ -1108,6 +1110,7 @@ export function App() {
         <BodyDataPage
           latestCheckin={latestCheckin}
           latestMetric={latestMetric}
+          bodyMetrics={bodyMetrics}
           onEditBodyData={openBodyMetricEditor}
           onboarding={onboardingStatus}
           profile={fitnessProfile}
@@ -1125,14 +1128,12 @@ export function App() {
         activeSessionTitle={activeSessionTitle}
         agentStreaming={agentStreaming}
         composerValue={composerValue}
-        currentUserName={displayName}
         messages={messages}
         notifications={notifications}
         notificationsOpen={notificationsOpen}
         onAttachment={handleAttachment}
         onComposerChange={setComposerValue}
         onComposerKeyDown={handleComposerKeyDown}
-        onEndConversation={handleCreateConversation}
         onMarkNotificationsRead={markAllNotificationsRead}
         onQuickAction={handleQuickAction}
         onSendMessage={handleSendMessage}

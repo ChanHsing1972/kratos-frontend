@@ -4,6 +4,7 @@ import {
   useState,
   type ChangeEvent,
   type KeyboardEvent,
+  type ReactNode,
 } from "react"
 import {
   Bell,
@@ -11,7 +12,6 @@ import {
   ChevronRight,
   Copy,
   Eye,
-  ImagePlus,
   Moon,
   Paperclip,
   PencilLine,
@@ -35,14 +35,12 @@ type MainConversationProps = {
   activeSessionTitle: string
   agentStreaming: boolean
   composerValue: string
-  currentUserName: string
   messages: ChatMessage[]
   notifications: NotificationItem[]
   notificationsOpen: boolean
   onAttachment: (event: ChangeEvent<HTMLInputElement>) => void
   onComposerChange: (value: string) => void
   onComposerKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
-  onEndConversation: () => void
   onMarkNotificationsRead: () => void
   onQuickAction: (action: QuickAction) => void
   onSendMessage: () => void
@@ -58,14 +56,12 @@ export function MainConversation({
   activeSessionTitle,
   agentStreaming,
   composerValue,
-  currentUserName,
   messages,
   notifications,
   notificationsOpen,
   onAttachment,
   onComposerChange,
   onComposerKeyDown,
-  onEndConversation,
   onMarkNotificationsRead,
   onQuickAction,
   onSendMessage,
@@ -78,6 +74,7 @@ export function MainConversation({
 }: MainConversationProps) {
   const scrollViewportRef = useRef<HTMLDivElement>(null)
   const bottomAnchorRef = useRef<HTMLDivElement>(null)
+  const isEmptyConversation = messages.length === 0
   const liveMessageKey = messages
     .map((message) => `${message.id}:${message.body.length}:${message.trace?.length ?? 0}`)
     .join("|")
@@ -93,7 +90,7 @@ export function MainConversation({
 
   return (
     <main className="flex h-full min-w-0 flex-1 flex-col border-[#e8e8e8] bg-white xl:border-r">
-      <header className="flex shrink-0 flex-col gap-5 px-7 pt-8 pb-0 sm:px-10 lg:flex-row lg:items-start lg:justify-between">
+      <header className="flex shrink-0 flex-col gap-2 px-0 pt-5 pb-0 sm:px-6 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-[25px] leading-[1.1] font-extrabold tracking-[-0.04em]">
             {messages.length ? activeSessionTitle : ``}
@@ -104,7 +101,7 @@ export function MainConversation({
               : ""}
           </p>
         </div>
-        <div className="relative flex items-center gap-7 pr-2">
+        <div className="relative flex items-center gap-4">
           <button
             aria-label="Toggle theme"
             className="grid size-6 place-items-center rounded-full text-[#161616] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
@@ -140,55 +137,76 @@ export function MainConversation({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="relative min-h-0 flex-1">
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-white via-white/88 to-transparent" />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 bg-gradient-to-b from-transparent via-white/72 to-white" />
-          <div
-            className="h-full min-h-0 overflow-y-auto px-7 sm:px-10"
-            ref={scrollViewportRef}
-          >
-            <div className="flex flex-col gap-[17px] pb-0">
-              {messages.length === 0 ? (
-                <EmptyConversation onQuickAction={onQuickAction} />
-              ) : null}
-              {messages.map((message) => (
-                <ChatBubble
-                  key={message.id}
-                  message={message}
-                  onToggleThinking={onToggleThinking}
-                  thinkingExpanded={thinkingExpanded}
-                />
-              ))}
-              {/* {activeNav !== "对话" ? (
-                <ModulePreview
-                  activeNav={activeNav}
-                  onQuickAction={onQuickAction}
-                />
-              ) : null} */}
-              <div ref={bottomAnchorRef} />
+        {isEmptyConversation ? (
+          <div className="flex min-h-0 flex-1 items-center px-5 py-8 sm:px-6">
+            <div className="mx-auto w-full max-w-[820px]">
+              <EmptyConversation
+                composer={
+                  <Composer
+                    onAttachment={onAttachment}
+                    onChange={onComposerChange}
+                    onKeyDown={onComposerKeyDown}
+                    onSend={onSendMessage}
+                    sending={agentStreaming}
+                    value={composerValue}
+                  />
+                }
+                onQuickAction={onQuickAction}
+              />
+              <p className="mt-5 text-center text-[10px] text-[#9a9a9a]">
+                Kratos
+                提供的建议仅供健身参考，不构成医疗或诊断建议。如有严重不适，请及时就医。
+              </p>
             </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="relative min-h-0 flex-1">
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-white via-white/88 to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 bg-gradient-to-b from-transparent via-white/72 to-white" />
+              <div className="h-full min-h-0 overflow-y-auto" ref={scrollViewportRef}>
+                <div className="mx-auto flex w-full max-w-[820px] flex-col gap-[17px] px-5 pb-0 sm:px-6">
+                  {messages.map((message) => (
+                    <ChatBubble
+                      key={message.id}
+                      message={message}
+                      onToggleThinking={onToggleThinking}
+                      thinkingExpanded={thinkingExpanded}
+                    />
+                  ))}
+                  {/* {activeNav !== "对话" ? (
+                    <ModulePreview
+                      activeNav={activeNav}
+                      onQuickAction={onQuickAction}
+                    />
+                  ) : null} */}
+                  <div ref={bottomAnchorRef} />
+                </div>
+              </div>
+            </div>
 
-        <div className="relative shrink-0 bg-white px-7 pt-1 pb-3 sm:px-10">
-          <div className="pointer-events-none absolute inset-x-0 -top-10 h-10 bg-gradient-to-b from-transparent via-white/72 to-white" />
-          <Composer
-            onAttachment={onAttachment}
-            onChange={onComposerChange}
-            onEndConversation={onEndConversation}
-            onKeyDown={onComposerKeyDown}
-            onSend={onSendMessage}
-            sending={agentStreaming}
-            value={composerValue}
-          />
-          {/* <div className="mt-3">
-            <QuickActions onQuickAction={onQuickAction} />
-          </div> */}
-          <p className="mt-3 text-center text-[10px] text-[#9a9a9a]">
-            Kratos
-            提供的建议仅供健身参考，不构成医疗或诊断建议。如有严重不适，请及时就医。
-          </p>
-        </div>
+            <div className="relative shrink-0 bg-white px-5 pt-1 pb-3 sm:px-6">
+              <div className="pointer-events-none absolute inset-x-0 -top-10 h-10 bg-gradient-to-b from-transparent via-white/72 to-white" />
+              <div className="mx-auto w-full max-w-[820px]">
+                <Composer
+                  onAttachment={onAttachment}
+                  onChange={onComposerChange}
+                  onKeyDown={onComposerKeyDown}
+                  onSend={onSendMessage}
+                  sending={agentStreaming}
+                  value={composerValue}
+                />
+              </div>
+              {/* <div className="mt-3">
+                <QuickActions onQuickAction={onQuickAction} />
+              </div> */}
+              <p className="mt-3 text-center text-[10px] text-[#9a9a9a]">
+                Kratos
+                提供的建议仅供健身参考，不构成医疗或诊断建议。如有严重不适，请及时就医。
+              </p>
+            </div>
+          </>
+        )}
       </div>
     </main>
   )
@@ -253,9 +271,9 @@ function ThinkingCard({
   streaming?: boolean
   onToggle: () => void
 }) {
-  const visibleSteps = steps.filter(
-    (step) => step.type !== "final" && step.type !== "answer_delta"
-  )
+  const nonAnswerSteps = steps.filter((step) => step.type !== "answer_delta")
+  const traceSteps = nonAnswerSteps.filter((step) => step.type !== "final")
+  const visibleSteps = traceSteps.length > 0 ? traceSteps : nonAnswerSteps
   const elapsedSeconds = useElapsedSeconds(startedAt, completedAt, streaming)
 
   return (
@@ -505,8 +523,8 @@ function ChatBubble({
 
   if (!isAssistant) {
     return (
-      <section className="flex flex-col items-end px-5 pb-5 pt-5">
-        <div className="max-w-[83.333%] rounded-2xl bg-[#f2f2f2] px-4 py-3">
+      <section className="flex flex-col items-end pb-5 pt-5">
+        <div className="max-w-[72%] rounded-2xl bg-[#f2f2f2] px-4 py-3">
           <MarkdownMessage className="text-[#2f2f2f]">
             {message.body}
           </MarkdownMessage>
@@ -530,7 +548,7 @@ function ChatBubble({
   }
 
   return (
-    <section className="bg-white px-5 pt-0 pb-4">
+    <section className="bg-white pt-0 pb-4">
       <div className="flex gap-4">
         <div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#111111] text-white">
           <span className="text-[18px] font-bold">K</span>
@@ -592,8 +610,10 @@ function ChatBubble({
 }
 
 function EmptyConversation({
+  composer,
   onQuickAction,
 }: {
+  composer: ReactNode
   onQuickAction: (action: QuickAction) => void
 }) {
   const starters: QuickAction[] = [
@@ -618,8 +638,8 @@ function EmptyConversation({
   ]
 
   return (
-    <section className="mx-auto flex min-h-[46vh] w-full max-w-[760px] flex-col justify-center px-2 py-8">
-      <div className="mb-6">
+    <section className="mx-auto flex w-full flex-col justify-center px-0">
+      <div className="mb-4">
         <h3 className="text-[30px] leading-tight font-black tracking-[-0.04em]">
           你今天想完成什么？
         </h3>
@@ -627,6 +647,7 @@ function EmptyConversation({
           Kratos 不只聊天：它会读取档案、生成训练计划、调用工具、保存记录，并在右侧把计划变成可视化面板。
         </p>
       </div>
+      <div className="mb-5">{composer}</div>
       <div className="grid gap-2 sm:grid-cols-3">
         {starters.map((action) => (
           <button
@@ -650,7 +671,6 @@ function EmptyConversation({
 function Composer({
   onAttachment,
   onChange,
-  onEndConversation,
   onKeyDown,
   onSend,
   sending,
@@ -658,7 +678,6 @@ function Composer({
 }: {
   onAttachment: (event: ChangeEvent<HTMLInputElement>) => void
   onChange: (value: string) => void
-  onEndConversation: () => void
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   onSend: () => void
   sending: boolean
@@ -668,38 +687,7 @@ function Composer({
 
   return (
     <section className="rounded-[12px] border border-[#e7e7e7] bg-white px-4 pt-3 pb-2 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors focus-within:border-[#111111] focus-within:shadow-[0_0_0_3px_rgba(17,17,17,0.08)]">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="flex items-center rounded-[8px] bg-[#f3f3f3] p-0.5">
-          <button
-            aria-label="编辑 Markdown"
-            className={cn(
-              "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
-              mode === "write" &&
-              "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
-            )}
-            onClick={() => setMode("write")}
-            title="编辑 Markdown"
-            type="button"
-          >
-            <PencilLine className="size-3.5" strokeWidth={1.8} />
-            编辑
-          </button>
-          <button
-            aria-label="预览 Markdown"
-            className={cn(
-              "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
-              mode === "preview" &&
-              "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
-            )}
-            onClick={() => setMode("preview")}
-            title="预览 Markdown"
-            type="button"
-          >
-            <Eye className="size-3.5" strokeWidth={1.8} />
-            预览
-          </button>
-        </div>
-      </div>
+
       {mode === "write" ? (
         <textarea
           className="min-h-9 w-full resize-none bg-transparent text-[12px] leading-5 text-[#222222] outline-none placeholder:text-[#8c8c8c] disabled:cursor-not-allowed disabled:opacity-60"
@@ -729,25 +717,38 @@ function Composer({
             <input className="hidden" onChange={onAttachment} type="file" />
             <Paperclip className="size-4.5" strokeWidth={1.8} />
           </label>
-          <label className="cursor-pointer rounded-[6px] text-[#1f1f1f] focus-within:ring-2 focus-within:ring-[#111111]/30">
-            <input
-              accept="image/*"
-              className="hidden"
-              onChange={onAttachment}
-              type="file"
-            />
-            <ImagePlus className="size-4.5" strokeWidth={1.8} />
-          </label>
+            <div className="flex items-center rounded-[8px] bg-[#f3f3f3] p-0.5">
+              <button
+                aria-label="编辑 Markdown"
+                className={cn(
+                  "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
+                  mode === "write" &&
+                  "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
+                )}
+                onClick={() => setMode("write")}
+                title="编辑 Markdown"
+                type="button"
+              >
+                <PencilLine className="size-3.5" strokeWidth={1.8} />
+                编辑
+              </button>
+              <button
+                aria-label="预览 Markdown"
+                className={cn(
+                  "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
+                  mode === "preview" &&
+                  "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
+                )}
+                onClick={() => setMode("preview")}
+                title="预览 Markdown"
+                type="button"
+              >
+                <Eye className="size-3.5" strokeWidth={1.8} />
+                预览
+              </button>
+          </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button
-            className="h-9 rounded-[8px] border-[#dedede] px-4 text-[12px] font-medium text-[#333333]"
-            onClick={onEndConversation}
-            type="button"
-            variant="outline"
-          >
-            结束对话
-          </Button>
           <Button
             aria-label="Send"
             className="size-10 rounded-[9px] bg-[#0f0f0f] text-white hover:bg-[#0f0f0f]/90"
@@ -767,35 +768,3 @@ function Composer({
     </section>
   )
 }
-
-// function QuickActions({
-//   onQuickAction,
-// }: {
-//   onQuickAction: (action: QuickAction) => void
-// }) {
-//   return (
-//     <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-//       {quickActions.map((action) => (
-//         <button
-//           className="flex h-[56px] items-center gap-3 rounded-[12px] border border-[#e9e9e9] bg-white px-4 text-left shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-[#f8f8f7] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
-//           key={action.title}
-//           onClick={() => onQuickAction(action)}
-//           type="button"
-//         >
-//           <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#f2f2f2] text-[#242424]">
-//             <action.icon className="size-4" strokeWidth={1.8} />
-//           </span>
-//           <span className="min-w-0 flex-1">
-//             <span className="block text-[12px] font-bold text-[#181818]">
-//               {action.title}
-//             </span>
-//             <span className="mt-0.5 block truncate text-[10px] text-[#898989]">
-//               {action.description}
-//             </span>
-//           </span>
-//           <span className="text-[16px] leading-none text-[#333333]">+</span>
-//         </button>
-//       ))}
-//     </section>
-//   )
-// }

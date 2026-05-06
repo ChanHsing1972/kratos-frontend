@@ -187,13 +187,13 @@ export function getLatestByDate<T>(
 }
 
 export function getPlanExerciseLines(plan: TrainingPlan | null) {
-  const fallback = ["哑铃罗马尼亚硬拉 4 组 × 12 次", "哑铃臀桥 4 组 × 15 次"]
-  const lines = plan?.weekly_schedule
+  return (
+    plan?.weekly_schedule
     ?.split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
-
-  return [...(lines ?? []), ...fallback].slice(0, 2)
+    .slice(0, 6) ?? []
+  )
 }
 
 export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
