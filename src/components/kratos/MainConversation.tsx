@@ -90,7 +90,7 @@ export function MainConversation({
 
   return (
     <main className="flex h-full min-w-0 flex-1 flex-col border-[#e8e8e8] bg-white xl:border-r">
-      <header className="flex shrink-0 flex-col gap-2 px-0 pt-5 pb-0 sm:px-6 lg:flex-row lg:items-start lg:justify-between bg-gray-50">
+      <header className={cn("flex shrink-0 flex-col gap-2 px-0 pt-5 pb-0 sm:px-6 lg:flex-row lg:items-start lg:justify-between ", isEmptyConversation ? "bg-gray-50" : "bg-white")}>
         <div>
           <h2 className="text-[25px] leading-[1.1] font-extrabold tracking-[-0.04em]">
             {messages.length ? activeSessionTitle : ``}
@@ -164,7 +164,7 @@ export function MainConversation({
             <div className="relative min-h-0 flex-1">
               <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-white via-white/88 to-transparent" />
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 bg-gradient-to-b from-transparent via-white/72 to-white" />
-              <div className="h-full min-h-0 overflow-y-auto" ref={scrollViewportRef}>
+              <div className="h-full min-h-0 overflow-y-auto bg-white" ref={scrollViewportRef}>
                 <div className="mx-auto flex w-full max-w-[820px] flex-col gap-[17px] px-5 pb-0 sm:px-6">
                   {messages.map((message) => (
                     <ChatBubble
@@ -200,7 +200,7 @@ export function MainConversation({
               {/* <div className="mt-3">
                 <QuickActions onQuickAction={onQuickAction} />
               </div> */}
-              <p className="mt-3 text-center text-[10px] text-[#9a9a9a]">
+              <p className="mt-2 text-center text-[10px] text-[#9a9a9a]">
                 Kratos
                 提供的建议仅供健身参考，不构成医疗或诊断建议。如有严重不适，请及时就医。
               </p>
@@ -699,7 +699,7 @@ function Composer({
           value={value}
         />
       ) : (
-        <div className="min-h-10 rounded-[8px] bg-[#fbfbfa] px-3 py-2">
+        <div className="min-h-10 rounded-[8px] bg-[#fbfbfa] px-3 py-2 mb-1.5">
           {value.trim() ? (
             <MarkdownMessage className="text-[12px] text-[#222222]">
               {value}

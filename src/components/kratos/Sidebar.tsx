@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import type { LucideIcon } from "lucide-react"
+import { createPortal } from "react-dom"
 import {
   Activity,
   BarChart3,
@@ -127,7 +128,7 @@ export function Sidebar({
         </div>
         <Button
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="mt-0.5 size-7 rounded-full bg-[#0f0f0f] text-white hover:bg-[#0f0f0f]/90"
+          className="size-7 rounded-full bg-[#0f0f0f] text-white hover:bg-[#0f0f0f]/90"
           onClick={onToggleCollapse}
           size="icon"
           type="button"
@@ -278,16 +279,18 @@ function ConversationRow({
   return (
     <div
       className={cn(
-        "group relative transition-all duration-300",
+        "group relative rounded-[12px] transition-all duration-300",
+        active
+          ? "bg-[#111111] shadow-[0_1px_5px_rgba(0,0,0,0.08)]"
+          : "hover:bg-white/70",
         collapsed
-          ? "opacity-0 pointer-events-none"
+          ? "pointer-events-none opacity-0"
           : "opacity-100"
       )}
     >
       <button
         className={cn(
-          "flex min-h-[52px] w-full items-center gap-3 rounded-[12px] pl-4 pr-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
-          active ? "bg-[#111111] shadow-[0_1px_5px_rgba(0,0,0,0.08)]" : "hover:bg-white/70",
+          "flex min-h-[50px] w-full items-center gap-3 rounded-[12px] pl-4 pr-10 py-2 text-left focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
           collapsed && "xl:min-h-10 xl:justify-center xl:px-0 xl:py-0"
         )}
         onClick={onSelect}
@@ -295,10 +298,17 @@ function ConversationRow({
         type="button"
       >
         {session.pinned ? (
-          <Pin className={cn("size-4 shrink-0 ", active ? "text-[#b8b8b8]" : "text-[#111111]")} strokeWidth={1.8} />
+          <Pin
+            className={cn(
+              "size-4 shrink-0",
+              active ? "text-[#b8b8b8]" : "text-[#111111]"
+            )}
+            strokeWidth={1.8}
+          />
         ) : (
           <span className="mx-1 size-2 shrink-0 rounded-full bg-[#9f9f9f]" />
         )}
+
         <span
           className={cn(
             "min-w-0 flex-1 overflow-hidden transition-[max-width,opacity,transform] duration-300",
@@ -318,6 +328,7 @@ function ConversationRow({
                 if (event.key === "Enter") {
                   commitTitle()
                 }
+
                 if (event.key === "Escape") {
                   setEditing(false)
                   setTitle(session.title)
@@ -327,26 +338,43 @@ function ConversationRow({
             />
           ) : (
             <>
-              <span className={cn("block truncate text-[13px] font-semibold ", active ? "text-white" : "text-black")}>
+              <span
+                className={cn(
+                  "block truncate text-[13px]",
+                  active ? "text-white" : "text-black"
+                )}
+              >
                 {session.title}
               </span>
-              <span className={cn("block truncate text-[11px]", active ? "text-[#a4a4a4]" : "text-[#8a8a8a]")}>
+
+              <span
+                className={cn(
+                  "block truncate text-[11px]",
+                  active ? "text-[#a4a4a4]" : "text-[#8a8a8a]"
+                )}
+              >
                 {session.messageCount} 条消息
               </span>
             </>
           )}
         </span>
       </button>
+
       <div
         className={cn(
-          "absolute top-2 right-2 flex items-center gap-0.5 rounded-[7px] bg-white/95 opacity-0 shadow-[0_1px_8px_rgba(0,0,0,0.08)] transition-opacity group-hover:opacity-100",
+          "absolute top-1/2 right-2 z-20 -translate-y-1/2 flex items-center opacity-0 transition-opacity duration-200 group-hover:opacity-100",
           menuOpen && "opacity-100",
           !showExpandedText && "xl:hidden"
         )}
       >
         <button
           aria-label="对话操作"
-          className="grid size-7 place-items-center rounded-[7px] text-[#555555] hover:bg-[#f1f1f1]"
+          className={cn(
+            "grid size-7 place-items-center rounded-[8px] transition-colors",
+            active
+              ? "text-white/70 hover:bg-white/15 hover:text-white"
+              : "text-[#777777] hover:bg-black/[0.08] hover:text-[#111111]"
+          )}
           onClick={(event) => {
             event.stopPropagation()
             setMenuOpen((current) => !current)
@@ -355,8 +383,9 @@ function ConversationRow({
         >
           <MoreHorizontal className="size-4" />
         </button>
+
         {menuOpen ? (
-          <div className="absolute top-8 right-0 z-30 w-32 rounded-[10px] border border-[#e6e6e6] bg-white p-1 shadow-[0_14px_34px_rgba(0,0,0,0.14)]">
+          <div className="absolute top-8 right-0 z-50 w-32 rounded-[10px] border border-[#e6e6e6] bg-white p-1 shadow-[0_14px_34px_rgba(0,0,0,0.14)]">
             <MenuButton
               icon={session.pinned ? PinOff : Pin}
               label={session.pinned ? "取消置顶" : "置顶"}
@@ -365,6 +394,7 @@ function ConversationRow({
                 setMenuOpen(false)
               }}
             />
+
             <MenuButton
               icon={Edit3}
               label="重命名"
@@ -374,6 +404,7 @@ function ConversationRow({
                 setMenuOpen(false)
               }}
             />
+
             <MenuButton
               danger
               icon={Trash2}
@@ -596,18 +627,22 @@ function PersonalInfoModule({
         </div>
       </div>
 
-      {menuOpen ? (
-        <div className="absolute right-0 bottom-[calc(100%+10px)] z-30 w-[220px] overflow-hidden rounded-[12px] border border-[#e6e6e6] bg-white p-1 shadow-[0_16px_40px_rgba(0,0,0,0.16)]">
-          <ProfileMenuButton icon={User} label="查看个人资料" onClick={onOpenProfile} />
-          <ProfileMenuButton icon={Edit3} label="编辑个人资料" onClick={onEditProfile} />
-          <ProfileMenuButton
-            icon={RefreshCcw}
-            label="刷新后端资料"
-            onClick={onRefreshProfile}
-          />
-          <ProfileMenuButton icon={LogOut} label="退出登录" onClick={onLogout} />
-        </div>
-      ) : null}
+      {menuOpen
+        ? createPortal(
+          <div
+            className={cn(
+              "fixed z-9999 left-[10px] w-[220px] overflow-hidden rounded-[12px] border border-[#e6e6e6] bg-white p-1 shadow-[0_16px_40px_rgba(0,0,0,0.16)] transition-all duration-300",
+              collapsed ? "bottom-[80px]" : "bottom-[150px]"
+            )}
+          >
+            <ProfileMenuButton icon={User} label="查看个人资料" onClick={onOpenProfile} />
+            <ProfileMenuButton icon={Edit3} label="编辑个人资料" onClick={onEditProfile} />
+            <ProfileMenuButton icon={RefreshCcw} label="刷新后端资料" onClick={onRefreshProfile} />
+            <ProfileMenuButton icon={LogOut} label="退出登录" onClick={onLogout} />
+          </div>,
+          document.body
+        )
+        : null}
     </section>
   )
 }
