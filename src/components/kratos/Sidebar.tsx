@@ -1,4 +1,4 @@
-import { act, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import type { LucideIcon } from "lucide-react"
 import {
   Activity,

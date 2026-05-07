@@ -122,6 +122,7 @@ export function App() {
   const [trainingStarted, setTrainingStarted] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const activeStreamRef = useRef<AbortController | null>(null)
+  const chatSessionMetaRef = useRef(chatSessionMeta)
 
   const unreadCount = notifications.filter((item) => !item.read).length
   const activePlan =
@@ -178,6 +179,7 @@ export function App() {
   }, [toast])
 
   useEffect(() => {
+    chatSessionMetaRef.current = chatSessionMeta
     localStorage.setItem(CHAT_SESSION_META_KEY, JSON.stringify(chatSessionMeta))
   }, [chatSessionMeta])
 
@@ -748,7 +750,10 @@ export function App() {
       setBodyMetrics(context.recent_body_metrics)
       setWorkoutLogs(context.recent_workout_logs)
       setAgentCheckins(context.recent_checkins)
-      const restoredSessions = chatSessionsFromAgentRuns(runs, chatSessionMeta)
+      const restoredSessions = chatSessionsFromAgentRuns(
+        runs,
+        chatSessionMetaRef.current
+      )
       setChatSessions(restoredSessions)
       if (!options.preserveMessages) {
         const currentSessionId =
@@ -899,9 +904,10 @@ export function App() {
                   preview: body,
                   updatedAt: new Date().toISOString(),
                   messageCount: 2,
+                  pinned: Boolean(chatSessionMetaRef.current[nextSessionId]?.pinned),
                 },
                 ...current,
-              ]
+              ].sort(sortChatSessions)
             })
           }
 
@@ -1097,8 +1103,6 @@ export function App() {
           }}
           onToggleExercise={toggleExercise}
           onTrainingButton={handleTrainingButton}
-          profile={fitnessProfile}
-          trainingPlans={trainingPlans}
           trainingStarted={trainingStarted}
           workoutLogs={workoutLogs}
         />
@@ -1110,7 +1114,6 @@ export function App() {
         <BodyDataPage
           latestCheckin={latestCheckin}
           latestMetric={latestMetric}
-          bodyMetrics={bodyMetrics}
           onEditBodyData={openBodyMetricEditor}
           onboarding={onboardingStatus}
           profile={fitnessProfile}
