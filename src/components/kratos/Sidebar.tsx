@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { act, useEffect, useState } from "react"
 import type { LucideIcon } from "lucide-react"
 import {
   Activity,
@@ -116,7 +116,7 @@ export function Sidebar({
           </h1>
           <p
             className={cn(
-              "mt-0 overflow-hidden whitespace-nowrap text-[13px] tracking-[0.01em] text-[#8b8b8b] transition-[max-height,opacity,transform] duration-200",
+              "mt-0 overflow-hidden whitespace-nowrap text-[13px] tracking-[0.01em] text-[#8b8b8b] transition-[max-height,opacity,transform] duration-300",
               showExpandedText
                 ? "max-h-6 opacity-100 translate-y-0"
                 : "max-h-0 opacity-0 -translate-y-1"
@@ -276,11 +276,18 @@ function ConversationRow({
   }
 
   return (
-    <div className="group relative">
+    <div
+      className={cn(
+        "group relative transition-all duration-300",
+        collapsed
+          ? "opacity-0 pointer-events-none"
+          : "opacity-100"
+      )}
+    >
       <button
         className={cn(
-          "flex min-h-[52px] w-full items-center gap-3 rounded-[9px] px-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
-          active ? "bg-white shadow-[0_1px_5px_rgba(0,0,0,0.08)]" : "hover:bg-white/70",
+          "flex min-h-[52px] w-full items-center gap-3 rounded-[12px] pl-4 pr-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
+          active ? "bg-[#111111] shadow-[0_1px_5px_rgba(0,0,0,0.08)]" : "hover:bg-white/70",
           collapsed && "xl:min-h-10 xl:justify-center xl:px-0 xl:py-0"
         )}
         onClick={onSelect}
@@ -288,13 +295,13 @@ function ConversationRow({
         type="button"
       >
         {session.pinned ? (
-          <Pin className="size-4 shrink-0 text-[#111111]" strokeWidth={1.8} />
+          <Pin className={cn("size-4 shrink-0 ", active ? "text-[#b8b8b8]" : "text-[#111111]")} strokeWidth={1.8} />
         ) : (
-          <span className="size-2 shrink-0 rounded-full bg-[#b8b8b8]" />
+          <span className="mx-1 size-2 shrink-0 rounded-full bg-[#9f9f9f]" />
         )}
         <span
           className={cn(
-            "min-w-0 flex-1 overflow-hidden transition-[max-width,opacity,transform] duration-200",
+            "min-w-0 flex-1 overflow-hidden transition-[max-width,opacity,transform] duration-300",
             showExpandedText
               ? "max-w-[170px] opacity-100 translate-x-0"
               : "max-w-0 opacity-0 -translate-x-1"
@@ -320,10 +327,10 @@ function ConversationRow({
             />
           ) : (
             <>
-              <span className="block truncate text-[13px] font-semibold text-[#202020]">
+              <span className={cn("block truncate text-[13px] font-semibold ", active ? "text-white" : "text-black")}>
                 {session.title}
               </span>
-              <span className=" block truncate text-[11px] text-[#8a8a8a]">
+              <span className={cn("block truncate text-[11px]", active ? "text-[#a4a4a4]" : "text-[#8a8a8a]")}>
                 {session.messageCount} 条消息
               </span>
             </>
@@ -443,7 +450,7 @@ function PersonalInfoModule({
           <LoaderCircle className="size-4 animate-spin" />
           <span
             className={cn(
-              "overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200",
+              "overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300",
               showExpandedText ? "max-w-[140px] opacity-100" : "max-w-0 opacity-0"
             )}
           >
@@ -479,7 +486,7 @@ function PersonalInfoModule({
           </span>
           <span
             className={cn(
-              "min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-200",
+              "min-w-0 overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-300",
               showExpandedText
                 ? "max-w-[150px] opacity-100 translate-x-0"
                 : "max-w-0 opacity-0 -translate-x-1"
@@ -495,7 +502,7 @@ function PersonalInfoModule({
         </button>
         <div
           className={cn(
-            "mt-4 grid grid-cols-2 gap-2 overflow-hidden transition-[max-height,opacity] duration-200",
+            "mt-4 grid grid-cols-2 gap-2 overflow-hidden transition-[max-height,opacity] duration-300",
             showExpandedText ? "max-h-16 opacity-100" : "max-h-0 opacity-0"
           )}
         >
@@ -549,7 +556,7 @@ function PersonalInfoModule({
         <UserAvatar />
         <span
           className={cn(
-            "min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-200",
+            "min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-300",
             showExpandedText
               ? "max-w-[150px] opacity-100 translate-x-0"
               : "hidden"
@@ -571,7 +578,7 @@ function PersonalInfoModule({
 
       <div
         className={cn(
-          "overflow-hidden transition-[max-height,opacity] duration-200",
+          "overflow-hidden transition-[max-height,opacity] duration-300",
           showExpandedText ? "max-h-32 opacity-100" : "max-h-0 opacity-0"
         )}
       >
