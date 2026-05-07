@@ -270,7 +270,7 @@ export function titleFromPrompt(prompt: string) {
     return "新的训练对话"
   }
 
-  return compacted.length > 18 ? `${compacted.slice(0, 18)}...` : compacted
+  return compacted.length > 20 ? `${compacted.slice(0, 20)}...` : compacted
 }
 
 function traceStepFromRun(step: AgentRunTraceStep) {

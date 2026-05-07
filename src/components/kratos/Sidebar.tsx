@@ -245,6 +245,7 @@ export function Sidebar({
   )
 }
 
+
 function ConversationRow({
   active,
   collapsed,
@@ -274,6 +275,29 @@ function ConversationRow({
       onRename(nextTitle)
     }
     setEditing(false)
+  }
+
+  function formatStoredTime(time: string | number | Date) {
+    const date = new Date(time)
+    const now = new Date()
+
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    )
+    const yesterdayStart = new Date(todayStart)
+    yesterdayStart.setDate(todayStart.getDate() - 1)
+
+    if (date >= todayStart) {
+      return "今天"
+    }
+
+    if (date >= yesterdayStart) {
+      return "昨天"
+    }
+
+    return `${date.getMonth() + 1} 月 ${date.getDate()} 日`
   }
 
   return (
@@ -306,7 +330,7 @@ function ConversationRow({
             strokeWidth={1.8}
           />
         ) : (
-          <span className="mx-1 size-2 shrink-0 rounded-full bg-[#9f9f9f]" />
+          <span className="hidden" />
         )}
 
         <span
@@ -353,7 +377,7 @@ function ConversationRow({
                   active ? "text-[#a4a4a4]" : "text-[#8a8a8a]"
                 )}
               >
-                {session.messageCount} 条消息
+                {formatStoredTime(session.updatedAt)} · {session.messageCount} 条消息
               </span>
             </>
           )}
