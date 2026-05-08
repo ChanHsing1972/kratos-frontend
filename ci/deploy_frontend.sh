@@ -61,7 +61,8 @@ fi
 
 mkdir -p /var/www/se3/agent /var/www/se3/eval "$SITE_ROOT"
 find "$SITE_ROOT" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-tar -xzf "$REMOTE_ARCHIVE" -C "$SITE_ROOT"
+tar --no-same-owner -xzf "$REMOTE_ARCHIVE" -C "$SITE_ROOT"
+chown -R root:root "$SITE_ROOT"
 rm -f "$REMOTE_ARCHIVE"
 
 cat > /etc/nginx/sites-available/se3.conf <<'NGINX'
@@ -76,6 +77,15 @@ server {
 
     location /api/ {
         proxy_pass http://127.0.0.1:8000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /eval/health {
+        proxy_pass http://127.0.0.1:8001/health;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
