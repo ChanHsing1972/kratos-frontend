@@ -11,6 +11,7 @@ import type {
   OnboardingStatus,
   ProfileForm,
   TrainingPlanForm,
+  TrainingPlanAdjustmentResponse,
   TrainingPlanPayload,
   UserProfile,
 } from "@/types/kratos"
@@ -960,6 +961,13 @@ export function TrainingPlanModal({
             placeholder="例如 减脂 / 增肌 / 塑形"
             value={form.goal}
           />
+          <SuggestionChips
+            label="目标选项"
+            onSelect={(value) =>
+              setForm((current) => ({ ...current, goal: value }))
+            }
+            options={["减脂塑形", "增肌增力", "体态改善", "心肺耐力", "康复恢复"]}
+          />
           <label className="block">
             <span className="text-[12px] font-bold text-[#333333]">状态</span>
             <select
@@ -1003,6 +1011,20 @@ export function TrainingPlanModal({
           placeholder="写清楚适合人群、训练频率和总体策略"
           value={form.summary}
         />
+        <SuggestionChips
+          label="摘要选项"
+          onSelect={(value) =>
+            setForm((current) => ({
+              ...current,
+              summary: appendText(current.summary, value),
+            }))
+          }
+          options={[
+            "适合新手建立规律训练习惯，每周 3-4 次，控制动作质量和恢复。",
+            "适合有基础训练者提升肌肉量与力量表现，每周 4-5 次。",
+            "适合时间紧张用户，单次训练控制在 30-45 分钟。",
+          ]}
+        />
         <FormTextarea
           label="周训练安排"
           onChange={(value) =>
@@ -1012,6 +1034,20 @@ export function TrainingPlanModal({
           required
           rows={7}
           value={form.weeklySchedule}
+        />
+        <SuggestionChips
+          label="训练日选项"
+          onSelect={(value) =>
+            setForm((current) => ({
+              ...current,
+              weeklySchedule: appendText(current.weeklySchedule, value),
+            }))
+          }
+          options={[
+            "周一｜全身力量：深蹲模式 3 组 x 10 次；俯卧撑 3 组 x 8-12 次；平板支撑 3 组 x 30 秒",
+            "周三｜上肢拉：高位下拉 4 组 x 10 次；哑铃划船 3 组 x 12 次；面拉 3 组 x 15 次",
+            "周五｜低冲击有氧：快走或椭圆机 35 分钟；髋部和胸椎拉伸 10 分钟",
+          ]}
         />
         <div className="grid gap-3 sm:grid-cols-2">
           <FormTextarea
@@ -1033,6 +1069,20 @@ export function TrainingPlanModal({
             value={form.recoveryGuidance}
           />
         </div>
+        <SuggestionChips
+          label="恢复提醒选项"
+          onSelect={(value) =>
+            setForm((current) => ({
+              ...current,
+              recoveryGuidance: appendText(current.recoveryGuidance, value),
+            }))
+          }
+          options={[
+            "训练中疼痛超过 3/10 时停止，并记录疼痛动作。",
+            "大重量训练日之间至少间隔 48 小时。",
+            "睡眠不足或酸痛明显时，将训练总量降低 15-25%。",
+          ]}
+        />
 
         {error ? <ErrorMessage message={error} /> : null}
 
@@ -1055,6 +1105,126 @@ export function TrainingPlanModal({
           </Button>
         </div>
       </form>
+    </div>
+  )
+}
+
+export function TrainingFeedbackModal({
+  adjustment,
+  error,
+  feedback,
+  loading,
+  onApply,
+  onClose,
+  onFeedbackChange,
+  onPreview,
+  open,
+}: {
+  adjustment: TrainingPlanAdjustmentResponse | null
+  error: string | null
+  feedback: string
+  loading: boolean
+  onApply: () => void
+  onClose: () => void
+  onFeedbackChange: (value: string) => void
+  onPreview: () => void
+  open: boolean
+}) {
+  if (!open) {
+    return null
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4 backdrop-blur-[2px]">
+      <section className="max-h-[90svh] w-full max-w-[640px] overflow-y-auto rounded-[20px] border border-white/80 bg-white p-5 shadow-[0_22px_70px_rgba(0,0,0,0.25)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-[20px] font-black tracking-[-0.04em]">
+              训练反馈
+            </h2>
+            <p className="mt-2 text-[12px] leading-5 text-[#777777]">
+              Kratos 会基于这次反馈生成原计划的调整建议，只有你同意后才会更新计划。
+            </p>
+          </div>
+          <button
+            className="grid size-8 place-items-center rounded-full hover:bg-[#f4f4f4] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            onClick={onClose}
+            type="button"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <FormTextarea
+          label="本次训练反馈"
+          onChange={onFeedbackChange}
+          placeholder="例如 今天腿部很酸，深蹲膝盖有点不适；或今天很轻松，可以加一点强度"
+          rows={5}
+          value={feedback}
+        />
+        <SuggestionChips
+          label="快速反馈"
+          onSelect={(value) => onFeedbackChange(appendText(feedback, value))}
+          options={[
+            "今天整体很轻松，可以适当加一点强度。",
+            "今天比较累，动作质量下降，建议下次降低训练量。",
+            "膝盖有点不适，需要减少冲击和深屈膝动作。",
+            "提前结束训练，今天时间和体力都不够。",
+            "训练前补给不足，后半段有点没力。",
+          ]}
+        />
+
+        {error ? <ErrorMessage message={error} /> : null}
+
+        {adjustment ? (
+          <div className="mt-4 rounded-[12px] border border-[#e8e8e8] bg-[#fafafa] p-4">
+            <h3 className="text-[14px] font-black">调整建议</h3>
+            <div className="mt-3 flex flex-col gap-2">
+              {adjustment.rationale.map((item) => (
+                <div className="flex gap-2 text-[12px] leading-5 text-[#555555]" key={item}>
+                  <Check className="mt-0.5 size-3.5 shrink-0" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 rounded-[10px] bg-white p-3 text-[12px] leading-5 text-[#555555]">
+              将更新原计划的摘要、周安排、营养或恢复建议；不会创建新计划。
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex items-center justify-end gap-3">
+          <Button
+            className="h-10 rounded-[10px] border-[#dedede] px-4 text-[13px]"
+            onClick={onClose}
+            type="button"
+            variant="outline"
+          >
+            暂不调整
+          </Button>
+          {adjustment ? (
+            <Button
+              className="h-10 rounded-[10px] bg-[#111111] px-5 text-[13px] font-bold text-white hover:bg-[#111111]/90"
+              disabled={loading}
+              onClick={onApply}
+              type="button"
+            >
+              {loading ? <LoaderCircle className="size-4 animate-spin" /> : null}
+              同意并更新原计划
+            </Button>
+          ) : (
+            <Button
+              className="h-10 rounded-[10px] bg-[#111111] px-5 text-[13px] font-bold text-white hover:bg-[#111111]/90"
+              disabled={loading}
+              onClick={onPreview}
+              type="button"
+            >
+              {loading ? <LoaderCircle className="size-4 animate-spin" /> : null}
+              生成调整建议
+            </Button>
+          )}
+        </div>
+      </section>
     </div>
   )
 }
@@ -1170,6 +1340,47 @@ function trainingPlanPayloadFromForm(form: TrainingPlanForm): TrainingPlanPayloa
 function compactFormText(value: string) {
   const trimmed = value.trim()
   return trimmed ? trimmed : null
+}
+
+function appendText(current: string, addition: string) {
+  const trimmed = current.trim()
+  if (!trimmed) {
+    return addition
+  }
+
+  if (trimmed.includes(addition)) {
+    return trimmed
+  }
+
+  return `${trimmed}\n${addition}`
+}
+
+function SuggestionChips({
+  label,
+  onSelect,
+  options,
+}: {
+  label: string
+  onSelect: (value: string) => void
+  options: string[]
+}) {
+  return (
+    <div className="mt-2">
+      <p className="text-[11px] font-bold text-[#8a8a8a]">{label}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {options.map((option) => (
+          <button
+            className="rounded-[8px] border border-[#e6e6e6] bg-white px-3 py-1.5 text-left text-[11px] font-bold text-[#555555] shadow-[0_6px_14px_rgba(0,0,0,0.06)] hover:border-[#bfc7b7] hover:bg-[#f8faf6]"
+            key={option}
+            onClick={() => onSelect(option)}
+            type="button"
+          >
+            {option}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function FormInput({

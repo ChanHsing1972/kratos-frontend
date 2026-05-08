@@ -23,6 +23,7 @@ import {
   listAgentRuns,
   listTrainingPlans,
   loginUser,
+  previewTrainingPlanAdjustment,
   registerUser,
   streamAgentChat,
   updateMyFitnessProfile,
@@ -46,6 +47,7 @@ import {
   DetailModal,
   OnboardingModal,
   ProfileEditModal,
+  TrainingFeedbackModal,
   TrainingPlanModal,
   Toast,
 } from "@/components/kratos/Modals"
@@ -73,12 +75,22 @@ import type {
   ProfileForm,
   QuickAction,
   TrainingPlan,
+  TrainingPlanAdjustmentResponse,
   TrainingPlanPayload,
   UserProfile,
   WorkoutLog,
 } from "@/types/kratos"
 
 const CHAT_SESSION_META_KEY = "kratos-chat-session-meta"
+
+type TrainingSession = {
+  actionIds: string[]
+  accumulatedSeconds: number
+  dayTitle: string
+  isPaused: boolean
+  startedAt: number
+  workoutDate: string
+}
 
 export function App() {
   const { setTheme, theme } = useTheme()
@@ -127,6 +139,20 @@ export function App() {
   const [detailPanel, setDetailPanel] = useState<DetailPanel | null>(null)
   const [completedExercises, setCompletedExercises] = useState<string[]>([])
   const [trainingStarted, setTrainingStarted] = useState(false)
+  const [trainingSession, setTrainingSession] = useState<TrainingSession | null>(null)
+  const [trainingElapsedSeconds, setTrainingElapsedSeconds] = useState(0)
+  const [trainingPaused, setTrainingPaused] = useState(false)
+  const [trainingFeedbackOpen, setTrainingFeedbackOpen] = useState(false)
+  const [trainingFeedback, setTrainingFeedback] = useState("")
+  const [trainingFeedbackError, setTrainingFeedbackError] = useState<string | null>(null)
+  const [trainingFeedbackLoading, setTrainingFeedbackLoading] = useState(false)
+  const [trainingAdjustment, setTrainingAdjustment] =
+    useState<TrainingPlanAdjustmentResponse | null>(null)
+  const [lastCompletedWorkout, setLastCompletedWorkout] = useState<{
+    completed: boolean
+    durationSeconds: number
+    title: string
+  } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const activeStreamRef = useRef<AbortController | null>(null)
   const chatSessionMetaRef = useRef(chatSessionMeta)
@@ -184,6 +210,35 @@ export function App() {
       window.clearTimeout(timer)
     }
   }, [toast])
+
+  useEffect(() => {
+    if (!trainingSession) {
+      setTrainingElapsedSeconds(0)
+      return undefined
+    }
+
+    const updateElapsed = () => {
+      if (trainingSession.isPaused) {
+        setTrainingElapsedSeconds(trainingSession.accumulatedSeconds)
+        return
+      }
+
+      setTrainingElapsedSeconds(
+        Math.max(
+          0,
+          trainingSession.accumulatedSeconds +
+            Math.floor((Date.now() - trainingSession.startedAt) / 1000)
+        )
+      )
+    }
+
+    updateElapsed()
+    const timer = window.setInterval(updateElapsed, 1000)
+
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [trainingSession])
 
   useEffect(() => {
     chatSessionMetaRef.current = chatSessionMeta
@@ -1034,7 +1089,11 @@ export function App() {
     )
   }
 
-  const handleStartTraining = (actions: string[]) => {
+  const handleStartTraining = (
+    dayTitle: string,
+    workoutDate: string,
+    actions: string[]
+  ) => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
@@ -1047,8 +1106,57 @@ export function App() {
       return
     }
 
+    if (trainingSession) {
+      setToast("已有训练进行中，请先结束当前训练")
+      return
+    }
+
+    setCompletedExercises([])
+    setTrainingSession({
+      actionIds: actions,
+      accumulatedSeconds: 0,
+      dayTitle,
+      isPaused: false,
+      startedAt: Date.now(),
+      workoutDate,
+    })
+    setTrainingElapsedSeconds(0)
+    setTrainingPaused(false)
     setTrainingStarted(true)
-    setToast("训练已开始，逐个点击动作卡片标记完成")
+    setToast("训练计时已开始，逐个点击动作卡片标记完成")
+  }
+
+  const handlePauseTraining = () => {
+    if (!trainingSession || trainingSession.isPaused) {
+      return
+    }
+
+    const elapsedSeconds =
+      trainingSession.accumulatedSeconds +
+      Math.max(0, Math.floor((Date.now() - trainingSession.startedAt) / 1000))
+
+    setTrainingSession({
+      ...trainingSession,
+      accumulatedSeconds: elapsedSeconds,
+      isPaused: true,
+    })
+    setTrainingElapsedSeconds(elapsedSeconds)
+    setTrainingPaused(true)
+    setToast("训练已暂停")
+  }
+
+  const handleResumeTraining = () => {
+    if (!trainingSession || !trainingSession.isPaused) {
+      return
+    }
+
+    setTrainingSession({
+      ...trainingSession,
+      isPaused: false,
+      startedAt: Date.now(),
+    })
+    setTrainingPaused(false)
+    setToast("训练已继续")
   }
 
   const handleCompleteTrainingDay = (
@@ -1064,29 +1172,56 @@ export function App() {
       return
     }
 
-    const allDone = actionIds.every((action) => completedExercises.includes(action))
-    if (!allDone) {
-      setToast("完成全部动作后再确认当日训练完成")
+    if (!trainingSession || trainingSession.workoutDate !== workoutDate) {
+      setToast("请先开始当天训练")
       return
     }
 
-    void saveCompletedWorkout(token, dayTitle, workoutDate, actionTitles)
+    const elapsedSeconds =
+      trainingSession.isPaused
+        ? Math.max(1, trainingSession.accumulatedSeconds)
+        : Math.max(
+            1,
+            trainingSession.accumulatedSeconds +
+              Math.floor((Date.now() - trainingSession.startedAt) / 1000)
+          )
+    const completedActionTitles = actionTitles.filter((_, index) =>
+      completedExercises.includes(actionIds[index])
+    )
+    const allActionsDone = actionIds.every((action) =>
+      completedExercises.includes(action)
+    )
+    const actionsToSave =
+      completedActionTitles.length > 0 ? completedActionTitles : ["未标记完成动作"]
+
+    void saveCompletedWorkout(
+      token,
+      dayTitle,
+      workoutDate,
+      actionsToSave,
+      elapsedSeconds,
+      allActionsDone
+    )
   }
 
   const saveCompletedWorkout = async (
     token: string,
     dayTitle: string,
     workoutDate: string,
-    actions: string[]
+    actions: string[],
+    elapsedSeconds: number,
+    completed: boolean
   ) => {
     setDashboardLoading(true)
 
     try {
+      const durationMinutes = Math.max(1, Math.ceil(elapsedSeconds / 60))
       const log = await createWorkoutLog(token, {
-        calories_burned: 180,
-        completed: true,
-        duration_minutes: Math.max(20, actions.length * 8),
-        notes: `已完成：${actions.join("、")}`,
+        calories_burned: Math.max(20, Math.round(durationMinutes * 6)),
+        completed,
+        duration_minutes: durationMinutes,
+        duration_seconds: elapsedSeconds,
+        notes: `实际训练 ${formatDuration(elapsedSeconds)}；${completed ? "完成全部计划动作" : "提前结束"}；已标记：${actions.join("、")}`,
         perceived_exertion: 6,
         title: dayTitle || activePlan?.title || "未命名训练",
         training_plan_id: activePlan?.id ?? null,
@@ -1096,6 +1231,18 @@ export function App() {
       setWorkoutLogs((current) => [log, ...current])
       setCompletedExercises([])
       setTrainingStarted(false)
+      setTrainingSession(null)
+      setTrainingElapsedSeconds(0)
+      setTrainingPaused(false)
+      setLastCompletedWorkout({
+        completed,
+        durationSeconds: elapsedSeconds,
+        title: dayTitle || activePlan?.title || "未命名训练",
+      })
+      setTrainingFeedback("")
+      setTrainingAdjustment(null)
+      setTrainingFeedbackError(null)
+      setTrainingFeedbackOpen(true)
       setToast("训练完成记录已同步到后端")
     } catch (error) {
       setToast(getErrorMessage(error))
@@ -1206,6 +1353,69 @@ export function App() {
     }
   }
 
+  const handlePreviewTrainingAdjustment = async () => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token || !activePlan || !lastCompletedWorkout) {
+      setTrainingFeedbackError("缺少当前计划或训练记录，暂时无法生成调整建议")
+      return
+    }
+
+    if (!trainingFeedback.trim()) {
+      setTrainingFeedbackError("请先填写本次训练反馈")
+      return
+    }
+
+    setTrainingFeedbackLoading(true)
+    setTrainingFeedbackError(null)
+
+    try {
+      const adjustment = await previewTrainingPlanAdjustment(token, activePlan.id, {
+        completed: lastCompletedWorkout.completed,
+        duration_seconds: lastCompletedWorkout.durationSeconds,
+        feedback: trainingFeedback.trim(),
+        workout_title: lastCompletedWorkout.title,
+      })
+      setTrainingAdjustment(adjustment)
+    } catch (error) {
+      setTrainingFeedbackError(getErrorMessage(error))
+    } finally {
+      setTrainingFeedbackLoading(false)
+    }
+  }
+
+  const handleApplyTrainingAdjustment = async () => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token || !activePlan || !trainingAdjustment) {
+      setTrainingFeedbackError("缺少调整建议，暂时无法更新计划")
+      return
+    }
+
+    setTrainingFeedbackLoading(true)
+    setTrainingFeedbackError(null)
+
+    try {
+      const proposal = compactTrainingPlanProposal(trainingAdjustment.proposal)
+      const updated = await updateTrainingPlan(
+        token,
+        activePlan.id,
+        proposal
+      )
+      setTrainingPlans((current) =>
+        current.map((plan) => (plan.id === updated.id ? updated : plan))
+      )
+      await refreshDashboard(token, { preserveMessages: true })
+      setTrainingFeedbackOpen(false)
+      setTrainingFeedback("")
+      setTrainingAdjustment(null)
+      setLastCompletedWorkout(null)
+      setToast("已根据反馈更新原训练计划")
+    } catch (error) {
+      setTrainingFeedbackError(getErrorMessage(error))
+    } finally {
+      setTrainingFeedbackLoading(false)
+    }
+  }
+
   const markAllNotificationsRead = () => {
     setNotifications((current) =>
       current.map((item) => ({
@@ -1223,6 +1433,9 @@ export function App() {
           activePlan={activePlan}
           completedExercises={completedExercises}
           dashboardLoading={dashboardLoading}
+          onOpenBodyData={() => {
+            setActiveNav("身体数据")
+          }}
           onOpenPlanComposer={openTrainingPlanComposer}
           onOpenPanel={(panel) => {
             if (panel.title === "完整训练计划") {
@@ -1235,7 +1448,12 @@ export function App() {
           onSelectPlan={handleSelectTrainingPlan}
           onStartTraining={handleStartTraining}
           onCompleteTrainingDay={handleCompleteTrainingDay}
+          onPauseTraining={handlePauseTraining}
+          onResumeTraining={handleResumeTraining}
           onToggleExercise={toggleExercise}
+          trainingElapsedSeconds={trainingElapsedSeconds}
+          trainingPaused={trainingPaused}
+          trainingSessionDate={trainingSession?.workoutDate ?? null}
           trainingPlans={trainingPlans}
           trainingStarted={trainingStarted}
           workoutLogs={workoutLogs}
@@ -1379,6 +1597,27 @@ export function App() {
         onSubmit={handleTrainingPlanSubmit}
         open={trainingPlanModalOpen}
       />
+      <TrainingFeedbackModal
+        adjustment={trainingAdjustment}
+        error={trainingFeedbackError}
+        feedback={trainingFeedback}
+        loading={trainingFeedbackLoading}
+        onApply={handleApplyTrainingAdjustment}
+        onClose={() => {
+          setTrainingFeedbackOpen(false)
+          setTrainingFeedback("")
+          setTrainingFeedbackError(null)
+          setTrainingAdjustment(null)
+          setLastCompletedWorkout(null)
+        }}
+        onFeedbackChange={(value) => {
+          setTrainingFeedback(value)
+          setTrainingFeedbackError(null)
+          setTrainingAdjustment(null)
+        }}
+        onPreview={handlePreviewTrainingAdjustment}
+        open={trainingFeedbackOpen}
+      />
       <DetailModal
         panel={detailPanel}
         onClose={() => setDetailPanel(null)}
@@ -1421,4 +1660,21 @@ function sortChatSessions(left: ChatSession, right: ChatSession) {
   }
 
   return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+}
+
+function formatDuration(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+
+  if (minutes <= 0) {
+    return `${seconds} 秒`
+  }
+
+  return `${minutes} 分 ${seconds.toString().padStart(2, "0")} 秒`
+}
+
+function compactTrainingPlanProposal(proposal: Partial<TrainingPlanPayload>) {
+  return Object.fromEntries(
+    Object.entries(proposal).filter(([, value]) => value !== null && value !== undefined)
+  ) as Partial<TrainingPlanPayload>
 }

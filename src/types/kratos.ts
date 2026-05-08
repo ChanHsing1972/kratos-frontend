@@ -156,6 +156,18 @@ export type TrainingPlanPayload = {
   recovery_guidance?: string | null
 }
 
+export type TrainingPlanAdjustmentPayload = {
+  feedback: string
+  workout_title?: string | null
+  completed?: boolean | null
+  duration_seconds?: number | null
+}
+
+export type TrainingPlanAdjustmentResponse = {
+  proposal: Partial<TrainingPlanPayload>
+  rationale: string[]
+}
+
 export type TrainingPlanForm = {
   title: string
   goal: string
@@ -200,6 +212,7 @@ export type WorkoutLog = {
   workout_type: string | null
   title: string | null
   duration_minutes: number | null
+  duration_seconds: number | null
   perceived_exertion: number | null
   calories_burned: number | null
   completed: boolean
@@ -213,6 +226,7 @@ export type WorkoutLogPayload = {
   workout_type?: string | null
   title?: string | null
   duration_minutes?: number | null
+  duration_seconds?: number | null
   perceived_exertion?: number | null
   calories_burned?: number | null
   completed?: boolean

@@ -9,6 +9,8 @@ import type {
   FitnessProfile,
   FitnessProfilePayload,
   TokenResponse,
+  TrainingPlanAdjustmentPayload,
+  TrainingPlanAdjustmentResponse,
   TrainingPlan,
   TrainingPlanPayload,
   UserProfile,
@@ -77,6 +79,21 @@ export async function updateTrainingPlan(
     body: JSON.stringify(payload),
     method: "PATCH",
   })
+}
+
+export async function previewTrainingPlanAdjustment(
+  token: string,
+  planId: number,
+  payload: TrainingPlanAdjustmentPayload
+) {
+  return authorizedJson<TrainingPlanAdjustmentResponse>(
+    `/plans/${planId}/adjustment-preview`,
+    token,
+    {
+      body: JSON.stringify(payload),
+      method: "POST",
+    }
+  )
 }
 
 export async function listBodyMetrics(token: string) {
