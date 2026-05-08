@@ -1220,48 +1220,42 @@ function TrainingCalendar({
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 pt-3.5">
-        <div className="flex items-center gap-2">
-          <button
-            className="inline-flex h-8 items-center rounded-full border border-[#e5e5e5] bg-white px-3 text-[11px] font-medium text-[#111111] transition hover:border-[#111111]"
-            onClick={() => onVisibleDateChange(addYears(visibleDate, -1))}
-            type="button"
-          >
-            上一年
-          </button>
-          <button
-            className="inline-flex h-8 items-center rounded-full border border-[#e5e5e5] bg-white px-3 text-[11px] font-medium text-[#111111] transition hover:border-[#111111]"
-            onClick={() => onVisibleDateChange(addMonths(visibleDate, -1))}
-            type="button"
-          >
-            上一月
-          </button>
-        </div>
-
+      <div className="grid grid-cols-5 gap-1.5 px-3.5 pt-3.5">
         <button
-            className="rounded-full border border-[#111111] bg-white px-3 py-1.5 text-[11px] font-medium text-[#111111] transition hover:bg-[#f7f7f7]"
+          className="inline-flex h-8 items-center justify-center rounded-full border border-[#e5e5e5] bg-white px-2 text-[10px] font-medium text-[#111111] transition hover:border-[#111111]"
+          onClick={() => onVisibleDateChange(addYears(visibleDate, -1))}
+          type="button"
+        >
+          上一年
+        </button>
+        <button
+          className="inline-flex h-8 items-center justify-center rounded-full border border-[#e5e5e5] bg-white px-2 text-[10px] font-medium text-[#111111] transition hover:border-[#111111]"
+          onClick={() => onVisibleDateChange(addMonths(visibleDate, -1))}
+          type="button"
+        >
+          上一月
+        </button>
+        <button
+          className="inline-flex h-8 items-center justify-center rounded-full border border-[#111111] bg-white px-2 text-[10px] font-medium text-[#111111] transition hover:bg-[#f7f7f7]"
           onClick={() => onVisibleDateChange(new Date())}
           type="button"
         >
           今天
         </button>
-
-        <div className="flex items-center gap-2">
-          <button
-            className="inline-flex h-8 items-center rounded-full border border-[#e5e5e5] bg-white px-3 text-[11px] font-medium text-[#111111] transition hover:border-[#111111]"
-            onClick={() => onVisibleDateChange(addMonths(visibleDate, 1))}
-            type="button"
-          >
-            下一月
-          </button>
-          <button
-            className="inline-flex h-8 items-center rounded-full border border-[#e5e5e5] bg-white px-3 text-[11px] font-medium text-[#111111] transition hover:border-[#111111]"
-            onClick={() => onVisibleDateChange(addYears(visibleDate, 1))}
-            type="button"
-          >
-            下一年
-          </button>
-        </div>
+        <button
+          className="inline-flex h-8 items-center justify-center rounded-full border border-[#e5e5e5] bg-white px-2 text-[10px] font-medium text-[#111111] transition hover:border-[#111111]"
+          onClick={() => onVisibleDateChange(addMonths(visibleDate, 1))}
+          type="button"
+        >
+          下一月
+        </button>
+        <button
+          className="inline-flex h-8 items-center justify-center rounded-full border border-[#e5e5e5] bg-white px-2 text-[10px] font-medium text-[#111111] transition hover:border-[#111111]"
+          onClick={() => onVisibleDateChange(addYears(visibleDate, 1))}
+          type="button"
+        >
+          下一年
+        </button>
       </div>
 
       <div className="mt-3.5 grid grid-cols-7 gap-1.5 px-3.5 text-center text-[11px] font-medium text-[#9b9b9b]">
