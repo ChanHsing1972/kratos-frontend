@@ -11,6 +11,7 @@ import type {
   OnboardingStatus,
   ProfileForm,
   TrainingPlan,
+  TrainingPlanPayload,
   TrainingPlanTemplate,
   UserProfile,
   WorkoutLog,
@@ -271,12 +272,52 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
         id: `run-${run.id}-assistant`,
         author: "assistant" as const,
         body: run.answer,
+        suggestedTrainingPlan: trainingPlanPayloadFromAgentResult(run.result_payload),
         time: formatStoredTime(run.created_at),
         trace: run.trace_steps
           .sort((left, right) => left.position - right.position)
           .map(traceStepFromRun),
       },
     ])
+}
+
+export function trainingPlanPayloadFromAgentResult(
+  raw: unknown
+): TrainingPlanPayload | undefined {
+  const result = asRecord(raw)
+  const workoutPlan = asRecord(result?.workout_plan)
+  if (!workoutPlan) {
+    return undefined
+  }
+
+  const sessions = asRecordArray(workoutPlan.sessions)
+  const weeklySchedule = buildWeeklyScheduleFromWorkoutSessions(sessions)
+  if (!weeklySchedule) {
+    return undefined
+  }
+
+  const title =
+    sessions.length === 1
+      ? normalizeDailyPlanTitle(textValue(workoutPlan.title))
+      : (textValue(workoutPlan.title) ?? "Kratos 生成训练计划")
+  const goal = textValue(workoutPlan.goal) ?? "基于聊天上下文生成的训练计划"
+  const precautions = uniqueLines([
+    ...stringArray(workoutPlan.precautions),
+    ...extractGuidanceLinesFromWorkoutSessions(sessions),
+  ])
+
+  return {
+    goal,
+    nutrition_guidance: null,
+    recovery_guidance: precautions.length
+      ? precautions.join("\n")
+      : "训练前充分热身，训练后完成拉伸；如出现疼痛或明显疲劳，及时降低强度。",
+    start_date: localTrainingDateValue(new Date()),
+    status: "active",
+    summary: buildWorkoutPlanSummary(title, goal, sessions),
+    title,
+    weekly_schedule: weeklySchedule,
+  }
 }
 
 export function chatSessionsFromAgentRuns(
@@ -373,6 +414,216 @@ function formatStoredTime(value: string) {
 
 export function toDateInputValue(date: Date) {
   return date.toISOString().slice(0, 10)
+}
+
+function localTrainingDateValue(date: Date) {
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, "0")
+  const day = `${date.getDate()}`.padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function buildWeeklyScheduleFromWorkoutSessions(sessions: Record<string, unknown>[]) {
+  const weekDays =
+    sessions.length === 1
+      ? [weekdayLabel(new Date())]
+      : ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+  const lines = sessions
+    .map((session, index) => {
+      const title = cleanScheduleTitle(
+        textValue(session.title) ?? textValue(session.focus) ?? `训练 ${index + 1}`
+      )
+      const exercises = asRecordArray(session.exercises)
+        .map(formatWorkoutExercise)
+        .filter((item): item is string => Boolean(item))
+        .filter(isTrainingActionLine)
+      const notes = stringArray(session.notes)
+        .map(cleanWorkoutLine)
+        .filter((item): item is string => Boolean(item))
+        .filter(isTrainingActionLine)
+      const actions = uniqueLines(exercises.length ? exercises : notes).slice(0, 8)
+      const actionText = actions.join("；")
+
+      if (!actionText || isGuidanceLine(title)) {
+        return null
+      }
+
+      return `${weekDays[index % weekDays.length]}｜${title}：${actionText}`
+    })
+    .filter(Boolean)
+
+  return lines.join("\n")
+}
+
+function weekdayLabel(date: Date) {
+  const labels = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+  return labels[date.getDay()]
+}
+
+function normalizeDailyPlanTitle(title: string | null) {
+  if (!title || title === "训练计划" || title === "Kratos 生成训练计划") {
+    return "今日训练计划"
+  }
+
+  return /今日|今天|每日|单日/.test(title) ? title : `今日${title}`
+}
+
+function formatWorkoutExercise(exercise: Record<string, unknown>) {
+  const name = cleanWorkoutLine(textValue(exercise.name) ?? textValue(exercise.title))
+  if (!name) {
+    return null
+  }
+
+  const sets = numberValue(exercise.sets)
+  const reps = cleanWorkoutLine(textValue(exercise.reps))
+  const duration = numberValue(exercise.duration_minutes)
+  const notes = cleanExerciseNotes(name, textValue(exercise.notes))
+  const prescription = [
+    sets ? `${sets} 组` : null,
+    reps ? normalizeRepsText(reps) : null,
+    duration ? `${duration} 分钟` : null,
+  ].filter(Boolean)
+
+  return [name, prescription.join(" x "), notes].filter(Boolean).join("，")
+}
+
+function extractGuidanceLinesFromWorkoutSessions(sessions: Record<string, unknown>[]) {
+  return sessions.flatMap((session) => {
+    const sessionTitle = textValue(session.title) ?? textValue(session.focus)
+    const notes = stringArray(session.notes)
+    const exerciseNotes = asRecordArray(session.exercises)
+      .flatMap((exercise) => [
+        textValue(exercise.name),
+        textValue(exercise.title),
+        textValue(exercise.notes),
+      ])
+      .filter((item): item is string => Boolean(item))
+
+    return [sessionTitle, ...notes, ...exerciseNotes]
+      .filter((line): line is string => Boolean(line))
+      .map(cleanWorkoutLine)
+      .filter((line): line is string => Boolean(line))
+      .filter(isGuidanceLine)
+  })
+}
+
+function cleanScheduleTitle(value: string) {
+  return value
+    .replace(/^[-\d\s.、]+/, "")
+    .replace(/[：:]\s*$/, "")
+    .trim() || "训练"
+}
+
+function cleanWorkoutLine(value: string | null) {
+  if (!value) {
+    return null
+  }
+
+  const compacted = value
+    .replace(/^[-•\s]+/, "")
+    .replace(/\s+/g, " ")
+    .replace(/([：:])\s*\1+/g, "$1")
+    .trim()
+
+  return compacted || null
+}
+
+function cleanExerciseNotes(name: string, notes: string | null) {
+  const cleaned = cleanWorkoutLine(notes)
+  if (!cleaned || cleaned === name || cleaned.startsWith(`${name}：`) || cleaned.startsWith(`${name}:`)) {
+    return null
+  }
+
+  if (isGuidanceLine(cleaned)) {
+    return null
+  }
+
+  return cleaned
+}
+
+function normalizeRepsText(value: string) {
+  return /次|分钟|秒/.test(value) ? value : `${value} 次`
+}
+
+function isTrainingActionLine(value: string) {
+  const line = value.trim()
+  if (!line || isGuidanceLine(line)) {
+    return false
+  }
+
+  return /(\d+\s*组|\d+\s*(次|分钟|秒)|每组|RM|递增|递减|力竭)/i.test(line)
+}
+
+function isGuidanceLine(value: string) {
+  return /冷身|拉伸|注意事项|注意|避免|疼痛|刺痛|头晕|不适|补充蛋白|补充水分|睡眠|恢复|风险|如有|如果|立即停止|呼吸均匀/.test(value)
+}
+
+function uniqueLines(lines: string[]) {
+  const seen = new Set<string>()
+  return lines.filter((line) => {
+    const normalized = line.replace(/\s+/g, "")
+    if (seen.has(normalized)) {
+      return false
+    }
+    seen.add(normalized)
+    return true
+  })
+}
+
+function buildWorkoutPlanSummary(
+  title: string,
+  goal: string,
+  sessions: Record<string, unknown>[]
+) {
+  const focuses = sessions
+    .map((session) => textValue(session.focus) ?? textValue(session.title))
+    .filter(Boolean)
+    .slice(0, 4)
+
+  return [
+    `由 Kratos 对话生成：${title}。`,
+    goal ? `目标：${goal}。` : null,
+    focuses.length ? `训练重点：${focuses.join("、")}。` : null,
+  ]
+    .filter(Boolean)
+    .join("")
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function asRecordArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.map(asRecord).filter((item): item is Record<string, unknown> => Boolean(item))
+    : []
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean)
+    : []
+}
+
+function textValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null
+}
+
+function numberValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number.parseFloat(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
+  return null
 }
 
 export function formatTime() {

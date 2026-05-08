@@ -17,6 +17,7 @@ import {
   createMyFitnessProfile,
   createTrainingPlan,
   createWorkoutLog,
+  deleteTrainingPlan,
   getCurrentUser,
   getFitnessContext,
   getErrorMessage,
@@ -36,8 +37,10 @@ import {
   chatSessionsFromAgentRuns,
   compactOptionalText,
   formatTime,
+  getPlanExerciseLines,
   getLatestByDate,
   titleFromPrompt,
+  trainingPlanPayloadFromAgentResult,
 } from "@/lib/kratos"
 import { createId } from "@/lib/id"
 import { MainConversation } from "@/components/kratos/MainConversation"
@@ -82,6 +85,7 @@ import type {
 } from "@/types/kratos"
 
 const CHAT_SESSION_META_KEY = "kratos-chat-session-meta"
+const GENERATED_TRAINING_PLAN_KEY = "kratos-generated-training-plan-keys"
 
 type TrainingSession = {
   actionIds: string[]
@@ -119,8 +123,13 @@ export function App() {
   const [trainingPlanModalOpen, setTrainingPlanModalOpen] = useState(false)
   const [trainingPlanDraft, setTrainingPlanDraft] =
     useState<TrainingPlanPayload | null>(null)
+  const [editingTrainingPlanId, setEditingTrainingPlanId] = useState<number | null>(null)
   const [trainingPlanSubmitting, setTrainingPlanSubmitting] = useState(false)
   const [trainingPlanError, setTrainingPlanError] = useState<string | null>(null)
+  const [chatTrainingPlanSavingId, setChatTrainingPlanSavingId] = useState<string | null>(null)
+  const [generatedTrainingPlanKeys, setGeneratedTrainingPlanKeys] = useState<Set<string>>(
+    () => readGeneratedTrainingPlanKeys()
+  )
   const [thinkingExpanded, setThinkingExpanded] = useState(true)
   const [composerValue, setComposerValue] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
@@ -430,7 +439,12 @@ export function App() {
     try {
       const runs = await listAgentRuns(token, 200)
       const sessionRuns = runs.filter((run) => run.session_id === sessionId)
-      setMessages(chatMessagesFromAgentRuns(sessionRuns))
+      setMessages(
+        markGeneratedTrainingPlanMessages(
+          chatMessagesFromAgentRuns(sessionRuns),
+          generatedTrainingPlanKeys
+        )
+      )
       setAgentSessionId(sessionId)
       setToast("对话已切换")
     } catch (error) {
@@ -826,7 +840,12 @@ export function App() {
           ? runs.filter((run) => run.session_id === currentSessionId)
           : []
         setMessages(
-          sessionRuns.length ? chatMessagesFromAgentRuns(sessionRuns) : initialMessages
+          sessionRuns.length
+            ? markGeneratedTrainingPlanMessages(
+                chatMessagesFromAgentRuns(sessionRuns),
+                generatedTrainingPlanKeys
+              )
+            : initialMessages
         )
         setAgentSessionId(currentSessionId)
         setActiveNav(currentSessionId ?? "new")
@@ -1006,8 +1025,17 @@ export function App() {
               }
 
               if (event.type === "final") {
+                const suggestedTrainingPlan = trainingPlanPayloadFromAgentResult(event.raw)
+                const generatedAlready = suggestedTrainingPlan
+                  ? generatedTrainingPlanKeys.has(trainingPlanDraftKey(suggestedTrainingPlan))
+                  : false
                 return {
                   ...message,
+                  suggestedTrainingPlan:
+                    suggestedTrainingPlan ?? message.suggestedTrainingPlan,
+                  trainingPlanCreatedId: generatedAlready
+                    ? (message.trainingPlanCreatedId ?? -1)
+                    : message.trainingPlanCreatedId,
                   trace: [...(message.trace ?? []), event],
                 }
               }
@@ -1216,12 +1244,13 @@ export function App() {
 
     try {
       const durationMinutes = Math.max(1, Math.ceil(elapsedSeconds / 60))
+      const actionSnapshot = JSON.stringify(actions)
       const log = await createWorkoutLog(token, {
         calories_burned: Math.max(20, Math.round(durationMinutes * 6)),
         completed,
         duration_minutes: durationMinutes,
         duration_seconds: elapsedSeconds,
-        notes: `实际训练 ${formatDuration(elapsedSeconds)}；${completed ? "完成全部计划动作" : "提前结束"}；已标记：${actions.join("、")}`,
+        notes: `实际训练 ${formatDuration(elapsedSeconds)}；${completed ? "完成全部计划动作" : "提前结束"}；动作快照：${actionSnapshot}；已标记：${actions.join("、")}`,
         perceived_exertion: 6,
         title: dayTitle || activePlan?.title || "未命名训练",
         training_plan_id: activePlan?.id ?? null,
@@ -1234,16 +1263,25 @@ export function App() {
       setTrainingSession(null)
       setTrainingElapsedSeconds(0)
       setTrainingPaused(false)
-      setLastCompletedWorkout({
-        completed,
-        durationSeconds: elapsedSeconds,
-        title: dayTitle || activePlan?.title || "未命名训练",
-      })
-      setTrainingFeedback("")
-      setTrainingAdjustment(null)
-      setTrainingFeedbackError(null)
-      setTrainingFeedbackOpen(true)
-      setToast("训练完成记录已同步到后端")
+      if (isDailyPlanForAdjustment(activePlan)) {
+        setLastCompletedWorkout(null)
+        setTrainingFeedback("")
+        setTrainingAdjustment(null)
+        setTrainingFeedbackError(null)
+        setTrainingFeedbackOpen(false)
+        setToast("每日训练记录已同步，不更新后续计划")
+      } else {
+        setLastCompletedWorkout({
+          completed,
+          durationSeconds: elapsedSeconds,
+          title: dayTitle || activePlan?.title || "未命名训练",
+        })
+        setTrainingFeedback("")
+        setTrainingAdjustment(null)
+        setTrainingFeedbackError(null)
+        setTrainingFeedbackOpen(true)
+        setToast("训练完成记录已同步到后端")
+      }
     } catch (error) {
       setToast(getErrorMessage(error))
     } finally {
@@ -1259,7 +1297,22 @@ export function App() {
       return
     }
 
+    setEditingTrainingPlanId(null)
     setTrainingPlanDraft(draft)
+    setTrainingPlanError(null)
+    setTrainingPlanModalOpen(true)
+  }
+
+  const openTrainingPlanEditor = (plan: TrainingPlan) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      setToast("登录后可以修改训练计划")
+      return
+    }
+
+    setEditingTrainingPlanId(plan.id)
+    setTrainingPlanDraft(trainingPlanPayloadFromPlan(plan))
     setTrainingPlanError(null)
     setTrainingPlanModalOpen(true)
   }
@@ -1286,16 +1339,96 @@ export function App() {
     setTrainingPlanError(null)
 
     try {
+      if (editingTrainingPlanId) {
+        const updated = await updateTrainingPlan(token, editingTrainingPlanId, payload)
+        setTrainingPlans((current) =>
+          current.map((plan) => (plan.id === updated.id ? updated : plan))
+        )
+        await refreshDashboard(token, { preserveMessages: true })
+        setTrainingPlanModalOpen(false)
+        setTrainingPlanDraft(null)
+        setEditingTrainingPlanId(null)
+        setActiveNav("训练计划")
+        setToast("训练计划已更新，已完成训练仍显示历史快照")
+        return
+      }
+
       const plan = await createTrainingPlan(token, payload)
+      const generatedKey = trainingPlanDraftKey(payload)
+      const nextKeys = new Set(generatedTrainingPlanKeys)
+      nextKeys.add(generatedKey)
+      setGeneratedTrainingPlanKeys(nextKeys)
+      writeGeneratedTrainingPlanKeys(nextKeys)
       setTrainingPlans((current) => [plan, ...current])
       await refreshDashboard(token, { preserveMessages: true })
       setTrainingPlanModalOpen(false)
       setTrainingPlanDraft(null)
+      setEditingTrainingPlanId(null)
+      setActiveNav("训练计划")
       setToast("训练计划已保存到后端")
     } catch (error) {
       setTrainingPlanError(getErrorMessage(error))
     } finally {
       setTrainingPlanSubmitting(false)
+    }
+  }
+
+  const handleCreateTrainingPlanFromChat = async (
+    messageId: string,
+    payload: TrainingPlanPayload
+  ) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      setToast("登录后可以保存训练计划")
+      return
+    }
+
+    if (!payload.title.trim() || !payload.weekly_schedule?.trim()) {
+      openTrainingPlanComposer(payload)
+      setToast("计划草稿还需要补充后再保存")
+      return
+    }
+
+    const generatedKey = trainingPlanDraftKey(payload)
+    if (generatedTrainingPlanKeys.has(generatedKey)) {
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === messageId
+            ? { ...message, trainingPlanCreatedId: message.trainingPlanCreatedId ?? -1 }
+            : message
+        )
+      )
+      setToast("这份聊天计划已经生成过了")
+      return
+    }
+
+    setChatTrainingPlanSavingId(messageId)
+
+    try {
+      const plan = await createTrainingPlan(token, {
+        ...payload,
+        status: payload.status ?? "active",
+      })
+      const nextKeys = new Set(generatedTrainingPlanKeys)
+      nextKeys.add(generatedKey)
+      setGeneratedTrainingPlanKeys(nextKeys)
+      writeGeneratedTrainingPlanKeys(nextKeys)
+      setTrainingPlans((current) => [plan, ...current])
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === messageId
+            ? { ...message, trainingPlanCreatedId: plan.id }
+            : message
+        )
+      )
+      await refreshDashboard(token, { preserveMessages: true })
+      setActiveNav("训练计划")
+      setToast("已根据聊天内容生成训练计划")
+    } catch (error) {
+      setToast(getErrorMessage(error))
+    } finally {
+      setChatTrainingPlanSavingId(null)
     }
   }
 
@@ -1353,10 +1486,42 @@ export function App() {
     }
   }
 
+  const handleDeleteTrainingPlan = async (plan: TrainingPlan) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      setToast("登录后可以删除训练计划")
+      return
+    }
+
+    const confirmed = window.confirm(`确定删除「${plan.title}」吗？相关训练记录会保留。`)
+    if (!confirmed) {
+      return
+    }
+
+    setDashboardLoading(true)
+
+    try {
+      await deleteTrainingPlan(token, plan.id)
+      setTrainingPlans((current) => current.filter((item) => item.id !== plan.id))
+      await refreshDashboard(token, { preserveMessages: true })
+      setToast("训练计划已删除")
+    } catch (error) {
+      setToast(getErrorMessage(error))
+    } finally {
+      setDashboardLoading(false)
+    }
+  }
+
   const handlePreviewTrainingAdjustment = async () => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token || !activePlan || !lastCompletedWorkout) {
       setTrainingFeedbackError("缺少当前计划或训练记录，暂时无法生成调整建议")
+      return
+    }
+
+    if (isDailyPlanForAdjustment(activePlan)) {
+      setTrainingFeedbackError("每日计划不参与后续计划自动调整")
       return
     }
 
@@ -1387,6 +1552,11 @@ export function App() {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token || !activePlan || !trainingAdjustment) {
       setTrainingFeedbackError("缺少调整建议，暂时无法更新计划")
+      return
+    }
+
+    if (isDailyPlanForAdjustment(activePlan)) {
+      setTrainingFeedbackError("每日计划不参与后续计划自动调整")
       return
     }
 
@@ -1437,14 +1607,8 @@ export function App() {
             setActiveNav("身体数据")
           }}
           onOpenPlanComposer={openTrainingPlanComposer}
-          onOpenPanel={(panel) => {
-            if (panel.title === "完整训练计划") {
-              setDetailPanel(buildPlanPanel(activePlan))
-              return
-            }
-
-            setDetailPanel(panel)
-          }}
+          onDeletePlan={handleDeleteTrainingPlan}
+          onEditPlan={openTrainingPlanEditor}
           onSelectPlan={handleSelectTrainingPlan}
           onStartTraining={handleStartTraining}
           onCompleteTrainingDay={handleCompleteTrainingDay}
@@ -1482,6 +1646,7 @@ export function App() {
       <MainConversation
         activeSessionTitle={activeSessionTitle}
         agentStreaming={agentStreaming}
+        chatTrainingPlanSavingId={chatTrainingPlanSavingId}
         composerValue={composerValue}
         messages={messages}
         notifications={notifications}
@@ -1489,6 +1654,8 @@ export function App() {
         onAttachment={handleAttachment}
         onComposerChange={setComposerValue}
         onComposerKeyDown={handleComposerKeyDown}
+        onCreateTrainingPlanFromMessage={handleCreateTrainingPlanFromChat}
+        onEditTrainingPlanDraft={openTrainingPlanComposer}
         onMarkNotificationsRead={markAllNotificationsRead}
         onQuickAction={handleQuickAction}
         onSendMessage={handleSendMessage}
@@ -1593,7 +1760,10 @@ export function App() {
         error={trainingPlanError}
         key={`${trainingPlanModalOpen ? "plan-open" : "plan-closed"}-${trainingPlanDraft?.title ?? "custom"}`}
         loading={trainingPlanSubmitting}
-        onClose={() => setTrainingPlanModalOpen(false)}
+        onClose={() => {
+          setTrainingPlanModalOpen(false)
+          setEditingTrainingPlanId(null)
+        }}
         onSubmit={handleTrainingPlanSubmit}
         open={trainingPlanModalOpen}
       />
@@ -1643,6 +1813,93 @@ function readChatSessionMeta(): Record<string, Partial<ChatSession>> {
   } catch {
     return {}
   }
+}
+
+function readGeneratedTrainingPlanKeys() {
+  try {
+    const raw = localStorage.getItem(GENERATED_TRAINING_PLAN_KEY)
+    if (!raw) {
+      return new Set<string>()
+    }
+
+    const parsed = JSON.parse(raw) as unknown
+    return Array.isArray(parsed)
+      ? new Set(parsed.filter((item): item is string => typeof item === "string"))
+      : new Set<string>()
+  } catch {
+    return new Set<string>()
+  }
+}
+
+function writeGeneratedTrainingPlanKeys(keys: Set<string>) {
+  localStorage.setItem(GENERATED_TRAINING_PLAN_KEY, JSON.stringify([...keys]))
+}
+
+function markGeneratedTrainingPlanMessages(
+  items: ChatMessage[],
+  generatedKeys: Set<string>
+) {
+  return items.map((message) => {
+    if (
+      !message.suggestedTrainingPlan ||
+      message.trainingPlanCreatedId ||
+      !generatedKeys.has(trainingPlanDraftKey(message.suggestedTrainingPlan))
+    ) {
+      return message
+    }
+
+    return {
+      ...message,
+      trainingPlanCreatedId: -1,
+    }
+  })
+}
+
+function isDailyPlanForAdjustment(plan: TrainingPlan | null) {
+  if (!plan) {
+    return false
+  }
+
+  const trainingLines = getPlanExerciseLines(plan).filter((line) =>
+    /(周[一二三四五六日天]|第\s*\d+\s*天)/.test(line)
+  )
+
+  if (trainingLines.length !== 1) {
+    return false
+  }
+
+  if (plan.end_date && plan.start_date && plan.end_date !== plan.start_date) {
+    return false
+  }
+
+  return !plan.end_date || /今日|当天|每日|单日|本次|今天|Kratos 生成/.test(
+    `${plan.title} ${plan.summary ?? ""} ${plan.goal ?? ""}`
+  )
+}
+
+function trainingPlanPayloadFromPlan(plan: TrainingPlan): TrainingPlanPayload {
+  return {
+    end_date: plan.end_date,
+    goal: plan.goal,
+    nutrition_guidance: plan.nutrition_guidance,
+    recovery_guidance: plan.recovery_guidance,
+    start_date: plan.start_date,
+    status: plan.status,
+    summary: plan.summary,
+    title: plan.title,
+    weekly_schedule: plan.weekly_schedule,
+  }
+}
+
+function trainingPlanDraftKey(payload: TrainingPlanPayload) {
+  return [
+    payload.title.trim(),
+    payload.goal?.trim() ?? "",
+    payload.summary?.trim() ?? "",
+    payload.weekly_schedule?.trim() ?? "",
+  ]
+    .join("|")
+    .replace(/\s+/g, " ")
 }
 
 function resolveSessionUpdate(

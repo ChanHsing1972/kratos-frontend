@@ -81,6 +81,12 @@ export async function updateTrainingPlan(
   })
 }
 
+export async function deleteTrainingPlan(token: string, planId: number) {
+  return authorizedJson<null>(`/plans/${planId}`, token, {
+    method: "DELETE",
+  })
+}
+
 export async function previewTrainingPlanAdjustment(
   token: string,
   planId: number,

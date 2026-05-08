@@ -338,6 +338,8 @@ export type ChatMessage = {
   time: string
   completedAt?: number
   error?: string
+  suggestedTrainingPlan?: TrainingPlanPayload
+  trainingPlanCreatedId?: number
   startedAt?: number
   streaming?: boolean
   trace?: AgentTraceStep[]

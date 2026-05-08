@@ -26,6 +26,7 @@ import type {
   ChatMessage,
   NotificationItem,
   QuickAction,
+  TrainingPlanPayload,
 } from "@/types/kratos"
 import { MarkdownMessage } from "@/components/kratos/MarkdownMessage"
 import { Button } from "@/components/ui/button"
@@ -34,6 +35,7 @@ import { cn } from "@/lib/utils"
 type MainConversationProps = {
   activeSessionTitle: string
   agentStreaming: boolean
+  chatTrainingPlanSavingId: string | null
   composerValue: string
   messages: ChatMessage[]
   notifications: NotificationItem[]
@@ -42,6 +44,11 @@ type MainConversationProps = {
   onComposerChange: (value: string) => void
   onComposerKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   onMarkNotificationsRead: () => void
+  onCreateTrainingPlanFromMessage: (
+    messageId: string,
+    payload: TrainingPlanPayload
+  ) => void
+  onEditTrainingPlanDraft: (payload: TrainingPlanPayload) => void
   onQuickAction: (action: QuickAction) => void
   onSendMessage: () => void
   onToggleNotifications: () => void
@@ -55,6 +62,7 @@ type MainConversationProps = {
 export function MainConversation({
   activeSessionTitle,
   agentStreaming,
+  chatTrainingPlanSavingId,
   composerValue,
   messages,
   notifications,
@@ -63,6 +71,8 @@ export function MainConversation({
   onComposerChange,
   onComposerKeyDown,
   onMarkNotificationsRead,
+  onCreateTrainingPlanFromMessage,
+  onEditTrainingPlanDraft,
   onQuickAction,
   onSendMessage,
   onToggleNotifications,
@@ -166,13 +176,16 @@ export function MainConversation({
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 bg-gradient-to-b from-transparent via-white/72 to-white" />
               <div className="h-full min-h-0 overflow-y-auto bg-white" ref={scrollViewportRef}>
                 <div className="mx-auto flex w-full max-w-[820px] flex-col gap-[17px] px-5 pb-0 sm:px-6">
-                  {messages.map((message) => (
-                    <ChatBubble
-                      key={message.id}
-                      message={message}
-                      onToggleThinking={onToggleThinking}
-                      thinkingExpanded={thinkingExpanded}
-                    />
+	                  {messages.map((message) => (
+	                    <ChatBubble
+	                      creatingTrainingPlan={chatTrainingPlanSavingId === message.id}
+	                      key={message.id}
+	                      message={message}
+	                      onCreateTrainingPlan={onCreateTrainingPlanFromMessage}
+	                      onEditTrainingPlanDraft={onEditTrainingPlanDraft}
+	                      onToggleThinking={onToggleThinking}
+	                      thinkingExpanded={thinkingExpanded}
+	                    />
                   ))}
                   {/* {activeNav !== "对话" ? (
                     <ModulePreview
@@ -499,11 +512,17 @@ function useElapsedSeconds(
 }
 
 function ChatBubble({
+  creatingTrainingPlan,
   message,
+  onCreateTrainingPlan,
+  onEditTrainingPlanDraft,
   onToggleThinking,
   thinkingExpanded,
 }: {
+  creatingTrainingPlan: boolean
   message: ChatMessage
+  onCreateTrainingPlan: (messageId: string, payload: TrainingPlanPayload) => void
+  onEditTrainingPlanDraft: (payload: TrainingPlanPayload) => void
   onToggleThinking: () => void
   thinkingExpanded: boolean
 }) {
@@ -584,6 +603,18 @@ function ChatBubble({
             </p>
           ) : null}
 
+          {message.suggestedTrainingPlan && !message.streaming ? (
+            <TrainingPlanSuggestionCard
+              created={Boolean(message.trainingPlanCreatedId)}
+              loading={creatingTrainingPlan}
+              onCreate={() =>
+                onCreateTrainingPlan(message.id, message.suggestedTrainingPlan!)
+              }
+              onEdit={() => onEditTrainingPlanDraft(message.suggestedTrainingPlan!)}
+              plan={message.suggestedTrainingPlan}
+            />
+          ) : null}
+
           {/* 操作栏：重新生成、版本切换、时间戳、复制 (全部靠左) */}
           <div className="mt-2 flex items-center gap-3 text-[12px] text-[#8b8b8b]">
             {/* 时间戳 */}
@@ -604,6 +635,87 @@ function ChatBubble({
             </button>
           </div>
         </div>
+      </div>
+    </section>
+  )
+}
+
+function TrainingPlanSuggestionCard({
+  created,
+  loading,
+  onCreate,
+  onEdit,
+  plan,
+}: {
+  created: boolean
+  loading: boolean
+  onCreate: () => void
+  onEdit: () => void
+  plan: TrainingPlanPayload
+}) {
+  const scheduleLines =
+    plan.weekly_schedule
+      ?.split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 3) ?? []
+
+  return (
+    <section className="mt-4 rounded-[12px] border border-[#e5e5e5] bg-[#fbfbfa] p-4 shadow-[0_10px_24px_rgba(17,17,17,0.04)]">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-[#8a8a8a] uppercase">
+            AI 训练计划草稿
+          </p>
+          <h4 className="mt-1 text-[15px] font-black tracking-[-0.03em] text-[#111111]">
+            {plan.title}
+          </h4>
+          {plan.goal ? (
+            <p className="mt-1 text-[12px] leading-5 text-[#666666]">
+              {plan.goal}
+            </p>
+          ) : null}
+        </div>
+        {created ? (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-[8px] border border-[#111111] bg-white px-2.5 py-1 text-[11px] font-bold text-[#111111]">
+            <Check className="size-3.5" />
+            已生成
+          </span>
+        ) : null}
+      </div>
+
+      {scheduleLines.length ? (
+        <div className="mt-3 space-y-2">
+          {scheduleLines.map((line) => (
+            <p
+              className="rounded-[8px] border border-[#eeeeee] bg-white px-3 py-2 text-[12px] leading-5 text-[#444444]"
+              key={line}
+            >
+              {line}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          className="inline-flex h-9 items-center gap-2 rounded-[8px] bg-[#111111] px-3 text-[12px] font-bold text-white transition hover:bg-[#222222] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={created || loading}
+          onClick={onCreate}
+          type="button"
+        >
+          {created ? "已保存到训练计划" : loading ? "生成中..." : "生成训练计划"}
+          <ChevronRight className="size-3.5" />
+        </button>
+        <button
+          className="inline-flex h-9 items-center gap-2 rounded-[8px] border border-[#d9d9d9] bg-white px-3 text-[12px] font-bold text-[#111111] transition hover:border-[#111111] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={created || loading}
+          onClick={onEdit}
+          type="button"
+        >
+          <PencilLine className="size-3.5" />
+          先编辑
+        </button>
       </div>
     </section>
   )

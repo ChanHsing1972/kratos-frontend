@@ -10,12 +10,14 @@ import {
   Flame,
   Gauge,
   Play,
+  PencilLine,
   PlusCircle,
   Scale,
   SlidersHorizontal,
   Target,
   Timer,
   Trophy,
+  Trash2,
   X,
   Utensils,
 } from "lucide-react"
@@ -24,8 +26,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
-  buildPlanPanel,
-  buildReminderPanel,
   getPlanExerciseLines,
   trainingPlanTemplates,
 } from "@/lib/kratos"
@@ -33,7 +33,6 @@ import { cn } from "@/lib/utils"
 import type {
   AgentCheckin,
   BodyMetric,
-  DetailPanel,
   FitnessProfile,
   OnboardingStatus,
   TrainingPlan,
@@ -45,9 +44,10 @@ type TrainingPlanPageProps = {
   activePlan: TrainingPlan | null
   completedExercises: string[]
   dashboardLoading: boolean
+  onDeletePlan: (plan: TrainingPlan) => void
+  onEditPlan: (plan: TrainingPlan) => void
   onOpenPlanComposer: (draft?: TrainingPlanPayload | null) => void
   onOpenBodyData: () => void
-  onOpenPanel: (panel: DetailPanel) => void
   onSelectPlan: (plan: TrainingPlan) => void
   onToggleExercise: (title: string) => void
   onStartTraining: (dayTitle: string, workoutDate: string, actions: string[]) => void
@@ -71,9 +71,10 @@ export function TrainingPlanPage({
   activePlan,
   completedExercises,
   dashboardLoading,
+  onDeletePlan,
+  onEditPlan,
   onOpenPlanComposer,
   onOpenBodyData,
-  onOpenPanel,
   onSelectPlan,
   onToggleExercise,
   onStartTraining,
@@ -93,6 +94,7 @@ export function TrainingPlanPage({
   const [trainingTab, setTrainingTab] = useState<"week" | "today" | "details">("week")
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const templateSectionRef = useRef<HTMLElement | null>(null)
+  const dailyPlan = isDailyTrainingPlan(activePlan)
   const trainingDays = useMemo(
     () => buildTrainingDays(activePlan, weekStart),
     [activePlan, weekStart]
@@ -147,26 +149,88 @@ export function TrainingPlanPage({
   const completedPlanSessions = trainingDays.filter((day) =>
     completedDateSet.has(day.dateValue)
   ).length
-  const progress = trainingDays.length
+  const weekProgress = trainingDays.length
     ? Math.min(100, Math.round((completedPlanSessions / trainingDays.length) * 100))
     : 0
-  const completedSessions = completedPlanSessions
-  const totalSeconds = sumWorkoutSeconds(workoutLogs)
+  const dailyLogCount = countWorkoutLogsForDate(
+    workoutLogs,
+    activePlan?.id ?? null,
+    selectedDate
+  )
+  const dailyProgress = selectedDay
+    ? selectedDayCompleted
+      ? 100
+      : Math.min(
+          100,
+          Math.round(
+            ((selectedSnapshotActions.length || selectedCompletedCount) /
+              selectedDay.actions.length) *
+              100
+          )
+        )
+    : 0
+  const weekSeconds = sumWorkoutSecondsForWeek(
+    workoutLogs,
+    activePlan?.id ?? null,
+    weekStart
+  )
+  const weekCalories = sumWorkoutCaloriesForWeek(
+    workoutLogs,
+    activePlan?.id ?? null,
+    weekStart
+  )
+  const dailyCalories = sumWorkoutCaloriesForDate(
+    workoutLogs,
+    activePlan?.id ?? null,
+    selectedDate
+  )
+  const overviewMode: "day" | "week" =
+    dailyPlan || trainingTab === "today" ? "day" : "week"
+  const overviewCompletedSessions =
+    overviewMode === "day" ? dailyLogCount : completedPlanSessions
+  const overviewProgress = overviewMode === "day" ? dailyProgress : weekProgress
+  const overviewSeconds = overviewMode === "day" ? selectedTotalSeconds : weekSeconds
+  const overviewCalories = overviewMode === "day" ? dailyCalories : weekCalories
+  const planTotalProgress = calculatePlanTotalProgress(
+    activePlan,
+    workoutLogs,
+    trainingDays.length,
+    dailyProgress
+  )
+  const planCompletedSessions = countCompletedWorkoutLogsForPlan(
+    workoutLogs,
+    activePlan?.id ?? null
+  )
+  const planExpectedSessions = dailyPlan
+    ? trainingDays.length || 1
+    : activePlan
+      ? calculateExpectedPlanSessions(activePlan, trainingDays.length)
+      : 0
+  const planTotalSeconds = sumWorkoutSecondsForPlan(
+    workoutLogs,
+    activePlan?.id ?? null
+  )
   const planTitle = activePlan?.title ?? "暂无训练计划"
   const planGoal =
     activePlan?.goal ??
     "从模板创建或自定义撰写一份计划后，这里会展示后端同步的真实训练安排。"
 
   useEffect(() => {
-    const today = new Date()
-    setWeekStart(startOfWeek(today))
-    setSelectedDate(localDateValue(today))
+    const baseDate =
+      isDailyTrainingPlan(activePlan) && activePlan?.start_date
+        ? dateFromValue(activePlan.start_date)
+        : new Date()
+    setWeekStart(startOfWeek(baseDate))
+    setSelectedDate(localDateValue(baseDate))
+    if (isDailyTrainingPlan(activePlan)) {
+      setTrainingTab("today")
+    }
   }, [activePlan?.id])
 
   return (
-    <main className="min-h-0 flex-1 overflow-y-auto bg-white">
-      <div className="grid min-h-full grid-cols-1 gap-8 px-8 py-8 xl:grid-cols-[minmax(0,1fr)_350px] xl:px-10">
-        <section className="min-w-0">
+    <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-white xl:overflow-hidden">
+      <div className="grid min-h-full grid-cols-1 gap-8 px-8 py-8 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,1fr)_350px] xl:px-10">
+        <section className="scrollbar-none min-w-0 xl:min-h-0 xl:overflow-y-auto xl:pr-1">
           <PageHeader
             title="训练计划"
             actions={
@@ -181,7 +245,7 @@ export function TrainingPlanPage({
                 />
                 <div className="relative">
                   <button
-                    className="inline-flex h-9 items-center gap-2 rounded-full border border-[#d9d9d9] bg-white px-4 text-[12px] font-semibold text-[#111111] transition hover:border-[#111111]"
+                    className="inline-flex h-9 items-center gap-2 rounded-[8px] border border-[#d9d9d9] bg-white px-4 text-[12px] font-semibold text-[#111111] transition hover:border-[#111111]"
                     onClick={() => {
                       setCalendarVisibleDate(dateFromValue(selectedDate))
                       setCalendarOpen((current) => !current)
@@ -278,38 +342,39 @@ export function TrainingPlanPage({
                 <p className="mt-4 max-w-[620px] text-[14px] leading-7 text-[#666666]">
                   {planGoal}
                 </p>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {[
-                    `目标：${activePlan?.goal ?? "未设置"}`,
-                    `状态：${activePlan?.status ?? "未创建"}`,
-                    `计划数：${trainingPlans.length}`,
-                    activePlan?.start_date ? `开始：${activePlan.start_date}` : "开始日期：未设置",
-                  ].map((tag) => (
+	                <div className="mt-5 flex flex-wrap gap-2">
+	                  {[
+	                    `目标：${activePlan?.goal ?? "未设置"}`,
+	                    activePlan?.start_date ? `开始：${activePlan.start_date}` : "开始日期：未设置",
+	                    activePlan?.end_date ? `结束：${activePlan.end_date}` : "结束日期：未设置",
+	                  ].map((tag) => (
                     <span className="rounded-[6px] bg-[#f4f4f4] px-2.5 py-1 text-[11px] font-bold text-[#666666]" key={tag}>
                       {tag}
                     </span>
                   ))}
                 </div>
               </div>
-              <div className="flex items-center justify-between gap-6">
-                <div className="min-w-[180px]">
-                  <p className="text-[12px] font-semibold text-[#8a8a8a]">本周进度</p>
-                  <div className="mt-2 flex items-end gap-1">
-                    <span className="text-[30px] leading-none font-black">{progress}</span>
-                    <span className="pb-1 text-[14px] font-bold">%</span>
-                  </div>
-                  <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-[#eeeeee]">
-                    <div className="h-full rounded-full bg-[#111111]" style={{ width: `${progress}%` }} />
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-5 text-[12px] text-[#777777]">
-                    <div>
-                      <p className="font-bold text-[#111111]">{completedSessions} / {trainingDays.length || 0} 次训练</p>
-                      <p className="mt-1">已完成</p>
-                    </div>
-                    <div>
-                      <p className="font-bold text-[#111111]">{formatHours(totalSeconds)}</p>
-                      <p className="mt-1">累计训练</p>
-                    </div>
+	              <div className="flex items-center justify-between gap-6">
+	                <div className="min-w-[180px]">
+	                  <p className="text-[12px] font-semibold text-[#8a8a8a]">该训练总进度</p>
+	                  <div className="mt-2 flex items-end gap-1">
+	                    <span className="text-[30px] leading-none font-black">{planTotalProgress}</span>
+	                    <span className="pb-1 text-[14px] font-bold">%</span>
+	                  </div>
+	                  <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-[#eeeeee]">
+	                    <div className="h-full rounded-full bg-[#111111]" style={{ width: `${planTotalProgress}%` }} />
+	                  </div>
+	                  <div className="mt-4 grid grid-cols-2 gap-5 text-[12px] text-[#777777]">
+	                    <div>
+	                      <p className="font-bold text-[#111111]">
+	                        {planCompletedSessions} / {planExpectedSessions} 次训练
+	                      </p>
+	                      <p className="mt-1">总完成</p>
+	                    </div>
+	                    <div>
+	                      <p className="font-bold text-[#111111]">{formatHours(planTotalSeconds)}</p>
+	                      <p className="mt-1">总累计训练</p>
+	                    </div>
                   </div>
                 </div>
                 <PlanStackIllustration />
@@ -318,18 +383,20 @@ export function TrainingPlanPage({
           </section>
 
           <div className="mt-7 flex items-center gap-8 border-b border-[#e5e5e5]">
-            <button
-              className={cn(
-                "pb-3 text-[14px] font-black",
-                trainingTab === "week"
-                  ? "border-b-2 border-[#111111] text-[#111111]"
-                  : "text-[#8a8a8a]"
-              )}
-              onClick={() => setTrainingTab("week")}
-              type="button"
-            >
-              本周训练目标
-            </button>
+            {!dailyPlan ? (
+              <button
+                className={cn(
+                  "pb-3 text-[14px] font-black",
+                  trainingTab === "week"
+                    ? "border-b-2 border-[#111111] text-[#111111]"
+                    : "text-[#8a8a8a]"
+                )}
+                onClick={() => setTrainingTab("week")}
+                type="button"
+              >
+                本周训练目标
+              </button>
+            ) : null}
             <button
               className={cn(
                 "pb-3 text-[14px] font-black",
@@ -494,7 +561,7 @@ export function TrainingPlanPage({
             <PlanDetailsSection plan={activePlan} />
           ) : null}
 
-          {trainingTab === "week" && trainingDays.length > 0 ? (
+          {!dailyPlan && trainingTab === "week" && trainingDays.length > 0 ? (
             <div className="mt-4 overflow-hidden rounded-[12px] border border-[#e8e8e8]">
               {trainingDays.map((day, index) => {
                 const dayLog = getLatestWorkoutForDate(
@@ -548,7 +615,7 @@ export function TrainingPlanPage({
                 )
               })}
             </div>
-          ) : trainingTab === "week" ? (
+          ) : !dailyPlan && trainingTab === "week" ? (
             <section className="mt-1 rounded-[12px] border border-dashed border-[#d8d8d8] bg-[#fafafa] p-8 text-center">
               <ClipboardList className="mx-auto size-7 text-[#777777]" />
               <h2 className="mt-3 text-[17px] font-black">还没有可执行的训练安排</h2>
@@ -624,16 +691,19 @@ export function TrainingPlanPage({
         </section>
 
         <TrainingRightRail
+          onDeletePlan={onDeletePlan}
+          onEditPlan={onEditPlan}
           onOpenPlanComposer={onOpenPlanComposer}
-          onOpenPanel={onOpenPanel}
           onSelectPlan={onSelectPlan}
           plan={activePlan}
           plans={trainingPlans}
-          completedSessions={completedSessions}
-          totalSeconds={totalSeconds}
-          progress={progress}
+          completedSessions={overviewCompletedSessions}
+          totalSeconds={overviewSeconds}
+          calories={overviewCalories}
+          progress={overviewProgress}
           workoutLogs={workoutLogs}
           onOpenBodyData={onOpenBodyData}
+          overviewMode={overviewMode}
         />
       </div>
     </main>
@@ -641,31 +711,110 @@ export function TrainingPlanPage({
 }
 
 function buildTrainingDays(plan: TrainingPlan | null, weekStart: Date) {
-  return getPlanExerciseLines(plan).filter(isTrainingDayLine).map((line, dayIndex) => {
+  const lines = getPlanExerciseLines(plan).filter(isTrainingDayLine)
+  const dailyPlan = isDailyTrainingPlan(plan)
+  const dailyDate = dailyPlan
+    ? dateFromValue(plan?.start_date ?? localDateValue(new Date()))
+    : null
+
+  return lines.map((line, dayIndex) => {
     const [dayPart, contentPart] = line.includes("｜")
       ? line.split("｜", 2)
       : [`第 ${dayIndex + 1} 天`, line]
-    const weekdayIndex = inferWeekdayIndex(dayPart, dayIndex)
-    const date = addDays(weekStart, weekdayIndex)
+    const weekdayIndex = dailyDate ? getMondayFirstDayIndex(dailyDate) : inferWeekdayIndex(dayPart, dayIndex)
+    const date = dailyDate ?? addDays(weekStart, weekdayIndex)
     const dateValue = localDateValue(date)
+    const dayLabel = dailyDate ? weekdayLabel(date) : dayPart.trim()
     const [titlePart, actionPart] = splitTrainingDayContent(contentPart)
     const actions = splitTrainingActions(actionPart || titlePart).map((title, actionIndex) => ({
-      id: `${dateValue}-${dayPart.trim()}-${dayIndex}-${actionIndex}-${title}`,
+      id: `${dateValue}-${dayLabel}-${dayIndex}-${actionIndex}-${title}`,
       title,
     }))
 
     return {
       actions: actions.length
         ? actions
-        : [{ id: `${dateValue}-${dayPart.trim()}-${dayIndex}-0-${contentPart.trim()}`, title: contentPart.trim() }],
+        : [{ id: `${dateValue}-${dayLabel}-${dayIndex}-0-${contentPart.trim()}`, title: contentPart.trim() }],
       date,
       dateValue,
-      day: dayPart.trim(),
+      day: dayLabel,
       goal: contentPart.trim(),
-      id: `${dayPart.trim()}-${dayIndex}-${contentPart.trim()}`,
+      id: `${dayLabel}-${dayIndex}-${contentPart.trim()}`,
       title: titlePart.trim() || "训练日",
     }
   })
+}
+
+function isDailyTrainingPlan(plan: TrainingPlan | null) {
+  const lines = getPlanExerciseLines(plan).filter(isTrainingDayLine)
+  if (!plan || lines.length !== 1) {
+    return false
+  }
+
+  if (plan.end_date && plan.start_date && plan.end_date !== plan.start_date) {
+    return false
+  }
+
+  return !plan.end_date || /今日|当天|每日|单日|本次|今天|Kratos 生成/.test(
+    `${plan.title} ${plan.summary ?? ""} ${plan.goal ?? ""}`
+  )
+}
+
+function calculatePlanTotalProgress(
+  plan: TrainingPlan | null,
+  logs: WorkoutLog[],
+  weeklyTrainingDayCount: number,
+  dailyProgress: number
+) {
+  if (!plan) {
+    return 0
+  }
+
+  if (isDailyTrainingPlan(plan)) {
+    return dailyProgress
+  }
+
+  const completedLogs = logs.filter(
+    (log) => log.training_plan_id === plan.id && log.completed
+  ).length
+  const expectedSessions = calculateExpectedPlanSessions(plan, weeklyTrainingDayCount)
+
+  if (expectedSessions <= 0) {
+    return completedLogs > 0 ? 100 : 0
+  }
+
+  return Math.min(100, Math.round((completedLogs / expectedSessions) * 100))
+}
+
+function calculateExpectedPlanSessions(plan: TrainingPlan, weeklyTrainingDayCount: number) {
+  const fallback = Math.max(weeklyTrainingDayCount, 1)
+  if (!plan.start_date || !plan.end_date) {
+    return fallback
+  }
+
+  const start = dateFromValue(plan.start_date)
+  const end = dateFromValue(plan.end_date)
+  if (end < start) {
+    return fallback
+  }
+
+  const totalDays = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1
+  const fullWeeks = Math.floor(totalDays / 7)
+  const remainderDays = totalDays % 7
+  const weeklyIndexes = getPlanExerciseLines(plan)
+    .filter(isTrainingDayLine)
+    .map((line, index) => {
+      const [dayPart] = line.includes("｜")
+        ? line.split("｜", 2)
+        : [`第 ${index + 1} 天`]
+      return inferWeekdayIndex(dayPart, index)
+    })
+
+  const remainderSessions = Array.from({ length: remainderDays }, (_, index) =>
+    getMondayFirstDayIndex(addDays(start, fullWeeks * 7 + index))
+  ).filter((weekdayIndex) => weeklyIndexes.includes(weekdayIndex)).length
+
+  return Math.max(fullWeeks * weeklyTrainingDayCount + remainderSessions, fallback)
 }
 
 function PlanDetailsSection({ plan }: { plan: TrainingPlan | null }) {
@@ -779,8 +928,72 @@ function sumWorkoutSecondsForDate(
     .reduce((sum, log) => sum + getWorkoutSeconds(log), 0)
 }
 
-function sumWorkoutSeconds(logs: WorkoutLog[]) {
-  return logs.reduce((sum, log) => sum + getWorkoutSeconds(log), 0)
+function sumWorkoutSecondsForWeek(
+  logs: WorkoutLog[],
+  planId: number | null,
+  weekStart: Date
+) {
+  const weekEnd = addDays(weekStart, 6)
+  return logs
+    .filter((log) => isWorkoutLogInRange(log, planId, weekStart, weekEnd))
+    .reduce((sum, log) => sum + getWorkoutSeconds(log), 0)
+}
+
+function sumWorkoutSecondsForPlan(logs: WorkoutLog[], planId: number | null) {
+  return logs
+    .filter((log) => log.training_plan_id === planId)
+    .reduce((sum, log) => sum + getWorkoutSeconds(log), 0)
+}
+
+function countCompletedWorkoutLogsForPlan(logs: WorkoutLog[], planId: number | null) {
+  return logs.filter((log) => log.training_plan_id === planId && log.completed).length
+}
+
+function countWorkoutLogsForDate(
+  logs: WorkoutLog[],
+  planId: number | null,
+  dateValue: string
+) {
+  return logs.filter(
+    (log) => log.training_plan_id === planId && log.workout_date === dateValue
+  ).length
+}
+
+function sumWorkoutCaloriesForDate(
+  logs: WorkoutLog[],
+  planId: number | null,
+  dateValue: string
+) {
+  return logs
+    .filter(
+      (log) => log.training_plan_id === planId && log.workout_date === dateValue
+    )
+    .reduce((sum, log) => sum + (log.calories_burned ?? 0), 0)
+}
+
+function sumWorkoutCaloriesForWeek(
+  logs: WorkoutLog[],
+  planId: number | null,
+  weekStart: Date
+) {
+  const weekEnd = addDays(weekStart, 6)
+  return logs
+    .filter((log) => isWorkoutLogInRange(log, planId, weekStart, weekEnd))
+    .reduce((sum, log) => sum + (log.calories_burned ?? 0), 0)
+}
+
+function isWorkoutLogInRange(
+  log: WorkoutLog,
+  planId: number | null,
+  start: Date,
+  end: Date
+) {
+  if (log.training_plan_id !== planId) {
+    return false
+  }
+
+  const date = dateFromValue(log.workout_date)
+  return date >= start && date <= end
 }
 
 function getWorkoutSeconds(log: WorkoutLog) {
@@ -809,13 +1022,27 @@ function parseWorkoutActionsFromNotes(notes: string | null) {
     return []
   }
 
+  const snapshotMatched = notes.match(/动作快照：(\[[\s\S]*?\])(?:；|$)/)
+  if (snapshotMatched?.[1]) {
+    try {
+      const parsed = JSON.parse(snapshotMatched[1]) as unknown
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => (typeof item === "string" ? item.trim() : ""))
+          .filter(Boolean)
+      }
+    } catch {
+      // Fall back to legacy text parsing below.
+    }
+  }
+
   const matched = notes.match(/已标记：(.+)$/) ?? notes.match(/已完成：(.+)$/)
   if (!matched?.[1]) {
     return []
   }
 
   return matched[1]
-    .split(/[、，,]/)
+    .split("、")
     .map((item) => item.trim())
     .filter(Boolean)
 }
@@ -864,6 +1091,11 @@ function localDateValue(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0")
   const day = String(date.getDate()).padStart(2, "0")
   return `${year}-${month}-${day}`
+}
+
+function weekdayLabel(date: Date) {
+  const labels = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+  return labels[date.getDay()]
 }
 
 function dateFromValue(value: string) {
@@ -1106,7 +1338,7 @@ function WeekStrip({
   const days = buildWeekDays(weekStart)
 
   return (
-    <section className="mt-6 overflow-hidden rounded-[24px] border border-[#e6e6e6] bg-white shadow-[0_10px_30px_rgba(17,17,17,0.04)]">
+    <section className="mt-6 overflow-hidden rounded-[16px] border border-[#e6e6e6] bg-white shadow-[0_10px_30px_rgba(17,17,17,0.04)]">
       <div className="flex items-center justify-between gap-4 border-b border-[#ededed] px-4 py-3 sm:px-5">
         <div className="flex items-center gap-3">
           <span className="grid size-9 place-items-center rounded-full border border-[#111111] bg-white text-[#111111]">
@@ -1123,65 +1355,60 @@ function WeekStrip({
       </div>
 
       <div className="grid grid-cols-7 gap-2 px-3 py-3 sm:px-4">
-      {days.map(({ date, day, label, value }) => {
-        const selected = selectedDate === value
-        const completed = completedDateSet.has(value)
-        const today = date.toDateString() === new Date().toDateString()
+        {days.map(({ date, day, label, value }) => {
+          const selected = selectedDate === value
+          const completed = completedDateSet.has(value)
+          const today = date.toDateString() === new Date().toDateString()
 
-        return (
-          <button
-            className={cn(
-              "group relative flex min-h-[108px] flex-col items-start justify-between overflow-hidden rounded-[20px] border px-3 py-3 text-left transition-all duration-200 ease-out",
-              selected
-                ? "border-[#111111] bg-white text-[#111111] shadow-[0_14px_28px_rgba(17,17,17,0.12)]"
-                : "border-[#e8e8e8] bg-white text-[#111111] hover:-translate-y-0.5 hover:border-[#bfbfbf] hover:shadow-[0_10px_20px_rgba(17,17,17,0.05)]",
-              today && !selected && "border-[#111111] shadow-[0_0_0_1px_rgba(17,17,17,0.06)]",
-              completed && !today && !selected && "border-[#d9d9d9]"
-            )}
-            key={value}
-            onClick={() => onSelectDate(value)}
-            type="button"
-          >
-            <div className="flex w-full items-start justify-between gap-3">
-              <span
-                className={cn(
-                  "text-[11px] font-semibold uppercase tracking-[0.22em]",
-                  selected ? "text-[#111111]" : "text-[#9b9b9b]"
-                )}
-              >
-                {day}
-              </span>
-              {completed ? (
+          return (
+            <button
+              className={cn(
+                "group relative flex min-h-[108px] flex-col items-start justify-between overflow-hidden rounded-[12px] border px-3 py-3 text-left transition-all duration-200 ease-out",
+                selected
+                  ? "border-[#111111] bg-white text-[#111111] shadow-[0_14px_28px_rgba(17,17,17,0.12)]"
+                  : "border-[#e8e8e8] bg-white text-[#111111] hover:-translate-y-0.5 hover:border-[#bfbfbf] hover:shadow-[0_10px_20px_rgba(17,17,17,0.05)]",
+                today && !selected && "border-[#111111] shadow-[0_0_0_1px_rgba(17,17,17,0.06)]",
+                completed && !today && !selected && "border-[#d9d9d9]"
+              )}
+              key={value}
+              onClick={() => onSelectDate(value)}
+              type="button"
+            >
+              <div className="flex w-full items-start justify-between gap-3">
                 <span
                   className={cn(
-                    "grid size-5 place-items-center rounded-full border",
-                    selected ? "border-[#111111] bg-white" : "border-[#111111] bg-[#111111]"
+                    "text-[11px] font-semibold uppercase tracking-[0.22em]",
+                    selected ? "text-[#111111]" : "text-[#9b9b9b]"
                   )}
                 >
-                  <Check className="size-3 text-white" />
+                  {day}
                 </span>
-              ) : null}
-            </div>
+                {completed ? (
+                  <span className="grid size-5 place-items-center rounded-[6px] border border-[#111111] bg-[#111111]">
+                    <Check className="size-3 text-white" />
+                  </span>
+                ) : null}
+              </div>
 
-            <div className="mt-3 flex items-end gap-2">
-              <span className={cn("text-[26px] leading-none font-semibold tracking-[-0.04em]", selected ? "text-[#111111]" : "text-[#111111]")}>{label}</span>
-            </div>
+              <div className="mt-3 flex items-end gap-2">
+                <span className="text-[26px] leading-none font-semibold tracking-[-0.04em] text-[#111111]">{label}</span>
+              </div>
 
-            <div
-              className={cn(
-                "mt-4 flex w-full items-center justify-center rounded-full px-3 py-1.5 text-[11px] font-medium",
-                selected
-                  ? "border border-[#111111] bg-[#f7f7f7] text-[#111111]"
-                  : completed
-                    ? "bg-[#111111] text-white"
-                    : "border border-[#ededed] bg-[#fafafa] text-[#7a7a7a]"
-              )}
-            >
-              <span>{completed ? "已完成" : "未训练"}</span>
-            </div>
-          </button>
-        )
-      })}
+              <div
+                className={cn(
+                  "mt-4 flex w-full items-center justify-center rounded-[8px] px-3 py-1.5 text-[11px] font-medium",
+                  selected
+                    ? "border border-[#111111] bg-[#f7f7f7] text-[#111111]"
+                    : completed
+                      ? "bg-[#111111] text-white"
+                      : "border border-[#ededed] bg-[#fafafa] text-[#7a7a7a]"
+                )}
+              >
+                <span>{completed ? "已完成" : "未训练"}</span>
+              </div>
+            </button>
+          )
+        })}
       </div>
     </section>
   )
@@ -1205,7 +1432,7 @@ function TrainingCalendar({
   const days = buildCalendarDays(visibleDate)
 
   return (
-    <section className="overflow-hidden rounded-[22px] border border-[#e6e6e6] bg-white shadow-[0_14px_34px_rgba(17,17,17,0.08)] ring-1 ring-black/5">
+    <section className="overflow-hidden rounded-[16px] border border-[#e6e6e6] bg-white shadow-[0_14px_34px_rgba(17,17,17,0.08)] ring-1 ring-black/5">
       <div className="flex items-start justify-between gap-3 border-b border-[#ededed] px-3.5 py-3.5">
         <div>
           <h2 className="text-[15px] font-semibold tracking-[-0.04em] text-[#111111]">{formatMonthTitle(visibleDate)}</h2>
@@ -1274,7 +1501,7 @@ function TrainingCalendar({
           return (
             <button
               className={cn(
-                "relative flex h-11 flex-col items-center justify-center rounded-[14px] border text-[12px] font-medium transition-all duration-200 ease-out",
+                "relative flex h-11 flex-col items-center justify-center rounded-[10px] border text-[12px] font-medium transition-all duration-200 ease-out",
                 currentMonth ? "text-[#111111]" : "text-[#c7c7c7]",
                 selected && "border-[#111111] bg-white text-[#111111] shadow-[0_10px_22px_rgba(17,17,17,0.09)] ring-1 ring-[#111111]/70",
                 today && !selected && "border-[#111111] bg-white shadow-[0_0_0_1px_rgba(17,17,17,0.05)]",
@@ -1286,15 +1513,15 @@ function TrainingCalendar({
             >
               <span
                 className={cn(
-                  "relative grid size-7 place-items-center rounded-full",
+                  "relative grid size-7 place-items-center rounded-[8px]",
                   selected && "border border-[#111111] bg-white text-[#111111] shadow-sm",
-                  completed && !today && !selected && "border border-[#111111] bg-white text-[#111111] shadow-sm",
+                  completed && !selected && "border border-[#111111] bg-white text-[#111111] shadow-sm",
                   today && !selected && "border border-[#111111] bg-white text-[#111111]"
                 )}
               >
                 {date.getDate()}
-                {completed && !today ? (
-                  <Check className="absolute -top-1.5 -right-1.5 size-3.5 rounded-full bg-white p-0.5 text-[#111111] shadow-sm ring-1 ring-[#d8d8d8]" />
+                {completed ? (
+                  <Check className="absolute -top-1.5 -right-1.5 size-3.5 rounded-[5px] bg-white p-0.5 text-[#111111] shadow-sm ring-1 ring-[#d8d8d8]" />
                 ) : null}
               </span>
             </button>
@@ -1318,8 +1545,11 @@ function ScheduleDot({ active, completed, index }: { active?: boolean; completed
 }
 
 function TrainingRightRail({
+  calories,
   completedSessions,
-  onOpenPanel,
+  overviewMode,
+  onDeletePlan,
+  onEditPlan,
   onOpenPlanComposer,
   onSelectPlan,
   plan,
@@ -1329,8 +1559,11 @@ function TrainingRightRail({
   workoutLogs,
   onOpenBodyData,
 }: {
+  calories: number
   completedSessions: number
-  onOpenPanel: (panel: DetailPanel) => void
+  overviewMode: "day" | "week"
+  onDeletePlan: (plan: TrainingPlan) => void
+  onEditPlan: (plan: TrainingPlan) => void
   onOpenPlanComposer: (draft?: TrainingPlanPayload | null) => void
   onSelectPlan: (plan: TrainingPlan) => void
   plan: TrainingPlan | null
@@ -1341,16 +1574,19 @@ function TrainingRightRail({
   onOpenBodyData: () => void
 }) {
   const dailySuggestion = buildDailySuggestion(plan, workoutLogs)
+  const dailyPlans = plans.filter(isDailyTrainingPlan)
+  const longTermPlans = plans.filter((item) => !isDailyTrainingPlan(item))
+  const dailyOverview = overviewMode === "day"
 
   return (
-    <aside className="space-y-6">
-      <RailHeader title="训练概览" action="更多数据" onAction={onOpenBodyData} />
+    <aside className="scrollbar-none space-y-6 xl:min-h-0 xl:overflow-y-auto xl:pr-1">
+      <RailHeader title={dailyOverview ? "本日概览" : "本周概览"} action="更多数据" onAction={onOpenBodyData} />
       <section className="rounded-[12px] border border-[#e8e8e8] bg-white p-5">
         <div className="grid grid-cols-2 gap-y-6">
-          <OverviewMetric icon={Timer} label="训练时长" value={(totalSeconds / 3600).toFixed(1)} unit="h" sub="本周累计" />
-          <OverviewMetric icon={Flame} label="消耗热量" value="1280" unit="kcal" sub="本周累计" bordered />
-          <OverviewMetric icon={Activity} label="训练次数" value={completedSessions.toString()} unit="次" sub="本周完成" />
-          <OverviewMetric icon={Target} label="完成度" value={progress.toString()} unit="%" sub="本周进度" bordered />
+          <OverviewMetric icon={Timer} label="训练时长" value={(totalSeconds / 3600).toFixed(1)} unit="h" sub={dailyOverview ? "本日累计" : "本周累计"} />
+          <OverviewMetric icon={Flame} label="消耗热量" value={calories.toString()} unit="kcal" sub={dailyOverview ? "本日累计" : "本周累计"} bordered />
+          <OverviewMetric icon={Activity} label="训练次数" value={completedSessions.toString()} unit="次" sub={dailyOverview ? "本日完成" : "本周完成"} />
+          <OverviewMetric icon={Target} label="完成度" value={progress.toString()} unit="%" sub={dailyOverview ? "本日进度" : "本周进度"} bordered />
         </div>
       </section>
       <section className="rounded-[12px] border border-[#e8e8e8] bg-white p-5">
@@ -1360,55 +1596,27 @@ function TrainingRightRail({
         </div>
         <p className="mt-4 text-[13px] leading-6 text-[#777777]">{dailySuggestion}</p>
       </section>
-      <RailHeader
-        title="已保存计划"
-        action="新建"
-        onAction={() => onOpenPlanComposer(null)}
-      />
+      <RailHeader title="计划库" action="新建" onAction={() => onOpenPlanComposer(null)} />
       {plans.length > 0 ? (
-        <div className="space-y-3">
-          {plans.map((item) => (
-            <button
-              className={cn(
-                "w-full rounded-[12px] border bg-white p-4 text-left hover:bg-[#fbfbfb]",
-                item.id === plan?.id ? "border-[#111111]" : "border-[#e8e8e8]"
-              )}
-              key={item.id}
-              onClick={() => onSelectPlan(item)}
-              type="button"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="truncate text-[14px] font-black">{item.title}</h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <span className="rounded-[5px] bg-[#f5f5f5] px-2 py-0.5 text-[11px] font-bold text-[#666666]">
-                      {planStatusLabel(item.status)}
-                    </span>
-                    {item.goal ? (
-                      <span className="rounded-[5px] bg-[#f5f5f5] px-2 py-0.5 text-[11px] font-bold text-[#666666]">
-                        {item.goal}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-                {item.id === plan?.id ? (
-                  <Check className="size-4 shrink-0 text-[#111111]" />
-                ) : (
-                  <ChevronRight className="size-4 shrink-0 text-[#8a8a8a]" />
-                )}
-              </div>
-              <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-[#777777]">
-                {item.summary ?? item.weekly_schedule ?? "这份计划已保存到后端 plans 表。"}
-              </p>
-              <p className="mt-2 text-[12px] text-[#8a8a8a]">
-                {item.id === plan?.id
-                  ? "当前计划"
-                  : item.start_date
-                    ? `点击设为当前 · 开始：${item.start_date}`
-                    : "点击设为当前 · 未设置开始日期"}
-              </p>
-            </button>
-          ))}
+        <div className="space-y-5">
+          <SavedPlanGroup
+            emptyText="暂无长期计划。适合保存周期训练、周计划和阶段目标。"
+            onDeletePlan={onDeletePlan}
+            onEditPlan={onEditPlan}
+            onSelectPlan={onSelectPlan}
+            plans={longTermPlans}
+            selectedPlanId={plan?.id ?? null}
+            title="长期计划"
+          />
+          <SavedPlanGroup
+            emptyText="暂无每日计划。聊天生成的当日训练会放在这里。"
+            onDeletePlan={onDeletePlan}
+            onEditPlan={onEditPlan}
+            onSelectPlan={onSelectPlan}
+            plans={dailyPlans}
+            selectedPlanId={plan?.id ?? null}
+            title="每日计划"
+          />
         </div>
       ) : (
         <section className="rounded-[12px] border border-dashed border-[#d8d8d8] bg-[#fafafa] p-4">
@@ -1427,6 +1635,108 @@ function TrainingRightRail({
         </section>
       )}
     </aside>
+  )
+}
+
+function SavedPlanGroup({
+  emptyText,
+  onDeletePlan,
+  onEditPlan,
+  onSelectPlan,
+  plans,
+  selectedPlanId,
+  title,
+}: {
+  emptyText: string
+  onDeletePlan: (plan: TrainingPlan) => void
+  onEditPlan: (plan: TrainingPlan) => void
+  onSelectPlan: (plan: TrainingPlan) => void
+  plans: TrainingPlan[]
+  selectedPlanId: number | null
+  title: string
+}) {
+  return (
+    <section>
+      <h3 className="mb-2 text-[12px] font-black tracking-[0.08em] text-[#777777] uppercase">
+        {title}
+      </h3>
+      {plans.length > 0 ? (
+        <div className="space-y-3">
+          {plans.map((item) => (
+            <section
+              className={cn(
+                "w-full rounded-[12px] border bg-white p-4 text-left hover:bg-[#fbfbfb]",
+                item.id === selectedPlanId ? "border-[#111111]" : "border-[#e8e8e8]"
+              )}
+              key={item.id}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  className="min-w-0 flex-1 text-left"
+                  onClick={() => onSelectPlan(item)}
+                  type="button"
+                >
+                  <h3 className="truncate text-[14px] font-black">{item.title}</h3>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="rounded-[5px] bg-[#f5f5f5] px-2 py-0.5 text-[11px] font-bold text-[#666666]">
+                      {planStatusLabel(item.status)}
+                    </span>
+                    {item.goal ? (
+                      <span className="rounded-[5px] bg-[#f5f5f5] px-2 py-0.5 text-[11px] font-bold text-[#666666]">
+                        {item.goal}
+                      </span>
+                    ) : null}
+                  </div>
+                </button>
+                <div className="flex shrink-0 items-center gap-2">
+                  {item.id === selectedPlanId ? (
+                    <Check className="size-4 text-[#111111]" />
+                  ) : (
+                    <ChevronRight className="size-4 text-[#8a8a8a]" />
+                  )}
+                  <button
+                    aria-label={`编辑 ${item.title}`}
+                    className="grid size-8 place-items-center rounded-[8px] border border-[#e7e7e7] bg-white text-[#8a8a8a] transition hover:border-[#111111] hover:text-[#111111]"
+                    onClick={() => onEditPlan(item)}
+                    type="button"
+                  >
+                    <PencilLine className="size-3.5" />
+                  </button>
+                  <button
+                    aria-label={`删除 ${item.title}`}
+                    className="grid size-8 place-items-center rounded-[8px] border border-[#e7e7e7] bg-white text-[#8a8a8a] transition hover:border-[#111111] hover:text-[#111111]"
+                    onClick={() => onDeletePlan(item)}
+                    type="button"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+              </div>
+              <button
+                className="mt-2 block w-full text-left"
+                onClick={() => onSelectPlan(item)}
+                type="button"
+              >
+                <p className="line-clamp-2 text-[12px] leading-5 text-[#777777]">
+                  {item.summary ?? item.weekly_schedule ?? "这份计划已保存到后端 plans 表。"}
+                </p>
+                <p className="mt-2 text-[12px] text-[#8a8a8a]">
+                  {item.id === selectedPlanId
+                    ? "当前计划"
+                    : item.start_date
+                      ? `点击设为当前 · 开始：${item.start_date}`
+                      : "点击设为当前 · 未设置开始日期"}
+                </p>
+              </button>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-[10px] border border-dashed border-[#dedede] bg-[#fafafa] p-3 text-[12px] leading-5 text-[#888888]">
+          {emptyText}
+        </p>
+      )}
+    </section>
   )
 }
 
