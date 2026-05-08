@@ -16,6 +16,7 @@ import {
   Target,
   Timer,
   Trophy,
+  X,
   Utensils,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -142,6 +143,7 @@ export function TrainingPlanPage({
       : selectedDay?.actions ?? []
   const selectedTotalSeconds =
     selectedSavedSeconds + (selectedTrainingActive ? trainingElapsedSeconds : 0)
+          const [calendarVisibleDate, setCalendarVisibleDate] = useState(() => new Date())
   const completedPlanSessions = trainingDays.filter((day) =>
     completedDateSet.has(day.dateValue)
   ).length
@@ -177,14 +179,37 @@ export function TrainingPlanPage({
                     setSelectedDate((current) => localDateValue(addDays(dateFromValue(current), -7)))
                   }}
                 />
-                <button
-                  className="inline-flex h-9 items-center gap-2 rounded-full border border-[#d9d9d9] bg-white px-4 text-[12px] font-semibold text-[#111111] transition hover:border-[#111111]"
-                  onClick={() => setCalendarOpen((current) => !current)}
-                  type="button"
-                >
-                  {formatWeekRange(weekStart)}
-                  <ChevronRight className="size-3.5 rotate-90" />
-                </button>
+                <div className="relative">
+                  <button
+                    className="inline-flex h-9 items-center gap-2 rounded-full border border-[#d9d9d9] bg-white px-4 text-[12px] font-semibold text-[#111111] transition hover:border-[#111111]"
+                    onClick={() => {
+                      setCalendarVisibleDate(dateFromValue(selectedDate))
+                      setCalendarOpen((current) => !current)
+                    }}
+                    type="button"
+                  >
+                    {formatWeekRange(weekStart)}
+                    <ChevronRight className="size-3.5 rotate-90" />
+                  </button>
+                  {calendarOpen ? (
+                    <div className="absolute left-[-40px] top-[calc(100%+12px)] z-50 w-[min(84vw,320px)] sm:left-[-48px] sm:w-[340px]">
+                      <TrainingCalendar
+                        completedDateSet={completedDateSet}
+                        onClose={() => setCalendarOpen(false)}
+                        onSelectDate={(dateValue) => {
+                          const date = dateFromValue(dateValue)
+                          setWeekStart(startOfWeek(date))
+                          setSelectedDate(dateValue)
+                          setCalendarVisibleDate(date)
+                          setCalendarOpen(false)
+                        }}
+                        onVisibleDateChange={setCalendarVisibleDate}
+                        selectedDate={selectedDate}
+                        visibleDate={calendarVisibleDate}
+                      />
+                    </div>
+                  ) : null}
+                </div>
                 <IconButton
                   icon={ChevronRight}
                   label="下一周"
@@ -242,18 +267,6 @@ export function TrainingPlanPage({
             selectedDate={selectedDate}
             weekStart={weekStart}
           />
-          {calendarOpen ? (
-            <TrainingCalendar
-              completedDateSet={completedDateSet}
-              onSelectDate={(dateValue) => {
-                const date = dateFromValue(dateValue)
-                setWeekStart(startOfWeek(date))
-                setSelectedDate(dateValue)
-              }}
-              selectedDate={selectedDate}
-              visibleDate={weekStart}
-            />
-          ) : null}
 
           <section className="mt-4 rounded-[12px] border border-[#e8e8e8] bg-white p-6">
             <div className="grid gap-6 lg:grid-cols-[1fr_390px]">
@@ -394,9 +407,9 @@ export function TrainingPlanPage({
                     ? "结束并保存"
                     : anotherTrainingActive
                       ? "其他训练进行中"
-                    : selectedDayCompleted
-                      ? "再次训练"
-                      : "开始训练"}
+                      : selectedDayCompleted
+                        ? "再次训练"
+                        : "开始训练"}
                 </Button>
               </div>
               {selectedTrainingActive ? (
@@ -494,8 +507,7 @@ export function TrainingPlanPage({
                   : []
                 const dayCompleted = completedDateSet.has(day.dateValue)
                 const completedCount = day.actions.filter((action) =>
-                  dayCompleted ||
-                  completedExercises.includes(action.id)
+                  dayCompleted || completedExercises.includes(action.id)
                 ).length
                 const allDone = dayCompleted || completedCount === day.actions.length
                 const displayTitle = dayCompleted && dayLog?.title
@@ -503,36 +515,36 @@ export function TrainingPlanPage({
                   : `${day.day} - ${day.title}`
 
                 return (
-              <button
-                className={cn(
-                  "flex min-h-[72px] w-full items-center gap-5 border-b border-[#ececec] bg-white px-6 text-left last:border-b-0 hover:bg-[#fbfbfb]",
-                  selectedDate === day.dateValue && "bg-[#fbfbfb]"
-                )}
-                key={day.id}
-                onClick={() => {
-                  if (selectedDate === day.dateValue) {
-                    setTrainingTab("today")
-                    return
-                  }
+                  <button
+                    className={cn(
+                      "flex min-h-[72px] w-full items-center gap-5 border-b border-[#ececec] bg-white px-6 text-left last:border-b-0 hover:bg-[#fbfbfb]",
+                      selectedDate === day.dateValue && "bg-[#fbfbfb]"
+                    )}
+                    key={day.id}
+                    onClick={() => {
+                      if (selectedDate === day.dateValue) {
+                        setTrainingTab("today")
+                        return
+                      }
 
-                  setSelectedDate(day.dateValue)
-                }}
-                type="button"
-              >
-                <ScheduleDot completed={allDone} index={index + 1} active={selectedDate === day.dateValue} />
-                <div className="min-w-0 flex-1">
-                  <span className="text-[13px] font-black">{displayTitle}</span>
-                  <p className="mt-1 line-clamp-1 text-[12px] text-[#777777]">
-                    {formatDateLabel(day.date)} · {dayCompleted && loggedActions.length > 0
-                      ? loggedActions.join("；")
-                      : day.goal}
-                  </p>
-                </div>
-                <span className="min-w-20 text-right text-[12px] font-semibold text-[#8a8a8a]">
-                  {dayCompleted ? "已完成训练" : `${completedCount}/${day.actions.length} 动作`}
-                </span>
-                <ChevronRight className="size-4 text-[#9a9a9a]" />
-              </button>
+                      setSelectedDate(day.dateValue)
+                    }}
+                    type="button"
+                  >
+                    <ScheduleDot completed={allDone} index={index + 1} active={selectedDate === day.dateValue} />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[13px] font-black">{displayTitle}</span>
+                      <p className="mt-1 line-clamp-1 text-[12px] text-[#777777]">
+                        {formatDateLabel(day.date)} · {dayCompleted && loggedActions.length > 0
+                          ? loggedActions.join("；")
+                          : day.goal}
+                      </p>
+                    </div>
+                    <span className="min-w-20 text-right text-[12px] font-semibold text-[#8a8a8a]">
+                      {dayCompleted ? "已完成训练" : `${completedCount}/${day.actions.length} 动作`}
+                    </span>
+                    <ChevronRight className="size-4 text-[#9a9a9a]" />
+                  </button>
                 )
               })}
             </div>
@@ -830,6 +842,20 @@ function getMondayFirstDayIndex(date: Date) {
 function addDays(date: Date, days: number) {
   const next = new Date(date)
   next.setDate(next.getDate() + days)
+  return next
+}
+
+function addMonths(date: Date, months: number) {
+  const next = new Date(date)
+  next.setDate(1)
+  next.setMonth(next.getMonth() + months)
+  return next
+}
+
+function addYears(date: Date, years: number) {
+  const next = new Date(date)
+  next.setDate(1)
+  next.setFullYear(next.getFullYear() + years)
   return next
 }
 
@@ -1163,36 +1189,89 @@ function WeekStrip({
 
 function TrainingCalendar({
   completedDateSet,
+  onClose,
   onSelectDate,
+  onVisibleDateChange,
   selectedDate,
   visibleDate,
 }: {
   completedDateSet: Set<string>
+  onClose: () => void
   onSelectDate: (dateValue: string) => void
+  onVisibleDateChange: (date: Date) => void
   selectedDate: string
   visibleDate: Date
 }) {
   const days = buildCalendarDays(visibleDate)
 
   return (
-    <section className="mt-3 overflow-hidden rounded-[24px] border border-[#e6e6e6] bg-white p-4 shadow-[0_10px_30px_rgba(17,17,17,0.04)]">
-      <div className="flex items-center justify-between gap-3 border-b border-[#ededed] pb-3">
+    <section className="overflow-hidden rounded-[22px] border border-[#e6e6e6] bg-white shadow-[0_14px_34px_rgba(17,17,17,0.08)] ring-1 ring-black/5">
+      <div className="flex items-start justify-between gap-3 border-b border-[#ededed] px-3.5 py-3.5">
         <div>
-          <h2 className="text-[16px] font-semibold tracking-[-0.04em] text-[#111111]">{formatMonthTitle(visibleDate)}</h2>
+          <h2 className="text-[15px] font-semibold tracking-[-0.04em] text-[#111111]">{formatMonthTitle(visibleDate)}</h2>
           <p className="mt-1 text-[11px] leading-4 text-[#9b9b9b]">点选日期即可切换对应训练日</p>
         </div>
-        <span className="rounded-full border border-[#ececec] bg-[#fafafa] px-3 py-1 text-[11px] font-medium text-[#7a7a7a]">
-          月视图
-        </span>
+        <button
+          className="grid size-8 place-items-center rounded-full border border-[#e5e5e5] bg-white text-[#111111] transition hover:border-[#111111] hover:bg-[#f7f7f7]"
+          onClick={onClose}
+          type="button"
+        >
+          <X className="size-4" />
+        </button>
       </div>
-      <div className="mt-4 grid grid-cols-7 gap-2 text-center text-[11px] font-medium text-[#9b9b9b]">
+
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 pt-3.5">
+        <div className="flex items-center gap-2">
+          <button
+            className="inline-flex h-8 items-center rounded-full border border-[#e5e5e5] bg-white px-3 text-[11px] font-medium text-[#111111] transition hover:border-[#111111]"
+            onClick={() => onVisibleDateChange(addYears(visibleDate, -1))}
+            type="button"
+          >
+            上一年
+          </button>
+          <button
+            className="inline-flex h-8 items-center rounded-full border border-[#e5e5e5] bg-white px-3 text-[11px] font-medium text-[#111111] transition hover:border-[#111111]"
+            onClick={() => onVisibleDateChange(addMonths(visibleDate, -1))}
+            type="button"
+          >
+            上一月
+          </button>
+        </div>
+
+        <button
+            className="rounded-full border border-[#111111] bg-white px-3 py-1.5 text-[11px] font-medium text-[#111111] transition hover:bg-[#f7f7f7]"
+          onClick={() => onVisibleDateChange(new Date())}
+          type="button"
+        >
+          今天
+        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            className="inline-flex h-8 items-center rounded-full border border-[#e5e5e5] bg-white px-3 text-[11px] font-medium text-[#111111] transition hover:border-[#111111]"
+            onClick={() => onVisibleDateChange(addMonths(visibleDate, 1))}
+            type="button"
+          >
+            下一月
+          </button>
+          <button
+            className="inline-flex h-8 items-center rounded-full border border-[#e5e5e5] bg-white px-3 text-[11px] font-medium text-[#111111] transition hover:border-[#111111]"
+            onClick={() => onVisibleDateChange(addYears(visibleDate, 1))}
+            type="button"
+          >
+            下一年
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-3.5 grid grid-cols-7 gap-1.5 px-3.5 text-center text-[11px] font-medium text-[#9b9b9b]">
         {["一", "二", "三", "四", "五", "六", "日"].map((day) => (
           <span className="py-1.5 uppercase tracking-[0.14em]" key={day}>
             {day}
           </span>
         ))}
       </div>
-      <div className="mt-2 grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-7 gap-1.5 px-3.5 pb-3.5 pt-2">
         {days.map(({ currentMonth, date, value }) => {
           const selected = selectedDate === value
           const completed = completedDateSet.has(value)
@@ -1201,11 +1280,11 @@ function TrainingCalendar({
           return (
             <button
               className={cn(
-                "relative flex h-12 flex-col items-center justify-center rounded-[14px] border text-[12px] font-medium transition-all duration-200 ease-out",
+                "relative flex h-11 flex-col items-center justify-center rounded-[14px] border text-[12px] font-medium transition-all duration-200 ease-out",
                 currentMonth ? "text-[#111111]" : "text-[#c7c7c7]",
-                selected && "border-[#111111] bg-white text-[#111111] shadow-[0_10px_24px_rgba(17,17,17,0.12)] ring-1 ring-[#111111]",
+                selected && "border-[#111111] bg-white text-[#111111] shadow-[0_10px_22px_rgba(17,17,17,0.09)] ring-1 ring-[#111111]/70",
                 today && !selected && "border-[#111111] bg-white shadow-[0_0_0_1px_rgba(17,17,17,0.05)]",
-                completed && !today && !selected && "border-[#d9d9d9] bg-[#fafafa] text-[#111111]"
+                completed && !today && !selected && "border-[#d9d9d9] bg-white text-[#111111] shadow-[0_6px_14px_rgba(17,17,17,0.06)]"
               )}
               key={value}
               onClick={() => onSelectDate(value)}
@@ -1214,8 +1293,8 @@ function TrainingCalendar({
               <span
                 className={cn(
                   "relative grid size-7 place-items-center rounded-full",
-                  selected && "border border-[#111111] bg-[#111111] text-white",
-                  completed && !today && !selected && "bg-[#111111] text-white",
+                  selected && "border border-[#111111] bg-white text-[#111111] shadow-sm",
+                  completed && !today && !selected && "border border-[#111111] bg-white text-[#111111] shadow-sm",
                   today && !selected && "border border-[#111111] bg-white text-[#111111]"
                 )}
               >
