@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronLeft,
   Edit3,
+  ExternalLink,
   LoaderCircle,
   LogIn,
   LogOut,
@@ -32,6 +33,7 @@ type SidebarProps = {
   chatSessions: ChatSession[]
   collapsed: boolean
   currentUser: UserProfile | null
+  drawerOpen: boolean
   menuOpen: boolean
   onCreateConversation: () => void
   onDeleteConversation: (sessionId: string) => void
@@ -55,6 +57,7 @@ export function Sidebar({
   chatSessions,
   collapsed,
   currentUser,
+  drawerOpen,
   menuOpen,
   onCreateConversation,
   onDeleteConversation,
@@ -77,7 +80,7 @@ export function Sidebar({
     { id: "new", label: "新建对话", icon: MessageCirclePlus },
     { id: "训练计划", label: "训练计划", icon: CalendarDays },
     { id: "身体数据", label: "身体数据", icon: Activity },
-    { id: "评估平台", label: "评估平台", icon: BarChart3, badge: "Beta" },
+    { id: "评估平台", label: "评估平台", icon: BarChart3, external: true },
   ]
 
   useEffect(() => {
@@ -103,7 +106,8 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "flex min-h-0 w-full shrink-0 flex-col border-b border-[#e8e8e8] bg-gray-100 pt-5 pb-4 transition-all duration-300 xl:h-full xl:border-r xl:border-b-0",
+        "fixed inset-y-0 left-0 z-50 flex min-h-0 w-[min(84vw,300px)] shrink-0 flex-col border-r border-[#e8e8e8] bg-gray-100 pt-5 pb-4 transition-all duration-300 xl:static xl:z-auto xl:h-full xl:translate-x-0",
+        drawerOpen ? "translate-x-0" : "-translate-x-full",
         collapsed ? "px-4 xl:w-[86px]" : "px-2 xl:w-[260px]"
       )}
     >
@@ -128,7 +132,7 @@ export function Sidebar({
         </div>
         <Button
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="size-7 rounded-full bg-[#0f0f0f] text-white hover:bg-[#0f0f0f]/90"
+          className="hidden size-7 rounded-full bg-[#0f0f0f] text-white hover:bg-[#0f0f0f]/90 xl:inline-flex"
           onClick={onToggleCollapse}
           size="icon"
           type="button"
@@ -169,58 +173,60 @@ export function Sidebar({
               <span className={cn(showExpandedText ? "xl:inline" : "xl:hidden")}>
                 {item.label}
               </span>
-              {item.badge ? (
+              {item.external ? (
                 <span
                   className={cn(
-                    "ml-auto rounded-full bg-[#dedee2] px-2 py-0.5 text-[10px] font-bold text-[#888888]",
+                    "ml-auto grid size-5 place-items-center rounded-[5px] bg-[#dedee2] text-[#777777]",
                     activeNav === item.id && "bg-white/18 text-white/80",
                     !showExpandedText && "xl:hidden"
                   )}
                 >
-                  {item.badge}
+                  <ExternalLink className="size-3" />
                 </span>
               ) : null}
             </button>
           ))}
         </div>
 
-        <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
+        <div className="mt-6 flex min-h-0 flex-1 flex-col">
           <div
             className={cn(
-              "mb-2 ml-4 text-[11px] font-bold tracking-[0.08em] text-[#8b8b8b]",
+              "mb-2 ml-4 shrink-0 text-[11px] font-bold tracking-[0.08em] text-[#8b8b8b]",
               !showExpandedText && "xl:hidden"
             )}
           >
             对话历史
           </div>
-          <div className="flex flex-col gap-1">
-            {chatSessions.length > 0 ? (
-              chatSessions.map((session) => (
-                <ConversationRow
-                  active={activeNav === session.id}
-                  collapsed={collapsed}
-                  key={session.id}
-                  onDelete={() => onDeleteConversation(session.id)}
-                  onRename={(title) => onRenameConversation(session.id, title)}
-                  onSelect={() => {
-                    onNavSelect(session.id)
-                    onSelectConversation(session.id)
-                  }}
-                  onTogglePin={() => onTogglePinConversation(session.id)}
-                  session={session}
-                  showExpandedText={showExpandedText}
-                />
-              ))
-            ) : (
-              <div
-                className={cn(
-                  "mx-2 rounded-[10px] border border-[#e5e5e5] bg-white px-3 py-3 text-[12px] leading-5 text-[#777777]",
-                  !showExpandedText && "xl:hidden"
-                )}
-              >
-                还没有历史对话。发起一次训练规划后会自动保存。
-              </div>
-            )}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex flex-col gap-1">
+              {chatSessions.length > 0 ? (
+                chatSessions.map((session) => (
+                  <ConversationRow
+                    active={activeNav === session.id}
+                    collapsed={collapsed}
+                    key={session.id}
+                    onDelete={() => onDeleteConversation(session.id)}
+                    onRename={(title) => onRenameConversation(session.id, title)}
+                    onSelect={() => {
+                      onNavSelect(session.id)
+                      onSelectConversation(session.id)
+                    }}
+                    onTogglePin={() => onTogglePinConversation(session.id)}
+                    session={session}
+                    showExpandedText={showExpandedText}
+                  />
+                ))
+              ) : (
+                <div
+                  className={cn(
+                    "mx-2 rounded-[10px] border border-[#e5e5e5] bg-white px-3 py-3 text-[12px] leading-5 text-[#777777]",
+                    !showExpandedText && "xl:hidden"
+                  )}
+                >
+                  还没有历史对话。发起一次训练规划后会自动保存。
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
@@ -276,6 +282,24 @@ function ConversationRow({
     }
     setEditing(false)
   }
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return undefined
+    }
+
+    const closeMenu = (event: PointerEvent) => {
+      if ((event.target as Element | null)?.closest("[data-conversation-menu]")) {
+        return
+      }
+      setMenuOpen(false)
+    }
+
+    document.addEventListener("pointerdown", closeMenu)
+    return () => {
+      document.removeEventListener("pointerdown", closeMenu)
+    }
+  }, [menuOpen])
 
   function formatStoredTime(time: string | number | Date) {
     const date = new Date(time)
@@ -385,6 +409,7 @@ function ConversationRow({
       </button>
 
       <div
+        data-conversation-menu
         className={cn(
           "absolute top-1/2 right-2 z-20 -translate-y-1/2 flex items-center opacity-0 transition-opacity duration-200 group-hover:opacity-100",
           menuOpen && "opacity-100",
@@ -409,7 +434,7 @@ function ConversationRow({
         </button>
 
         {menuOpen ? (
-          <div className="absolute top-8 right-0 z-50 w-32 rounded-[10px] border border-[#e6e6e6] bg-white p-1 shadow-[0_14px_34px_rgba(0,0,0,0.14)]">
+          <div data-popover-root className="absolute top-8 right-0 z-50 w-32 rounded-[10px] border border-[#e6e6e6] bg-white p-1 shadow-[0_14px_34px_rgba(0,0,0,0.14)]">
             <MenuButton
               icon={session.pinned ? PinOff : Pin}
               label={session.pinned ? "取消置顶" : "置顶"}
@@ -601,6 +626,7 @@ function PersonalInfoModule({
       )}
     >
       <button
+        data-popover-root
         className={cn(
           "flex w-full items-center gap-3 rounded-[10px] text-left focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
           collapsed && "xl:justify-center"
@@ -654,6 +680,7 @@ function PersonalInfoModule({
       {menuOpen
         ? createPortal(
           <div
+            data-popover-root
             className={cn(
               "fixed z-9999 left-[10px] w-[220px] overflow-hidden rounded-[12px] border border-[#e6e6e6] bg-white p-1 shadow-[0_16px_40px_rgba(0,0,0,0.16)] transition-all duration-300",
               collapsed ? "bottom-[80px]" : "bottom-[150px]"

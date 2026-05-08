@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Circle,
   ClipboardList,
+  ExternalLink,
   Flame,
   Gauge,
   Play,
@@ -94,6 +95,8 @@ export function TrainingPlanPage({
   const [trainingTab, setTrainingTab] = useState<"week" | "today" | "details">("week")
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const templateSectionRef = useRef<HTMLElement | null>(null)
+  const calendarMenuRef = useRef<HTMLDivElement | null>(null)
+  const createMenuRef = useRef<HTMLDivElement | null>(null)
   const dailyPlan = isDailyTrainingPlan(activePlan)
   const trainingDays = useMemo(
     () => buildTrainingDays(activePlan, weekStart),
@@ -227,6 +230,29 @@ export function TrainingPlanPage({
     }
   }, [activePlan?.id])
 
+  useEffect(() => {
+    if (!calendarOpen && !createMenuOpen) {
+      return undefined
+    }
+
+    const closeMenus = (event: PointerEvent) => {
+      const target = event.target as Node | null
+      if (
+        (target && calendarMenuRef.current?.contains(target)) ||
+        (target && createMenuRef.current?.contains(target))
+      ) {
+        return
+      }
+      setCalendarOpen(false)
+      setCreateMenuOpen(false)
+    }
+
+    document.addEventListener("pointerdown", closeMenus)
+    return () => {
+      document.removeEventListener("pointerdown", closeMenus)
+    }
+  }, [calendarOpen, createMenuOpen])
+
   return (
     <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-white xl:overflow-hidden">
       <div className="grid min-h-full grid-cols-1 gap-8 px-8 py-8 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,1fr)_350px] xl:px-10">
@@ -243,7 +269,7 @@ export function TrainingPlanPage({
                     setSelectedDate((current) => localDateValue(addDays(dateFromValue(current), -7)))
                   }}
                 />
-                <div className="relative">
+                <div className="relative" ref={calendarMenuRef}>
                   <button
                     className="inline-flex h-9 items-center gap-2 rounded-[8px] border border-[#d9d9d9] bg-white px-4 text-[12px] font-semibold text-[#111111] transition hover:border-[#111111]"
                     onClick={() => {
@@ -282,7 +308,7 @@ export function TrainingPlanPage({
                     setSelectedDate((current) => localDateValue(addDays(dateFromValue(current), 7)))
                   }}
                 />
-                <div className="relative">
+                <div className="relative" ref={createMenuRef}>
                   <Button
                     className="h-10 rounded-[8px] bg-[#111111] px-5 text-[13px] font-bold text-white hover:bg-[#111111]/90"
                     onClick={() => setCreateMenuOpen((current) => !current)}
@@ -1279,13 +1305,22 @@ export function BodyDataPage({
 export function EvaluationPage() {
   return (
     <main className="min-h-0 flex-1 overflow-y-auto bg-white px-10 py-8">
-      <PageHeader title="评估平台" subtitle="Beta 模块暂不调整，后续可接入综合评估报告。" />
+      <PageHeader title="评估平台" subtitle="综合评估已接入外部平台。" />
       <section className="mt-8 rounded-[12px] border border-[#e8e8e8] p-8">
         <BarChart3 className="size-6 text-[#111111]" />
-        <h2 className="mt-4 text-[20px] font-black">综合评估待开放</h2>
+        <h2 className="mt-4 text-[20px] font-black">打开综合评估</h2>
         <p className="mt-2 text-[14px] leading-7 text-[#777777]">
-          当前改版重点放在训练计划和身体数据页面，这里保留入口和占位状态。
+          点击下方按钮会在外部页面打开评估平台。
         </p>
+        <a
+          className="mt-5 inline-flex h-10 items-center gap-2 rounded-[8px] bg-[#111111] px-4 text-[13px] font-bold text-white hover:bg-[#222222]"
+          href="http://192.0.2.1/eval"
+          rel="noreferrer"
+          target="_blank"
+        >
+          前往评估平台
+          <ExternalLink className="size-4" />
+        </a>
       </section>
     </main>
   )

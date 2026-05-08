@@ -364,12 +364,41 @@ export function chatSessionsFromAgentRuns(
 }
 
 export function titleFromPrompt(prompt: string) {
-  const compacted = prompt.replace(/\s+/g, " ").trim()
+  const compacted = prompt
+    .replace(/[#>*_`~(){}]/g, "")
+    .replace(/\[/g, "")
+    .replace(/\]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
   if (!compacted) {
     return "新的训练对话"
   }
 
-  return compacted.length > 20 ? `${compacted.slice(0, 20)}...` : compacted
+  const keywordTitles = [
+    ["训练计划", "训练计划制定"],
+    ["今日训练", "今日训练安排"],
+    ["一周训练", "一周训练规划"],
+    ["饮食建议", "饮食建议方案"],
+    ["恢复建议", "恢复调整建议"],
+    ["风险评估", "训练风险评估"],
+    ["身体数据", "身体数据分析"],
+    ["减脂", "减脂训练方案"],
+    ["增肌", "增肌训练方案"],
+    ["跑步路线", "跑步路线规划"],
+    ["动作纠正", "动作纠正建议"],
+  ] as const
+  const matched = keywordTitles.find(([keyword]) => compacted.includes(keyword))
+  if (matched) {
+    return matched[1]
+  }
+
+  const chineseOnly = compacted.replace(/[^\u4e00-\u9fa5]/g, "")
+  if (chineseOnly.length >= 6) {
+    return chineseOnly.slice(0, 12)
+  }
+
+  const fallback = compacted.length > 12 ? compacted.slice(0, 12) : compacted
+  return fallback.length < 6 ? `${fallback}相关对话`.slice(0, 12) : fallback
 }
 
 function traceStepFromRun(step: AgentRunTraceStep) {
@@ -406,6 +435,8 @@ function formatStoredTime(value: string) {
   }
 
   return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
     hour: "2-digit",
     hour12: false,
     minute: "2-digit",
@@ -628,6 +659,8 @@ function numberValue(value: unknown) {
 
 export function formatTime() {
   return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
     hour: "2-digit",
     hour12: false,
     minute: "2-digit",

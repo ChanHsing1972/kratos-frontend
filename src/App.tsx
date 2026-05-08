@@ -6,6 +6,8 @@ import {
   type KeyboardEvent,
 } from "react"
 
+import { Menu } from "lucide-react"
+
 import {
   initialMessages,
   initialNotifications,
@@ -100,6 +102,8 @@ export function App() {
   const { setTheme, theme } = useTheme()
   const [activeNav, setActiveNav] = useState("new")
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
+  const [conversationLoading, setConversationLoading] = useState(false)
   const [chatSessionMeta, setChatSessionMeta] = useState<
     Record<string, Partial<ChatSession>>
   >(() => readChatSessionMeta())
@@ -165,6 +169,25 @@ export function App() {
   const [toast, setToast] = useState<string | null>(null)
   const activeStreamRef = useRef<AbortController | null>(null)
   const chatSessionMetaRef = useRef(chatSessionMeta)
+
+  useEffect(() => {
+    if (!profileMenuOpen && !notificationsOpen) {
+      return undefined
+    }
+
+    const closeFloatingMenus = (event: PointerEvent) => {
+      if ((event.target as Element | null)?.closest("[data-popover-root]")) {
+        return
+      }
+      setProfileMenuOpen(false)
+      setNotificationsOpen(false)
+    }
+
+    document.addEventListener("pointerdown", closeFloatingMenus)
+    return () => {
+      document.removeEventListener("pointerdown", closeFloatingMenus)
+    }
+  }, [notificationsOpen, profileMenuOpen])
 
   const unreadCount = notifications.filter((item) => !item.read).length
   const activePlan =
@@ -416,7 +439,13 @@ export function App() {
   }
 
   const handleNavSelect = (label: string) => {
+    if (label === "评估平台") {
+      window.open("http://192.0.2.1/eval", "_blank", "noopener,noreferrer")
+      setSidebarDrawerOpen(false)
+      return
+    }
     setActiveNav(label)
+    setSidebarDrawerOpen(false)
   }
 
   const handleCreateConversation = () => {
@@ -426,6 +455,8 @@ export function App() {
     setComposerValue("")
     setAgentStreaming(false)
     setActiveNav("new")
+    setConversationLoading(false)
+    setSidebarDrawerOpen(false)
     setToast("已新建对话")
   }
 
@@ -436,6 +467,12 @@ export function App() {
       return
     }
 
+    activeStreamRef.current?.abort()
+    setActiveNav(sessionId)
+    setAgentSessionId(sessionId)
+    setConversationLoading(true)
+    setSidebarDrawerOpen(false)
+
     try {
       const runs = await listAgentRuns(token, 200)
       const sessionRuns = runs.filter((run) => run.session_id === sessionId)
@@ -445,10 +482,11 @@ export function App() {
           generatedTrainingPlanKeys
         )
       )
-      setAgentSessionId(sessionId)
       setToast("对话已切换")
     } catch (error) {
       setToast(getErrorMessage(error))
+    } finally {
+      setConversationLoading(false)
     }
   }
 
@@ -1084,6 +1122,31 @@ export function App() {
     }
   }
 
+  const handleStopAgent = () => {
+    activeStreamRef.current?.abort()
+    activeStreamRef.current = null
+    setAgentStreaming(false)
+    setMessages((current) =>
+      current.map((message) =>
+        message.streaming
+          ? {
+              ...message,
+              completedAt: Date.now(),
+              streaming: false,
+              trace: [
+                ...(message.trace ?? []),
+                {
+                  type: "status",
+                  content: "用户已中断本次回复",
+                },
+              ],
+            }
+          : message
+      )
+    )
+    setToast("已中断 Agent 回复")
+  }
+
   const handleQuickAction = (action: QuickAction) => {
     if (action.title === "查看历史") {
       setActiveNav("历史记录")
@@ -1093,7 +1156,12 @@ export function App() {
   }
 
   const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || event.shiftKey) {
+    if (
+      event.key !== "Enter" ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing ||
+      event.currentTarget.dataset.composing === "true"
+    ) {
       return
     }
 
@@ -1648,6 +1716,7 @@ export function App() {
         agentStreaming={agentStreaming}
         chatTrainingPlanSavingId={chatTrainingPlanSavingId}
         composerValue={composerValue}
+        conversationLoading={conversationLoading}
         messages={messages}
         notifications={notifications}
         notificationsOpen={notificationsOpen}
@@ -1659,6 +1728,7 @@ export function App() {
         onMarkNotificationsRead={markAllNotificationsRead}
         onQuickAction={handleQuickAction}
         onSendMessage={handleSendMessage}
+        onStopAgent={handleStopAgent}
         onToggleNotifications={() =>
           setNotificationsOpen((current) => !current)
         }
@@ -1676,14 +1746,31 @@ export function App() {
   }
 
   return (
-    <div className="min-h-svh bg-[#efefee] text-[#111111]">
-      <div className="mx-auto flex h-[100svh] w-full max-w-[1488px] overflow-hidden bg-white shadow-[0_18px_55px_rgba(0,0,0,0.12)] max-xl:h-auto max-xl:min-h-[calc(100svh-2rem)] max-xl:flex-col max-xl:overflow-visible">
+    <div className="min-h-svh bg-white text-[#111111]">
+      <div className="flex h-[100svh] w-full overflow-hidden bg-white">
+        <button
+          aria-label="打开侧边栏"
+          className="fixed top-4 left-4 z-40 grid size-10 place-items-center rounded-[10px] border border-[#e4e4e4] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] xl:hidden"
+          onClick={() => setSidebarDrawerOpen(true)}
+          type="button"
+        >
+          <Menu className="size-5" />
+        </button>
+        {sidebarDrawerOpen ? (
+          <button
+            aria-label="关闭侧边栏"
+            className="fixed inset-0 z-40 bg-black/28 xl:hidden"
+            onClick={() => setSidebarDrawerOpen(false)}
+            type="button"
+          />
+        ) : null}
         <Sidebar
           activeNav={activeNav}
           authLoading={authLoading}
           chatSessions={chatSessions}
           collapsed={sidebarCollapsed}
           currentUser={currentUser}
+          drawerOpen={sidebarDrawerOpen}
           menuOpen={profileMenuOpen}
           onCreateConversation={handleCreateConversation}
           onDeleteConversation={handleDeleteConversation}

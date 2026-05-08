@@ -12,11 +12,13 @@ import {
   ChevronRight,
   Copy,
   Eye,
+  LoaderCircle,
   Moon,
   Paperclip,
   PencilLine,
   SendHorizontal,
   Sparkles,
+  Square,
   Sun,
 } from "lucide-react"
 
@@ -30,6 +32,7 @@ import type {
 } from "@/types/kratos"
 import { MarkdownMessage } from "@/components/kratos/MarkdownMessage"
 import { Button } from "@/components/ui/button"
+import { copyText } from "@/lib/clipboard"
 import { cn } from "@/lib/utils"
 
 type MainConversationProps = {
@@ -37,6 +40,7 @@ type MainConversationProps = {
   agentStreaming: boolean
   chatTrainingPlanSavingId: string | null
   composerValue: string
+  conversationLoading: boolean
   messages: ChatMessage[]
   notifications: NotificationItem[]
   notificationsOpen: boolean
@@ -51,6 +55,7 @@ type MainConversationProps = {
   onEditTrainingPlanDraft: (payload: TrainingPlanPayload) => void
   onQuickAction: (action: QuickAction) => void
   onSendMessage: () => void
+  onStopAgent: () => void
   onToggleNotifications: () => void
   onToggleTheme: () => void
   onToggleThinking: () => void
@@ -64,6 +69,7 @@ export function MainConversation({
   agentStreaming,
   chatTrainingPlanSavingId,
   composerValue,
+  conversationLoading,
   messages,
   notifications,
   notificationsOpen,
@@ -75,6 +81,7 @@ export function MainConversation({
   onEditTrainingPlanDraft,
   onQuickAction,
   onSendMessage,
+  onStopAgent,
   onToggleNotifications,
   onToggleTheme,
   onToggleThinking,
@@ -126,6 +133,7 @@ export function MainConversation({
           </button>
           <button
             aria-label="Notifications"
+            data-popover-root
             className="relative grid size-6 place-items-center rounded-full text-[#161616] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
             onClick={onToggleNotifications}
             type="button"
@@ -147,7 +155,14 @@ export function MainConversation({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        {isEmptyConversation ? (
+        {conversationLoading ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center bg-white px-5">
+            <div className="flex items-center gap-3 rounded-[12px] border border-[#eeeeee] bg-[#fbfbfa] px-4 py-3 text-[13px] font-semibold text-[#555555]">
+              <LoaderCircle className="size-4 animate-spin" />
+              正在加载对话内容
+            </div>
+          </div>
+        ) : isEmptyConversation ? (
           <div className="flex min-h-0 flex-1 items-center px-5 pb-8 pt-2 sm:px-6 bg-gray-50">
             <div className="mx-auto w-full max-w-[820px]">
               <EmptyConversation
@@ -157,6 +172,7 @@ export function MainConversation({
                     onChange={onComposerChange}
                     onKeyDown={onComposerKeyDown}
                     onSend={onSendMessage}
+                    onStop={onStopAgent}
                     sending={agentStreaming}
                     value={composerValue}
                   />
@@ -206,6 +222,7 @@ export function MainConversation({
                   onChange={onComposerChange}
                   onKeyDown={onComposerKeyDown}
                   onSend={onSendMessage}
+                  onStop={onStopAgent}
                   sending={agentStreaming}
                   value={composerValue}
                 />
@@ -233,7 +250,7 @@ function NotificationsPopover({
   onMarkAllRead: () => void
 }) {
   return (
-    <div className="absolute top-9 right-0 z-40 w-[280px] rounded-[14px] border border-[#e6e6e6] bg-white p-3 shadow-[0_16px_40px_rgba(0,0,0,0.16)]">
+    <div data-popover-root className="absolute top-9 right-0 z-40 w-[280px] rounded-[14px] border border-[#e6e6e6] bg-white p-3 shadow-[0_16px_40px_rgba(0,0,0,0.16)]">
       <div className="flex items-center justify-between">
         <h3 className="text-[13px] font-bold">通知中心</h3>
         <button
@@ -532,7 +549,7 @@ function ChatBubble({
   // 复制当前显示的内容
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(message.body)
+      await copyText(message.body)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
@@ -785,6 +802,7 @@ function Composer({
   onChange,
   onKeyDown,
   onSend,
+  onStop,
   sending,
   value,
 }: {
@@ -792,6 +810,7 @@ function Composer({
   onChange: (value: string) => void
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   onSend: () => void
+  onStop: () => void
   sending: boolean
   value: string
 }) {
@@ -805,6 +824,12 @@ function Composer({
           className="min-h-9 w-full resize-none bg-transparent text-[12px] leading-5 text-[#222222] outline-none placeholder:text-[#8c8c8c] disabled:cursor-not-allowed disabled:opacity-60"
           disabled={sending}
           onChange={(event) => onChange(event.target.value)}
+          onCompositionEnd={(event) => {
+            event.currentTarget.dataset.composing = "false"
+          }}
+          onCompositionStart={(event) => {
+            event.currentTarget.dataset.composing = "true"
+          }}
           onKeyDown={onKeyDown}
           placeholder={sending ? "Kratos 正在回复..." : "输入 Markdown 内容，Shift + Enter 换行"}
           rows={2}
@@ -862,15 +887,14 @@ function Composer({
         </div>
         <div className="flex items-center gap-3">
           <Button
-            aria-label="Send"
+            aria-label={sending ? "Stop" : "Send"}
             className="size-10 rounded-[9px] bg-[#0f0f0f] text-white hover:bg-[#0f0f0f]/90"
-            disabled={sending}
-            onClick={onSend}
+            onClick={sending ? onStop : onSend}
             size="icon"
             type="button"
           >
             {sending ? (
-              <span className="size-4 animate-pulse rounded-full bg-white" />
+              <Square className="size-4 fill-white" strokeWidth={2} />
             ) : (
               <SendHorizontal className="size-5" strokeWidth={2} />
             )}
