@@ -15,6 +15,7 @@ import {
   createAgentCheckin,
   createBodyMetric,
   createMyFitnessProfile,
+  createTrainingPlan,
   createWorkoutLog,
   getCurrentUser,
   getFitnessContext,
@@ -25,6 +26,7 @@ import {
   registerUser,
   streamAgentChat,
   updateMyFitnessProfile,
+  updateTrainingPlan,
 } from "@/lib/api"
 import {
   buildPlanPanel,
@@ -33,10 +35,8 @@ import {
   chatSessionsFromAgentRuns,
   compactOptionalText,
   formatTime,
-  getPlanExerciseLines,
   getLatestByDate,
   titleFromPrompt,
-  toDateInputValue,
 } from "@/lib/kratos"
 import { createId } from "@/lib/id"
 import { MainConversation } from "@/components/kratos/MainConversation"
@@ -46,6 +46,7 @@ import {
   DetailModal,
   OnboardingModal,
   ProfileEditModal,
+  TrainingPlanModal,
   Toast,
 } from "@/components/kratos/Modals"
 import {
@@ -72,6 +73,7 @@ import type {
   ProfileForm,
   QuickAction,
   TrainingPlan,
+  TrainingPlanPayload,
   UserProfile,
   WorkoutLog,
 } from "@/types/kratos"
@@ -102,6 +104,11 @@ export function App() {
   const [bodyMetricModalOpen, setBodyMetricModalOpen] = useState(false)
   const [bodyMetricSubmitting, setBodyMetricSubmitting] = useState(false)
   const [bodyMetricError, setBodyMetricError] = useState<string | null>(null)
+  const [trainingPlanModalOpen, setTrainingPlanModalOpen] = useState(false)
+  const [trainingPlanDraft, setTrainingPlanDraft] =
+    useState<TrainingPlanPayload | null>(null)
+  const [trainingPlanSubmitting, setTrainingPlanSubmitting] = useState(false)
+  const [trainingPlanError, setTrainingPlanError] = useState<string | null>(null)
   const [thinkingExpanded, setThinkingExpanded] = useState(true)
   const [composerValue, setComposerValue] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
@@ -1027,7 +1034,7 @@ export function App() {
     )
   }
 
-  const handleTrainingButton = () => {
+  const handleStartTraining = (actions: string[]) => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
@@ -1035,40 +1042,163 @@ export function App() {
       return
     }
 
-    const requiredExercises = Math.min(2, getPlanExerciseLines(activePlan).length)
-    if (requiredExercises === 0) {
+    if (actions.length === 0) {
       setToast("当前计划没有可记录的训练动作")
       return
     }
 
-    if (completedExercises.length >= requiredExercises) {
-      void saveCompletedWorkout(token)
+    setTrainingStarted(true)
+    setToast("训练已开始，逐个点击动作卡片标记完成")
+  }
+
+  const handleCompleteTrainingDay = (
+    dayTitle: string,
+    workoutDate: string,
+    actionTitles: string[],
+    actionIds: string[]
+  ) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      setToast("登录后可以保存训练记录")
       return
     }
 
-    setTrainingStarted(true)
-    setToast("训练已开始，点击动作卡可标记完成")
+    const allDone = actionIds.every((action) => completedExercises.includes(action))
+    if (!allDone) {
+      setToast("完成全部动作后再确认当日训练完成")
+      return
+    }
+
+    void saveCompletedWorkout(token, dayTitle, workoutDate, actionTitles)
   }
 
-  const saveCompletedWorkout = async (token: string) => {
+  const saveCompletedWorkout = async (
+    token: string,
+    dayTitle: string,
+    workoutDate: string,
+    actions: string[]
+  ) => {
     setDashboardLoading(true)
 
     try {
       const log = await createWorkoutLog(token, {
         calories_burned: 180,
         completed: true,
-        duration_minutes: 20,
-        notes: `已完成：${completedExercises.join("、")}`,
+        duration_minutes: Math.max(20, actions.length * 8),
+        notes: `已完成：${actions.join("、")}`,
         perceived_exertion: 6,
-        title: activePlan?.title ?? "未命名训练",
+        title: dayTitle || activePlan?.title || "未命名训练",
         training_plan_id: activePlan?.id ?? null,
-        workout_date: toDateInputValue(new Date()),
+        workout_date: workoutDate,
         workout_type: "strength",
       })
       setWorkoutLogs((current) => [log, ...current])
       setCompletedExercises([])
       setTrainingStarted(false)
       setToast("训练完成记录已同步到后端")
+    } catch (error) {
+      setToast(getErrorMessage(error))
+    } finally {
+      setDashboardLoading(false)
+    }
+  }
+
+  const openTrainingPlanComposer = (draft: TrainingPlanPayload | null = null) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      setToast("登录后可以保存训练计划")
+      return
+    }
+
+    setTrainingPlanDraft(draft)
+    setTrainingPlanError(null)
+    setTrainingPlanModalOpen(true)
+  }
+
+  const handleTrainingPlanSubmit = async (payload: TrainingPlanPayload) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      setToast("登录后可以保存训练计划")
+      return
+    }
+
+    if (!payload.title.trim()) {
+      setTrainingPlanError("计划标题不能为空")
+      return
+    }
+
+    if (!payload.weekly_schedule?.trim()) {
+      setTrainingPlanError("请至少填写一条周训练安排")
+      return
+    }
+
+    setTrainingPlanSubmitting(true)
+    setTrainingPlanError(null)
+
+    try {
+      const plan = await createTrainingPlan(token, payload)
+      setTrainingPlans((current) => [plan, ...current])
+      await refreshDashboard(token, { preserveMessages: true })
+      setTrainingPlanModalOpen(false)
+      setTrainingPlanDraft(null)
+      setToast("训练计划已保存到后端")
+    } catch (error) {
+      setTrainingPlanError(getErrorMessage(error))
+    } finally {
+      setTrainingPlanSubmitting(false)
+    }
+  }
+
+  const handleSelectTrainingPlan = async (plan: TrainingPlan) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      setToast("登录后可以切换当前计划")
+      return
+    }
+
+    if (plan.id === activePlan?.id && plan.status === "active") {
+      setDetailPanel(buildPlanPanel(plan))
+      return
+    }
+
+    setDashboardLoading(true)
+
+    try {
+      const activePlansToPause = trainingPlans.filter(
+        (item) => item.id !== plan.id && item.status === "active"
+      )
+
+      const updated = await updateTrainingPlan(token, plan.id, {
+        status: "active",
+      })
+
+      await Promise.all(
+        activePlansToPause.map((item) =>
+          updateTrainingPlan(token, item.id, { status: "paused" })
+        )
+      )
+
+      setTrainingPlans((current) =>
+        current.map((item) => {
+          if (item.id === updated.id) {
+            return updated
+          }
+
+          if (activePlansToPause.some((activeItem) => activeItem.id === item.id)) {
+            return { ...item, status: "paused" }
+          }
+
+          return item
+        })
+      )
+      setCompletedExercises([])
+      setTrainingStarted(false)
+      await refreshDashboard(token, { preserveMessages: true })
+      setToast(`已切换到：${updated.title}`)
     } catch (error) {
       setToast(getErrorMessage(error))
     } finally {
@@ -1093,6 +1223,7 @@ export function App() {
           activePlan={activePlan}
           completedExercises={completedExercises}
           dashboardLoading={dashboardLoading}
+          onOpenPlanComposer={openTrainingPlanComposer}
           onOpenPanel={(panel) => {
             if (panel.title === "完整训练计划") {
               setDetailPanel(buildPlanPanel(activePlan))
@@ -1101,8 +1232,11 @@ export function App() {
 
             setDetailPanel(panel)
           }}
+          onSelectPlan={handleSelectTrainingPlan}
+          onStartTraining={handleStartTraining}
+          onCompleteTrainingDay={handleCompleteTrainingDay}
           onToggleExercise={toggleExercise}
-          onTrainingButton={handleTrainingButton}
+          trainingPlans={trainingPlans}
           trainingStarted={trainingStarted}
           workoutLogs={workoutLogs}
         />
@@ -1235,6 +1369,15 @@ export function App() {
         onClose={() => setBodyMetricModalOpen(false)}
         onSubmit={handleBodyMetricSubmit}
         open={bodyMetricModalOpen}
+      />
+      <TrainingPlanModal
+        draft={trainingPlanDraft}
+        error={trainingPlanError}
+        key={`${trainingPlanModalOpen ? "plan-open" : "plan-closed"}-${trainingPlanDraft?.title ?? "custom"}`}
+        loading={trainingPlanSubmitting}
+        onClose={() => setTrainingPlanModalOpen(false)}
+        onSubmit={handleTrainingPlanSubmit}
+        open={trainingPlanModalOpen}
       />
       <DetailModal
         panel={detailPanel}

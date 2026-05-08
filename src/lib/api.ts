@@ -68,6 +68,17 @@ export async function createTrainingPlan(
   })
 }
 
+export async function updateTrainingPlan(
+  token: string,
+  planId: number,
+  payload: Partial<TrainingPlanPayload>
+) {
+  return authorizedJson<TrainingPlan>(`/plans/${planId}`, token, {
+    body: JSON.stringify(payload),
+    method: "PATCH",
+  })
+}
+
 export async function listBodyMetrics(token: string) {
   return authorizedJson<BodyMetric[]>("/body-metrics", token)
 }

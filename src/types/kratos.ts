@@ -156,6 +156,25 @@ export type TrainingPlanPayload = {
   recovery_guidance?: string | null
 }
 
+export type TrainingPlanForm = {
+  title: string
+  goal: string
+  status: string
+  startDate: string
+  endDate: string
+  summary: string
+  weeklySchedule: string
+  nutritionGuidance: string
+  recoveryGuidance: string
+}
+
+export type TrainingPlanTemplate = TrainingPlanPayload & {
+  id: string
+  duration: string
+  frequency: string
+  level: string
+}
+
 export type BodyMetric = {
   id: number
   user_id: number

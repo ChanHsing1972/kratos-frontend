@@ -11,6 +11,7 @@ import type {
   OnboardingStatus,
   ProfileForm,
   TrainingPlan,
+  TrainingPlanTemplate,
   UserProfile,
   WorkoutLog,
 } from "@/types/kratos"
@@ -174,6 +175,63 @@ export function buildDefaultTrainingPlan() {
       "右膝不适时避免跳跃、深蹲和快速变向；疼痛超过 3/10 时停止训练。",
   }
 }
+
+export const trainingPlanTemplates: TrainingPlanTemplate[] = [
+  {
+    id: "fat-loss-base",
+    title: "4 周减脂基础计划",
+    goal: "减脂与心肺基础",
+    status: "active",
+    start_date: toDateInputValue(new Date()),
+    summary:
+      "适合刚开始恢复规律训练的人群。每周 4 次训练，力量训练维持肌肉量，低冲击有氧提升消耗和恢复能力。",
+    weekly_schedule:
+      "周一｜全身力量 A：深蹲模式 3 组 x 10 次；俯卧撑 3 组 x 8-12 次；平板支撑 3 组 x 30 秒\n周二｜低冲击有氧：快走或椭圆机 35 分钟，保持可对话强度\n周四｜全身力量 B：罗马尼亚硬拉 3 组 x 10 次；哑铃划船 3 组 x 12 次；死虫 3 组 x 10 次\n周六｜循环训练：壶铃硬拉、台阶上步、弹力带划船、登山者各 40 秒，完成 4 轮\n周日｜恢复：拉伸 15 分钟，记录体重、睡眠和疲劳",
+    nutrition_guidance:
+      "优先保证每餐蛋白质，训练日前后安排适量碳水。避免用极低热量换短期体重下降。",
+    recovery_guidance:
+      "有氧强度以能完整说话为准。膝、踝或腰部不适时减少跳跃和跑步，改为快走或椭圆机。",
+    duration: "4 周",
+    frequency: "4 天/周",
+    level: "新手友好",
+  },
+  {
+    id: "muscle-gain-split",
+    title: "8 周增肌分化计划",
+    goal: "肌肉增长与基础力量",
+    status: "active",
+    start_date: toDateInputValue(new Date()),
+    summary:
+      "适合有基础器械经验的人群。采用推、拉、腿、全身辅助的周节奏，兼顾复合动作进步和肌肥大训练量。",
+    weekly_schedule:
+      "周一｜上肢推：卧推 4 组 x 6-8 次；哑铃肩推 3 组 x 8-10 次；绳索下压 3 组 x 12 次\n周二｜上肢拉：引体向上或高位下拉 4 组 x 8 次；杠铃划船 4 组 x 8 次；哑铃弯举 3 组 x 12 次\n周三｜休息：步行 20-30 分钟，肩颈和髋部活动度\n周四｜下肢：深蹲 4 组 x 6-8 次；罗马尼亚硬拉 3 组 x 8-10 次；腿弯举 3 组 x 12 次\n周六｜全身辅助：上斜卧推 3 组 x 10 次；坐姿划船 3 组 x 10 次；臀桥 3 组 x 12 次；核心 8 分钟",
+    nutrition_guidance:
+      "训练日增加优质碳水，蛋白质分配到 3-4 餐。体重连续两周不变时小幅增加总热量。",
+    recovery_guidance:
+      "大重量训练日之间至少间隔 48 小时。动作质量下降明显时保留 1-2 次余力。",
+    duration: "8 周",
+    frequency: "4-5 天/周",
+    level: "中级",
+  },
+  {
+    id: "home-dumbbell",
+    title: "居家哑铃塑形计划",
+    goal: "居家塑形与体态改善",
+    status: "active",
+    start_date: toDateInputValue(new Date()),
+    summary:
+      "适合只有哑铃、弹力带和瑜伽垫的训练场景。训练时间控制在 35-45 分钟，重点提升臀腿、背部和核心稳定。",
+    weekly_schedule:
+      "周一｜臀腿核心：哑铃杯式深蹲 4 组 x 12 次；哑铃臀桥 4 组 x 15 次；侧桥 3 组 x 30 秒\n周三｜背肩体态：单臂哑铃划船 4 组 x 12 次；弹力带面拉 3 组 x 15 次；俯身飞鸟 3 组 x 12 次\n周五｜全身循环：哑铃硬拉、地板卧推、反向箭步蹲、死虫各 45 秒，完成 4 轮\n周六｜低强度有氧：快走 30 分钟，结束后做髋屈肌和胸椎拉伸",
+    nutrition_guidance:
+      "每次训练后 2 小时内安排蛋白质和水分。晚餐避免过度节食，保证第二天恢复。",
+    recovery_guidance:
+      "居家训练先保证动作幅度和控制速度。膝盖不适时把箭步蹲替换为臀桥或髋铰链动作。",
+    duration: "6 周",
+    frequency: "3-4 天/周",
+    level: "新手到中级",
+  },
+]
 
 export function getLatestByDate<T>(
   items: T[],
