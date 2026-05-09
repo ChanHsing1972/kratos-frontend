@@ -16,7 +16,6 @@ import type {
   UserProfile,
 } from "@/types/kratos"
 import { Button } from "@/components/ui/button"
-import { API_BASE_URL } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { profileFormFromUser } from "@/lib/kratos"
 
