@@ -947,7 +947,7 @@ export function App() {
 
       const context = await refreshDashboard(token, { preserveMessages: true })
       setOnboardingOpen(!context?.onboarding.ready_for_agent)
-      setToast("建档完成，Kratos 现在有上下文了")
+      setToast("建档完成，Kratos 现在更了解你了")
     } catch (error) {
       setOnboardingError(getErrorMessage(error))
     } finally {
@@ -958,19 +958,19 @@ export function App() {
   const handleSendMessage = async () => {
     const body = composerValue.trim()
     if (!body) {
-      setToast("先输入一点内容，Kratos 才能接招")
+      setToast("不可发送空白消息")
       return
     }
 
     if (agentStreaming) {
-      setToast("Kratos 还在回复中，稍等一下")
+      setToast("Kratos 正在回复，请稍等")
       return
     }
 
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
-      setToast("登录后即可开始真实对话")
+      setToast("登录后开始对话")
       return
     }
 
@@ -1172,7 +1172,7 @@ export function App() {
   const handleAttachment = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      setToast(`已选择 ${file.name}，当前版本先作为本地假数据处理`)
+      setToast(`已选择 ${file.name}`)
     }
     event.target.value = ""
   }
@@ -1337,7 +1337,7 @@ export function App() {
         setTrainingAdjustment(null)
         setTrainingFeedbackError(null)
         setTrainingFeedbackOpen(false)
-        setToast("每日训练记录已同步，不更新后续计划")
+        setToast("每日训练记录已同步，未更新后续计划")
       } else {
         setLastCompletedWorkout({
           completed,
@@ -1348,7 +1348,7 @@ export function App() {
         setTrainingAdjustment(null)
         setTrainingFeedbackError(null)
         setTrainingFeedbackOpen(true)
-        setToast("训练完成记录已同步到后端")
+        setToast("训练完成记录已同步")
       }
     } catch (error) {
       setToast(getErrorMessage(error))
@@ -1433,7 +1433,7 @@ export function App() {
       setTrainingPlanDraft(null)
       setEditingTrainingPlanId(null)
       setActiveNav("训练计划")
-      setToast("训练计划已保存到后端")
+      setToast("训练计划已保存")
     } catch (error) {
       setTrainingPlanError(getErrorMessage(error))
     } finally {

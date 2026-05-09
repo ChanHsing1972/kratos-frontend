@@ -41,6 +41,7 @@ export function AuthModal({
     username: "",
     password: "",
   })
+  const [agreed, setAgreed] = useState(false);
 
   if (!open) {
     return null
@@ -50,6 +51,7 @@ export function AuthModal({
     event.preventDefault()
     onSubmit(form)
   }
+
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4 backdrop-blur-[2px]">
@@ -62,8 +64,8 @@ export function AuthModal({
             <h2 className="text-[20px] font-black tracking-[-0.04em]">
               {mode === "login" ? "登录 Kratos" : "创建 Kratos 账号"}
             </h2>
-            <p className="mt-2 text-[12px] leading-5 text-[#777777]">
-              接口已连接到本地后端：{API_BASE_URL}
+            <p className=" text-[12px] leading-5 text-[#777777]">
+              让健身更智能，让训练更高效
             </p>
           </div>
           <button
@@ -98,7 +100,7 @@ export function AuthModal({
           </button>
         </div>
 
-        <div className="mt-5 flex flex-col gap-3">
+        <div className="mt-2 flex flex-col gap-3">
           <FormInput
             label="用户名"
             minLength={3}
@@ -120,18 +122,46 @@ export function AuthModal({
             type="password"
             value={form.password}
           />
-          {mode === "register" ? (
+
+          <label className="flex items-start gap-2 rounded-[10px] px-1 py-1 text-[12px] leading-5 text-[#666666]">
+            <input
+              checked={agreed}
+              className="mt-0.5 size-4 rounded border border-[#d8d8d8] accent-black"
+              onChange={(e) => setAgreed(e.target.checked)}
+              type="checkbox"
+            />
+            <span>
+              我已阅读并同意《
+              <button
+                className="text-[#111111] underline underline-offset-2"
+                type="button"
+              >
+                用户协议
+              </button>
+              》和《
+              <button
+                className="text-[#111111] underline underline-offset-2"
+                type="button"
+              >
+                隐私政策
+              </button>
+              》
+            </span>
+          </label>
+
+          {/* {mode === "register" ? (
             <p className="rounded-[10px] bg-[#f6f6f5] px-3 py-2 text-[12px] leading-5 text-[#666666]">
               注册只创建账号；登录后会进入 2 分钟建档，把个人信息和身体数据分别写入正确的数据表。
             </p>
-          ) : null}
+          ) : null} */}
         </div>
 
         {error ? <ErrorMessage message={error} /> : null}
 
         <Button
-          className="mt-5 h-11 w-full rounded-[10px] bg-[#111111] text-[14px] font-bold text-white hover:bg-[#111111]/90"
-          disabled={loading}
+          className="mt-4 h-11 w-full rounded-[10px] bg-[#111111] text-[14px] font-bold text-white hover:bg-[#111111]/90 disabled:opacity-50
+disabled:cursor-not-allowed"
+          disabled={loading || !agreed}
           type="submit"
         >
           {loading ? <LoaderCircle className="size-4 animate-spin" /> : null}
@@ -456,22 +486,22 @@ export function ProfileEditModal({
     user
       ? profileFormFromUser(profile)
       : {
-          gender: "",
-          age: "",
-          location: "",
-          fitnessGoal: "",
-          fitnessSummary: "",
-          activityLevel: "",
-          experienceLevel: "",
-          availableDaysPerWeek: "",
-          workoutMinutesPerSession: "",
-          equipmentAccess: "",
-          injuryHistory: "",
-          medicalConditions: "",
-          preferredWorkoutTypes: "",
-          dietaryHabits: "",
-          dietaryRestrictions: "",
-        }
+        gender: "",
+        age: "",
+        location: "",
+        fitnessGoal: "",
+        fitnessSummary: "",
+        activityLevel: "",
+        experienceLevel: "",
+        availableDaysPerWeek: "",
+        workoutMinutesPerSession: "",
+        equipmentAccess: "",
+        injuryHistory: "",
+        medicalConditions: "",
+        preferredWorkoutTypes: "",
+        dietaryHabits: "",
+        dietaryRestrictions: "",
+      }
   )
 
   if (!open || !user) {
@@ -494,9 +524,9 @@ export function ProfileEditModal({
             <h2 className="text-[20px] font-black tracking-[-0.04em]">
               编辑个人资料
             </h2>
-            <p className="mt-2 text-[12px] leading-5 text-[#777777]">
+            {/* <p className="mt-2 text-[12px] leading-5 text-[#777777]">
               这些内容只写入 user_profiles；体重、睡眠等动态指标请到身体数据里更新。
-            </p>
+            </p> */}
           </div>
           <button
             className="grid size-8 place-items-center rounded-full hover:bg-[#f4f4f4] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"

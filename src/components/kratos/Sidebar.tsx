@@ -608,10 +608,10 @@ function PersonalInfoModule({
     )
   }
 
-  const level = 10 + (user.id % 6)
-  const expNow = 2100 + user.id * 43
-  const expTotal = 3500
-  const expPercent = Math.min(Math.round((expNow / expTotal) * 100), 100)
+  // const level = 10 + (user.id % 6)
+  // const expNow = 2100 + user.id * 43
+  // const expTotal = 3500
+  // const expPercent = Math.min(Math.round((expNow / expTotal) * 100), 100)
 
   return (
 
@@ -620,7 +620,7 @@ function PersonalInfoModule({
         // 基础样式
         "w-full transition-all duration-300",
         // 展开状态：有边框、背景、内边距和阴影
-        !collapsed && "rounded-[12px] border border-[#e8e8e8] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)] xl:w-auto",
+        !collapsed && "rounded-[12px] border border-[#e8e8e8] bg-white p-3 shadow-[0_1px_0_rgba(0,0,0,0.02)] xl:w-auto",
         // 收起状态：隐藏背景、边框、阴影，调整宽度和内边距以居中头像
         collapsed && "xl:border-none xl:bg-transparent xl:p-0 xl:shadow-none xl:w-full"
       )}
@@ -646,7 +646,7 @@ function PersonalInfoModule({
           <span className="block truncate text-[14px] leading-5 font-bold">
             {user.username}
           </span>
-          <span className="text-[12px] text-[#666666]">Lv.{level}</span>
+          {/* <span className="text-[12px] text-[#666666]">Lv.{level}</span> */}
         </span>
         <ChevronDown
           className={cn(
@@ -657,7 +657,7 @@ function PersonalInfoModule({
         />
       </button>
 
-      <div
+      {/* <div
         className={cn(
           "overflow-hidden transition-[max-height,opacity] duration-300",
           showExpandedText ? "max-h-32 opacity-100" : "max-h-0 opacity-0"
@@ -675,20 +675,20 @@ function PersonalInfoModule({
             style={{ width: `${expPercent}%` }}
           />
         </div>
-      </div>
+      </div> */}
 
       {menuOpen
         ? createPortal(
           <div
             data-popover-root
             className={cn(
-              "fixed z-9999 left-[10px] w-[220px] overflow-hidden rounded-[12px] border border-[#e6e6e6] bg-white p-1 shadow-[0_16px_40px_rgba(0,0,0,0.16)] transition-all duration-300",
-              collapsed ? "bottom-[80px]" : "bottom-[150px]"
+              "fixed z-9999 left-[10px] w-[240px] overflow-hidden rounded-[12px] border border-[#e6e6e6] bg-white p-1 shadow-[0_16px_40px_rgba(0,0,0,0.16)] transition-all duration-300",
+              collapsed ? "bottom-[70px]" : "bottom-[90px]"
             )}
           >
             <ProfileMenuButton icon={User} label="查看个人资料" onClick={onOpenProfile} />
             <ProfileMenuButton icon={Edit3} label="编辑个人资料" onClick={onEditProfile} />
-            <ProfileMenuButton icon={RefreshCcw} label="刷新后端资料" onClick={onRefreshProfile} />
+            {/* <ProfileMenuButton icon={RefreshCcw} label="刷新后端资料" onClick={onRefreshProfile} /> */}
             <ProfileMenuButton icon={LogOut} label="退出登录" onClick={onLogout} />
           </div>,
           document.body

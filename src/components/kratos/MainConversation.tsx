@@ -107,16 +107,17 @@ export function MainConversation({
 
   return (
     <main className="flex h-full min-w-0 flex-1 flex-col border-[#e8e8e8] bg-white xl:border-r">
-      <header className={cn("flex shrink-0 flex-col gap-2 px-0 pt-5 pb-0 sm:px-6 lg:flex-row lg:items-start lg:justify-between ", isEmptyConversation ? "bg-gray-50" : "bg-white")}>
+      <header className={cn("flex shrink-0 flex-col gap-2 px-0 pt-5 pb-0 sm:px-6 lg:flex-row lg:items-start lg:justify-between ",
+        isEmptyConversation && !conversationLoading ? "bg-gray-50" : "bg-white")}>
         <div>
           <h2 className="text-[25px] leading-[1.1] font-extrabold tracking-[-0.04em]">
             {messages.length ? activeSessionTitle : ``}
           </h2>
-          <p className="mt-2 text-[13px] text-[#6d6d6d]">
+          {/* <p className="mt-2 text-[13px] text-[#6d6d6d]">
             {messages.length
               ? "Kratos 会把训练计划、工具调用和推理轨迹保存在这条会话里。"
               : ""}
-          </p>
+          </p> */}
         </div>
         <div className="relative flex items-center gap-4">
           <button
@@ -192,16 +193,16 @@ export function MainConversation({
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 bg-gradient-to-b from-transparent via-white/72 to-white" />
               <div className="h-full min-h-0 overflow-y-auto bg-white" ref={scrollViewportRef}>
                 <div className="mx-auto flex w-full max-w-[820px] flex-col gap-[17px] px-5 pb-0 sm:px-6">
-	                  {messages.map((message) => (
-	                    <ChatBubble
-	                      creatingTrainingPlan={chatTrainingPlanSavingId === message.id}
-	                      key={message.id}
-	                      message={message}
-	                      onCreateTrainingPlan={onCreateTrainingPlanFromMessage}
-	                      onEditTrainingPlanDraft={onEditTrainingPlanDraft}
-	                      onToggleThinking={onToggleThinking}
-	                      thinkingExpanded={thinkingExpanded}
-	                    />
+                  {messages.map((message) => (
+                    <ChatBubble
+                      creatingTrainingPlan={chatTrainingPlanSavingId === message.id}
+                      key={message.id}
+                      message={message}
+                      onCreateTrainingPlan={onCreateTrainingPlanFromMessage}
+                      onEditTrainingPlanDraft={onEditTrainingPlanDraft}
+                      onToggleThinking={onToggleThinking}
+                      thinkingExpanded={thinkingExpanded}
+                    />
                   ))}
                   {/* {activeNav !== "对话" ? (
                     <ModulePreview
@@ -816,12 +817,23 @@ function Composer({
 }) {
   const [mode, setMode] = useState<"write" | "preview">("write")
 
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    textarea.style.height = "auto"
+    textarea.style.height = `${textarea.scrollHeight}px`
+  }, [value])
+
   return (
     <section className="rounded-[12px] border border-[#e7e7e7] bg-white pl-4 pr-2 pt-3 pb-2 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors focus-within:border-[#111111] focus-within:shadow-[0_0_0_3px_rgba(17,17,17,0.08)]">
 
       {mode === "write" ? (
         <textarea
-          className="min-h-9 w-full resize-none bg-transparent text-[12px] leading-5 text-[#222222] outline-none placeholder:text-[#8c8c8c] disabled:cursor-not-allowed disabled:opacity-60"
+          ref={textareaRef}
+          className="max-h-40 min-h-9 w-full resize-none overflow-y-auto bg-transparent text-[12px] leading-5 text-[#222222] outline-none placeholder:text-[#8c8c8c] disabled:cursor-not-allowed disabled:opacity-60"
           disabled={sending}
           onChange={(event) => onChange(event.target.value)}
           onCompositionEnd={(event) => {
@@ -832,7 +844,7 @@ function Composer({
           }}
           onKeyDown={onKeyDown}
           placeholder={sending ? "Kratos 正在回复..." : "输入 Markdown 内容，Shift + Enter 换行"}
-          rows={2}
+          rows={1}
           value={value}
         />
       ) : (
