@@ -142,13 +142,13 @@ export function TrainingPlanPage({
   const selectedDisplayActions =
     !selectedTrainingActive && selectedSnapshotActions.length > 0
       ? selectedSnapshotActions.map((title, index) => ({
-          id: `${selectedDate}-snapshot-${index}-${title}`,
-          title,
-        }))
+        id: `${selectedDate}-snapshot-${index}-${title}`,
+        title,
+      }))
       : selectedDay?.actions ?? []
   const selectedTotalSeconds =
     selectedSavedSeconds + (selectedTrainingActive ? trainingElapsedSeconds : 0)
-          const [calendarVisibleDate, setCalendarVisibleDate] = useState(() => new Date())
+  const [calendarVisibleDate, setCalendarVisibleDate] = useState(() => new Date())
   const completedPlanSessions = trainingDays.filter((day) =>
     completedDateSet.has(day.dateValue)
   ).length
@@ -164,13 +164,13 @@ export function TrainingPlanPage({
     ? selectedDayCompleted
       ? 100
       : Math.min(
-          100,
-          Math.round(
-            ((selectedSnapshotActions.length || selectedCompletedCount) /
-              selectedDay.actions.length) *
-              100
-          )
+        100,
+        Math.round(
+          ((selectedSnapshotActions.length || selectedCompletedCount) /
+            selectedDay.actions.length) *
+          100
         )
+      )
     : 0
   const weekSeconds = sumWorkoutSecondsForWeek(
     workoutLogs,
@@ -368,39 +368,39 @@ export function TrainingPlanPage({
                 <p className="mt-4 max-w-[620px] text-[14px] leading-7 text-[#666666]">
                   {planGoal}
                 </p>
-	                <div className="mt-5 flex flex-wrap gap-2">
-	                  {[
-	                    `目标：${activePlan?.goal ?? "未设置"}`,
-	                    activePlan?.start_date ? `开始：${activePlan.start_date}` : "开始日期：未设置",
-	                    activePlan?.end_date ? `结束：${activePlan.end_date}` : "结束日期：未设置",
-	                  ].map((tag) => (
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {[
+                    `目标：${activePlan?.goal ?? "未设置"}`,
+                    activePlan?.start_date ? `开始：${activePlan.start_date}` : "开始日期：未设置",
+                    activePlan?.end_date ? `结束：${activePlan.end_date}` : "结束日期：未设置",
+                  ].map((tag) => (
                     <span className="rounded-[6px] bg-[#f4f4f4] px-2.5 py-1 text-[11px] font-bold text-[#666666]" key={tag}>
                       {tag}
                     </span>
                   ))}
                 </div>
               </div>
-	              <div className="flex items-center justify-between gap-6">
-	                <div className="min-w-[180px]">
-	                  <p className="text-[12px] font-semibold text-[#8a8a8a]">该训练总进度</p>
-	                  <div className="mt-2 flex items-end gap-1">
-	                    <span className="text-[30px] leading-none font-black">{planTotalProgress}</span>
-	                    <span className="pb-1 text-[14px] font-bold">%</span>
-	                  </div>
-	                  <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-[#eeeeee]">
-	                    <div className="h-full rounded-full bg-[#111111]" style={{ width: `${planTotalProgress}%` }} />
-	                  </div>
-	                  <div className="mt-4 grid grid-cols-2 gap-5 text-[12px] text-[#777777]">
-	                    <div>
-	                      <p className="font-bold text-[#111111]">
-	                        {planCompletedSessions} / {planExpectedSessions} 次训练
-	                      </p>
-	                      <p className="mt-1">总完成</p>
-	                    </div>
-	                    <div>
-	                      <p className="font-bold text-[#111111]">{formatHours(planTotalSeconds)}</p>
-	                      <p className="mt-1">总累计训练</p>
-	                    </div>
+              <div className="flex items-center justify-between gap-6">
+                <div className="min-w-[180px]">
+                  <p className="text-[12px] font-semibold text-[#8a8a8a]">该训练总进度</p>
+                  <div className="mt-2 flex items-end gap-1">
+                    <span className="text-[30px] leading-none font-black">{planTotalProgress}</span>
+                    <span className="pb-1 text-[14px] font-bold">%</span>
+                  </div>
+                  <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-[#eeeeee]">
+                    <div className="h-full rounded-full bg-[#111111]" style={{ width: `${planTotalProgress}%` }} />
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-5 text-[12px] text-[#777777]">
+                    <div>
+                      <p className="font-bold text-[#111111]">
+                        {planCompletedSessions} / {planExpectedSessions} 次训练
+                      </p>
+                      <p className="mt-1">总完成</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-[#111111]">{formatHours(planTotalSeconds)}</p>
+                      <p className="mt-1">总累计训练</p>
+                    </div>
                   </div>
                 </div>
                 <PlanStackIllustration />
@@ -1373,23 +1373,8 @@ function WeekStrip({
   const days = buildWeekDays(weekStart)
 
   return (
-    <section className="mt-6 overflow-hidden rounded-[16px] border border-[#e6e6e6] bg-white shadow-[0_10px_30px_rgba(17,17,17,0.04)]">
-      <div className="flex items-center justify-between gap-4 border-b border-[#ededed] px-4 py-3 sm:px-5">
-        <div className="flex items-center gap-3">
-          <span className="grid size-9 place-items-center rounded-full border border-[#111111] bg-white text-[#111111]">
-            <Calendar className="size-4" />
-          </span>
-          <div>
-            <p className="text-[12px] font-semibold tracking-[0.08em] text-[#6b6b6b] uppercase">Date Navigation</p>
-            <p className="text-[11px] leading-4 text-[#9b9b9b]">当前周：{formatWeekRange(weekStart)} · 点击切换训练日</p>
-          </div>
-        </div>
-        <span className="hidden rounded-full border border-[#ececec] bg-[#fafafa] px-3 py-1 text-[11px] font-medium text-[#7a7a7a] sm:inline-flex">
-          未训练 / 已完成
-        </span>
-      </div>
-
-      <div className="grid grid-cols-7 gap-2 px-3 py-3 sm:px-4">
+    <section className="mt-6 overflow-hidden bg-white ">
+      <div className="grid grid-cols-7 gap-2">
         {days.map(({ date, day, label, value }) => {
           const selected = selectedDate === value
           const completed = completedDateSet.has(value)
@@ -1398,10 +1383,10 @@ function WeekStrip({
           return (
             <button
               className={cn(
-                "group relative flex min-h-[108px] flex-col items-start justify-between overflow-hidden rounded-[12px] border px-3 py-3 text-left transition-all duration-200 ease-out",
+                "group relative flex min-h-[80px] flex-col items-start justify-between overflow-hidden rounded-[12px] border px-3 py-3 text-left transition-all duration-200 ease-out",
                 selected
-                  ? "border-[#111111] bg-white text-[#111111] shadow-[0_14px_28px_rgba(17,17,17,0.12)]"
-                  : "border-[#e8e8e8] bg-white text-[#111111] hover:-translate-y-0.5 hover:border-[#bfbfbf] hover:shadow-[0_10px_20px_rgba(17,17,17,0.05)]",
+                  ? "border-[#111111] bg-black text-[#ffffff] shadow-[0_14px_28px_rgba(17,17,17,0.12)]"
+                  : "border-[#e8e8e8] bg-white text-[#111111] hover:border-[#bfbfbf] hover:shadow-[0_10px_20px_rgba(17,17,17,0.05)]",
                 today && !selected && "border-[#111111] shadow-[0_0_0_1px_rgba(17,17,17,0.06)]",
                 completed && !today && !selected && "border-[#d9d9d9]"
               )}
@@ -1413,23 +1398,25 @@ function WeekStrip({
                 <span
                   className={cn(
                     "text-[11px] font-semibold uppercase tracking-[0.22em]",
-                    selected ? "text-[#111111]" : "text-[#9b9b9b]"
+                    selected ? "text-[#b5b5b5]" : "text-[#9b9b9b]"
                   )}
                 >
                   {day}
                 </span>
                 {completed ? (
-                  <span className="grid size-5 place-items-center rounded-[6px] border border-[#111111] bg-[#111111]">
-                    <Check className="size-3 text-white" />
+                  <span className={cn("grid size-4 place-items-center rounded-[4px] border border-[#111111] ", selected ? "bg-white" : "bg-[#111111]")}>
+                    <Check className={cn("size-3 ", selected ? "text-black" : "text-white")} />
                   </span>
                 ) : null}
               </div>
 
               <div className="mt-3 flex items-end gap-2">
-                <span className="text-[26px] leading-none font-semibold tracking-[-0.04em] text-[#111111]">{label}</span>
+                <span className={cn("text-[26px] leading-none font-semibold tracking-[-0.04em] ", selected ? "text-[#ffffff]" : "text-[#111111]")}>
+                  {label}
+                </span>
               </div>
 
-              <div
+              {/* <div
                 className={cn(
                   "mt-4 flex w-full items-center justify-center rounded-[8px] px-3 py-1.5 text-[11px] font-medium",
                   selected
@@ -1440,7 +1427,7 @@ function WeekStrip({
                 )}
               >
                 <span>{completed ? "已完成" : "未训练"}</span>
-              </div>
+              </div> */}
             </button>
           )
         })}
@@ -1549,14 +1536,14 @@ function TrainingCalendar({
               <span
                 className={cn(
                   "relative grid size-7 place-items-center rounded-[8px]",
-                  selected && "border border-[#111111] bg-white text-[#111111] shadow-sm",
-                  completed && !selected && "border border-[#111111] bg-white text-[#111111] shadow-sm",
-                  today && !selected && "border border-[#111111] bg-white text-[#111111]"
+                  selected && " bg-white text-[#111111]",
+                  completed && !selected && "  bg-white text-[#111111] ",
+                  today && !selected && "  bg-white text-[#111111]"
                 )}
               >
                 {date.getDate()}
                 {completed ? (
-                  <Check className="absolute -top-1.5 -right-1.5 size-3.5 rounded-[5px] bg-white p-0.5 text-[#111111] shadow-sm ring-1 ring-[#d8d8d8]" />
+                  <Check className="absolute -top-1.5 -right-1.5 size-3.5 rounded-[5px] bg-white p-0.5 text-[#111111] ring-1 ring-[#d8d8d8]" />
                 ) : null}
               </span>
             </button>
@@ -1657,7 +1644,7 @@ function TrainingRightRail({
         <section className="rounded-[12px] border border-dashed border-[#d8d8d8] bg-[#fafafa] p-4">
           <h3 className="text-[14px] font-black">还没有保存的计划</h3>
           <p className="mt-2 text-[12px] leading-5 text-[#777777]">
-            从模板或空白计划保存后，这里会显示后端 /plans 返回的计划列表。
+            从模板或空白计划保存后，这里会显示计划列表。
           </p>
           <Button
             className="mt-4 h-9 rounded-[8px] bg-[#111111] px-4 text-[12px] font-bold text-white hover:bg-[#111111]/90"
