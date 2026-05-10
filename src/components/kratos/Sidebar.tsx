@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronLeft,
+  Download,
   Edit3,
   ExternalLink,
   LoaderCircle,
@@ -38,6 +39,7 @@ type SidebarProps = {
   onCreateConversation: () => void
   onDeleteConversation: (sessionId: string) => void
   onEditProfile: () => void
+  onExportConversation: (sessionId: string) => void
   onRenameConversation: (sessionId: string, title: string) => void
   onLogin: () => void
   onLogout: () => void
@@ -62,6 +64,7 @@ export function Sidebar({
   onCreateConversation,
   onDeleteConversation,
   onEditProfile,
+  onExportConversation,
   onRenameConversation,
   onLogin,
   onLogout,
@@ -206,6 +209,7 @@ export function Sidebar({
                     collapsed={collapsed}
                     key={session.id}
                     onDelete={() => onDeleteConversation(session.id)}
+                    onExport={() => onExportConversation(session.id)}
                     onRename={(title) => onRenameConversation(session.id, title)}
                     onSelect={() => {
                       onNavSelect(session.id)
@@ -256,6 +260,7 @@ function ConversationRow({
   active,
   collapsed,
   onDelete,
+  onExport,
   onRename,
   onSelect,
   onTogglePin,
@@ -265,6 +270,7 @@ function ConversationRow({
   active: boolean
   collapsed: boolean
   onDelete: () => void
+  onExport: () => void
   onRename: (title: string) => void
   onSelect: () => void
   onTogglePin: () => void
@@ -434,12 +440,21 @@ function ConversationRow({
         </button>
 
         {menuOpen ? (
-          <div data-popover-root className="absolute top-8 right-0 z-50 w-32 rounded-[10px] border border-[#e6e6e6] bg-white p-1 shadow-[0_14px_34px_rgba(0,0,0,0.14)]">
+          <div data-popover-root className="absolute top-8 right-0 z-50 w-36 rounded-[10px] border border-[#e6e6e6] bg-white p-1 shadow-[0_14px_34px_rgba(0,0,0,0.14)]">
             <MenuButton
               icon={session.pinned ? PinOff : Pin}
               label={session.pinned ? "取消置顶" : "置顶"}
               onClick={() => {
                 onTogglePin()
+                setMenuOpen(false)
+              }}
+            />
+
+            <MenuButton
+              icon={Download}
+              label="导出 JSON"
+              onClick={() => {
+                onExport()
                 setMenuOpen(false)
               }}
             />
