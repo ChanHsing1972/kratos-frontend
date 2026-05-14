@@ -1728,6 +1728,7 @@ export function App() {
     if (activeNav === "身体数据") {
       return (
         <BodyDataPage
+          bodyMetrics={bodyMetrics}
           latestCheckin={latestCheckin}
           latestMetric={latestMetric}
           onEditBodyData={openBodyMetricEditor}

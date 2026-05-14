@@ -772,6 +772,7 @@ function calculateTrainingStreak(logs: WorkoutLog[], planId: number | null) {
 }
 
 type BodyDataPageProps = {
+  bodyMetrics: BodyMetric[]
   latestCheckin: AgentCheckin | null
   latestMetric: BodyMetric | null
   onEditBodyData: () => void
@@ -781,6 +782,7 @@ type BodyDataPageProps = {
 }
 
 export function BodyDataPage({
+  bodyMetrics,
   latestCheckin,
   latestMetric,
   onEditBodyData,
@@ -788,12 +790,22 @@ export function BodyDataPage({
   profile,
   workoutLogs,
 }: BodyDataPageProps) {
-  const weight = latestMetric?.weight_kg ?? 70.2
-  const bodyFat = latestMetric?.body_fat_percentage ?? 16.8
-  const muscle = latestMetric?.skeletal_muscle_mass_kg ?? 55.6
-  const bmi = latestMetric?.bmi ?? 22.4
-  const age = profile?.age ?? 26
-  const targetWeight = latestMetric?.target_weight_kg ?? 68
+  const weightSeries = getMetricSeries(bodyMetrics, "weight_kg")
+  const bodyFatSeries = getMetricSeries(bodyMetrics, "body_fat_percentage")
+  const muscleSeries = getMetricSeries(bodyMetrics, "skeletal_muscle_mass_kg")
+  const bodyCompositionSeries = getBodyCompositionSeries(bodyMetrics)
+  const weight = latestMetric?.weight_kg ?? null
+  const bodyFat = latestMetric?.body_fat_percentage ?? null
+  const muscle = latestMetric?.skeletal_muscle_mass_kg ?? null
+  const bmi = latestMetric?.bmi ?? calculateBmi(latestMetric)
+  const age = profile?.age ?? null
+  const targetWeight = latestMetric?.target_weight_kg ?? null
+  const bmr = calculateBmr(profile, latestMetric)
+  const dateRange = formatMetricDateRange(bodyMetrics)
+  const weightChange = formatMetricChange(weightSeries, "kg")
+  const bodyFatChange = formatMetricChange(bodyFatSeries, "%")
+  const muscleChange = formatMetricChange(muscleSeries, "kg")
+  const weightProgress = calculateTargetProgress(weightSeries[0]?.value ?? null, weight, targetWeight)
 
   return (
     <main className="min-h-0 flex-1 overflow-y-auto bg-white">
@@ -805,7 +817,7 @@ export function BodyDataPage({
             actions={
               <>
                 <button className="inline-flex h-9 items-center gap-2 rounded-[8px] border border-[#e5e5e5] px-4 text-[13px] font-semibold">
-                  2025.04.15 – 2025.05.14
+                  {dateRange}
                   <Calendar className="size-4" />
                 </button>
                 <Button
@@ -829,35 +841,48 @@ export function BodyDataPage({
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-3 2xl:grid-cols-5">
-            <MetricTrendCard title="体重" value={weight.toFixed(1)} unit="kg" change="↓ 1.8 kg" chart="down" />
-            <MetricTrendCard title="体脂率" value={bodyFat.toFixed(1)} unit="%" change="↓ 1.2 %" chart="down2" />
-            <MetricTrendCard title="肌肉量" value={muscle.toFixed(1)} unit="kg" change="↑ 1.4 kg" chart="up" />
-            <MetricTrendCard title="基础代谢率" value="1680" unit="kcal" change="↑ 80 kcal" chart="up2" />
-            <MetricTrendCard title="身体评分" value="84" unit="/100" change="↑ 6 分" chart="up" />
+            <MetricTrendCard title="体重" value={formatMetricValue(weight)} unit="kg" change={weightChange} chart={chartVariantFromChange(weightSeries, "down")} />
+            <MetricTrendCard title="体脂率" value={formatMetricValue(bodyFat)} unit="%" change={bodyFatChange} chart={chartVariantFromChange(bodyFatSeries, "down2")} />
+            <MetricTrendCard title="肌肉量" value={formatMetricValue(muscle)} unit="kg" change={muscleChange} chart={chartVariantFromChange(muscleSeries, "up")} />
+            <MetricTrendCard title="基础代谢率" value={bmr ? bmr.toString() : "待补充"} unit="kcal" change="由画像估算" chart="up2" />
+            <MetricTrendCard title="身体评分" value="待评估" unit="/100" change="需要评分规则" chart="up" />
           </div>
 
           <section className="mt-5 rounded-[12px] border border-[#e8e8e8] bg-white p-5">
             <div className="grid gap-5 lg:grid-cols-[1fr_125px]">
               <div>
                 <ChartHeader title="体重趋势" subtitle="最近 30 天 · 单位：kg" />
-                <LineChart height={230} points={[72.7, 72.4, 72.5, 72.2, 72.3, 71.6, 71.7, 71.4, 71.5, 71.9, 71.3, 71.2, 70.9, 71.2, 70.9, 70.6, 70.4, 70.5, 70.2, 70.1, 69.8, 70.1, 69.6, 69.9, 69.7]} />
+                <LineChart height={230} series={weightSeries} unit="kg" />
               </div>
-              <ChartSideStat value={`${weight.toFixed(1)} kg`} label="当前体重" delta="↓ 1.8 kg" target={`${targetWeight.toFixed(1)} kg`} progress={73} />
+              <ChartSideStat
+                value={formatMetricWithUnit(weight, "kg")}
+                label="当前体重"
+                delta={weightChange}
+                target={formatMetricWithUnit(targetWeight, "kg", "待设置")}
+                progress={weightProgress}
+                recordedAt={latestMetric?.recorded_at}
+              />
             </div>
           </section>
 
           <div className="mt-5 grid gap-5 lg:grid-cols-2">
             <section className="rounded-[12px] border border-[#e8e8e8] bg-white p-5">
               <ChartHeader title="体成分变化" subtitle="最近 30 天" />
-              <AreaStackChart />
+              <AreaStackChart series={bodyCompositionSeries} />
             </section>
             <section className="rounded-[12px] border border-[#e8e8e8] bg-white p-5">
               <div className="grid gap-5 lg:grid-cols-[1fr_125px]">
                 <div>
                   <ChartHeader title="体脂率趋势" subtitle="最近 30 天 · 单位：%" />
-                  <LineChart height={180} points={[20.4, 20.1, 20.3, 19.5, 18.9, 18.8, 18.7, 18.5, 18.1, 18.3, 17.8, 17.6, 17.5, 17.3, 16.9, 17.2, 16.8, 16.7]} />
+                  <LineChart height={180} series={bodyFatSeries} unit="%" />
                 </div>
-                <ChartSideStat value={`${bodyFat.toFixed(1)} %`} label="当前体脂率" delta="↓ 1.2 %" target="15.0 %" progress={64} />
+                <ChartSideStat
+                  value={formatMetricWithUnit(bodyFat, "%")}
+                  label="当前体脂率"
+                  delta={bodyFatChange}
+                  target="待设置"
+                  recordedAt={latestMetric?.recorded_at}
+                />
               </div>
             </section>
           </div>
@@ -1962,22 +1987,22 @@ function buildDailySuggestion(plan: TrainingPlan | null, workoutLogs: WorkoutLog
   return "完成训练后填写反馈，Kratos 会在这里给出下一次训练的动态建议。"
 }
 
-function BodyRightRail({ age, bmi, bodyFat, latestCheckin, latestMetric, muscle, onEditBodyData, onboarding, workoutLogs }: { age: number; bmi: number; bodyFat: number; latestCheckin: AgentCheckin | null; latestMetric: BodyMetric | null; muscle: number; onEditBodyData: () => void; onboarding: OnboardingStatus | null; workoutLogs: WorkoutLog[] }) {
+function BodyRightRail({ age, bmi, bodyFat, latestMetric, muscle, onEditBodyData, onboarding, workoutLogs }: { age: number | null; bmi: number | null; bodyFat: number | null; latestCheckin: AgentCheckin | null; latestMetric: BodyMetric | null; muscle: number | null; onEditBodyData: () => void; onboarding: OnboardingStatus | null; workoutLogs: WorkoutLog[] }) {
   return (
     <aside className="space-y-6">
       <RailHeader title="身体概览" action="更多数据" />
       <section className="rounded-[12px] border border-[#e8e8e8] bg-white p-5">
         <div className="grid grid-cols-2 gap-y-5">
-          <BodyOverviewCell label="BMI" value={bmi.toFixed(1)} sub="正常" />
-          <BodyOverviewCell label="体脂等级" value="偏瘦" sub={`${bodyFat.toFixed(1)}%`} bordered />
-          <BodyOverviewCell label="内脏脂肪等级" value={(latestCheckin?.soreness_level ?? 4).toString()} sub="健康" />
-          <BodyOverviewCell label="骨骼肌量" value={`${muscle.toFixed(1)} kg`} sub="优秀" bordered />
+          <BodyOverviewCell label="BMI" value={formatMetricValue(bmi)} sub={bmi ? getBmiLevel(bmi) : "暂无记录"} />
+          <BodyOverviewCell label="体脂等级" value={bodyFat ? getBodyFatLevel(bodyFat) : "暂无记录"} sub={formatMetricWithUnit(bodyFat, "%")} bordered />
+          <BodyOverviewCell label="内脏脂肪等级" value="待补充" sub="后端暂无字段" />
+          <BodyOverviewCell label="骨骼肌量" value={formatMetricWithUnit(muscle, "kg")} sub={muscle ? "已记录" : "暂无记录"} bordered />
         </div>
       </section>
       <section className="rounded-[12px] border border-[#e8e8e8] bg-white p-5">
         <div className="grid grid-cols-2">
-          <BodyOverviewCell label="身体年龄" value={`${age} 岁`} sub="" />
-          <BodyOverviewCell label="实际年龄：24 岁" value="年轻 2 岁 ☺" sub="" bordered small />
+          <BodyOverviewCell label="画像年龄" value={age ? `${age} 岁` : "暂无记录"} sub="" />
+          <BodyOverviewCell label="身体年龄" value="待评估" sub="需要评估规则" bordered small />
         </div>
       </section>
       <section className="rounded-[12px] border border-[#e8e8e8] bg-white p-5">
@@ -2040,6 +2065,18 @@ function BodyOverviewCell({ bordered, label, small, sub, value }: { bordered?: b
   )
 }
 
+type MetricPoint = {
+  date: string
+  value: number
+}
+
+type BodyCompositionPoint = {
+  bodyFat: number | null
+  date: string
+  muscle: number | null
+  weight: number | null
+}
+
 function MetricTrendCard({ change, chart, title, unit, value }: { change: string; chart: "down" | "down2" | "up" | "up2"; title: string; unit: string; value: string }) {
   return (
     <section className="rounded-[10px] border border-[#e8e8e8] bg-white p-4">
@@ -2068,21 +2105,27 @@ function ChartHeader({ subtitle, title }: { subtitle: string; title: string }) {
   )
 }
 
-function ChartSideStat({ delta, label, progress, target, value }: { delta: string; label: string; progress: number; target: string; value: string }) {
+function ChartSideStat({ delta, label, progress, recordedAt, target, value }: { delta: string; label: string; progress?: number | null; recordedAt?: string | null; target: string; value: string }) {
   return (
     <aside className="border-[#eeeeee] pt-2 lg:border-l lg:pl-5">
       <p className="text-[12px] text-[#8a8a8a]">{label}</p>
       <p className="mt-2 text-[20px] font-black">{value}</p>
-      <p className="mt-1 text-[12px] text-[#8a8a8a]">05.14</p>
+      <p className="mt-1 text-[12px] text-[#8a8a8a]">{formatShortDate(recordedAt) ?? "暂无日期"}</p>
       <div className="my-5 h-px bg-[#eeeeee]" />
       <p className="text-[12px] text-[#8a8a8a]">周期变化</p>
       <p className="mt-2 text-[15px] font-black">{delta}</p>
       <p className="mt-5 text-[12px] text-[#8a8a8a]">目标值</p>
       <p className="mt-2 text-[17px] font-black">{target}</p>
-      <p className="mt-2 text-[12px] text-[#8a8a8a]">目标达成 {progress}%</p>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#eeeeee]">
-        <div className="h-full rounded-full bg-[#111111]" style={{ width: `${progress}%` }} />
-      </div>
+      {typeof progress === "number" ? (
+        <>
+          <p className="mt-2 text-[12px] text-[#8a8a8a]">目标达成 {progress}%</p>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#eeeeee]">
+            <div className="h-full rounded-full bg-[#111111]" style={{ width: `${progress}%` }} />
+          </div>
+        </>
+      ) : (
+        <p className="mt-2 text-[12px] text-[#8a8a8a]">目标达成待计算</p>
+      )}
     </aside>
   )
 }
@@ -2101,11 +2144,21 @@ function MiniSparkline({ variant }: { variant: "down" | "down2" | "up" | "up2" }
   )
 }
 
-function LineChart({ height, points }: { height: number; points: number[] }) {
+function LineChart({ height, series, unit }: { height: number; series: MetricPoint[]; unit: string }) {
+  if (series.length < 2) {
+    return (
+      <div className="mt-4 grid h-[220px] place-items-center rounded-[10px] border border-dashed border-[#dddddd] text-[12px] font-semibold text-[#999999]">
+        至少需要 2 条记录生成趋势
+      </div>
+    )
+  }
+
+  const points = series.map((point) => point.value)
   const min = Math.min(...points) - 1
   const max = Math.max(...points) + 1
   const width = 640
   const step = width / (points.length - 1)
+  const latest = series[series.length - 1]
   const path = points
     .map((point, index) => {
       const x = index * step
@@ -2124,11 +2177,11 @@ function LineChart({ height, points }: { height: number; points: number[] }) {
       <path d={`M${width * 0.72} ${height * 0.58} C${width * 0.82} ${height * 0.65}, ${width * 0.9} ${height * 0.69}, ${width} ${height * 0.75}`} fill="none" stroke="#888888" strokeDasharray="2 6" strokeLinecap="round" strokeWidth="2" />
       <g transform={`translate(${width * 0.72} ${height * 0.43})`}>
         <rect width="64" height="43" rx="7" fill="#111111" />
-        <text x="9" y="18" fill="white" fontSize="12" fontWeight="700">70.2 kg</text>
-        <text x="18" y="33" fill="white" fontSize="11">05.14</text>
+        <text x="9" y="18" fill="white" fontSize="12" fontWeight="700">{`${latest.value.toFixed(1)} ${unit}`}</text>
+        <text x="18" y="33" fill="white" fontSize="11">{formatShortDate(latest.date)}</text>
       </g>
-      <text x="4" y={height + 25} fill="#999999" fontSize="12">04.15</text>
-      <text x={width * 0.98} y={height + 25} fill="#999999" fontSize="12" textAnchor="end">05.14</text>
+      <text x="4" y={height + 25} fill="#999999" fontSize="12">{formatShortDate(series[0].date)}</text>
+      <text x={width * 0.98} y={height + 25} fill="#999999" fontSize="12" textAnchor="end">{formatShortDate(latest.date)}</text>
       <defs>
         <linearGradient id="fade" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor="#d8d8d8" />
@@ -2139,15 +2192,211 @@ function LineChart({ height, points }: { height: number; points: number[] }) {
   )
 }
 
-function AreaStackChart() {
+function AreaStackChart({ series }: { series: BodyCompositionPoint[] }) {
+  if (series.length < 2) {
+    return (
+      <div className="mt-4 grid h-[220px] place-items-center rounded-[10px] border border-dashed border-[#dddddd] text-[12px] font-semibold text-[#999999]">
+        录入体重、体脂和骨骼肌后生成体成分趋势
+      </div>
+    )
+  }
+
   return (
     <svg className="mt-4 h-auto w-full" viewBox="0 0 520 230">
       {[0, 1, 2, 3].map((line) => <line key={line} x1="0" x2="520" y1={25 + line * 45} y2={25 + line * 45} stroke="#eeeeee" strokeDasharray="3 4" />)}
-      <path d="M0 180 C80 176 120 182 180 174 C245 181 310 170 390 176 C440 172 485 169 520 171 L520 215 L0 215 Z" fill="#d4d5d8" />
-      <path d="M0 115 C80 109 120 116 180 111 C245 115 310 101 390 109 C440 105 485 99 520 101 L520 215 L0 215 Z" fill="#111111" opacity="0.82" />
-      <path d="M0 181 C120 176 220 184 340 177 C420 182 470 174 520 178 L520 215 L0 215 Z" fill="#efefef" />
-      <text x="0" y="224" fill="#999999" fontSize="12">04.15</text>
-      <text x="520" y="224" fill="#999999" fontSize="12" textAnchor="end">05.14</text>
+      <path d={buildAreaPath(series.map((point) => point.weight), 520, 200)} fill="#d4d5d8" />
+      <path d={buildAreaPath(series.map((point) => point.muscle), 520, 200)} fill="#111111" opacity="0.82" />
+      <path d={buildAreaPath(series.map((point) => point.bodyFat), 520, 200)} fill="#efefef" />
+      <text x="0" y="224" fill="#999999" fontSize="12">{formatShortDate(series[0].date)}</text>
+      <text x="520" y="224" fill="#999999" fontSize="12" textAnchor="end">{formatShortDate(series[series.length - 1].date)}</text>
+    </svg>
+  )
+}
+
+function getMetricSeries(metrics: BodyMetric[], key: keyof Pick<BodyMetric, "body_fat_percentage" | "skeletal_muscle_mass_kg" | "weight_kg">): MetricPoint[] {
+  return metrics
+    .filter((metric) => metric.recorded_at && metric[key] !== null && metric[key] !== undefined)
+    .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime())
+    .slice(-30)
+    .map((metric) => ({
+      date: metric.recorded_at,
+      value: Number(metric[key]),
+    }))
+}
+
+function getBodyCompositionSeries(metrics: BodyMetric[]): BodyCompositionPoint[] {
+  return metrics
+    .filter(
+      (metric) =>
+        metric.recorded_at &&
+        (metric.weight_kg !== null ||
+          metric.body_fat_percentage !== null ||
+          metric.skeletal_muscle_mass_kg !== null)
+    )
+    .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime())
+    .slice(-30)
+    .map((metric) => ({
+      bodyFat: metric.body_fat_percentage,
+      date: metric.recorded_at,
+      muscle: metric.skeletal_muscle_mass_kg,
+      weight: metric.weight_kg,
+    }))
+}
+
+function formatMetricValue(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(1) : "暂无"
+}
+
+function formatMetricWithUnit(value: number | null | undefined, unit: string, fallback = "暂无记录") {
+  return typeof value === "number" && Number.isFinite(value) ? `${value.toFixed(1)} ${unit}` : fallback
+}
+
+function formatMetricChange(series: MetricPoint[], unit: string) {
+  if (series.length < 2) {
+    return "暂无周期变化"
+  }
+
+  const change = series[series.length - 1].value - series[0].value
+  if (Math.abs(change) < 0.05) {
+    return `持平 0.0 ${unit}`
+  }
+
+  const arrow = change > 0 ? "↑" : "↓"
+  const formatted = Math.abs(change).toFixed(1)
+  return `${arrow} ${formatted} ${unit}`
+}
+
+function chartVariantFromChange(series: MetricPoint[], fallback: "down" | "down2" | "up" | "up2") {
+  if (series.length < 2) {
+    return fallback
+  }
+
+  return series[series.length - 1].value >= series[0].value ? "up" : "down"
+}
+
+function calculateBmi(metric: BodyMetric | null) {
+  if (!metric?.height_cm || !metric.weight_kg) {
+    return null
+  }
+
+  const heightM = metric.height_cm / 100
+  return Number((metric.weight_kg / (heightM * heightM)).toFixed(1))
+}
+
+function calculateBmr(profile: FitnessProfile | null, metric: BodyMetric | null) {
+  const weight = metric?.weight_kg
+  const height = metric?.height_cm
+  const age = profile?.age
+  if (!weight || !height || !age) {
+    return null
+  }
+
+  const gender = profile?.gender?.toLowerCase() ?? ""
+  const genderOffset = gender.includes("女") || gender.includes("female") ? -161 : 5
+  return Math.round(10 * weight + 6.25 * height - 5 * age + genderOffset)
+}
+
+function calculateTargetProgress(start: number | null, current: number | null, target: number | null) {
+  if (start === null || current === null || target === null || Math.abs(start - target) < 0.1) {
+    return null
+  }
+
+  const progress = (Math.abs(start - current) / Math.abs(start - target)) * 100
+  return Math.max(0, Math.min(100, Math.round(progress)))
+}
+
+function formatMetricDateRange(metrics: BodyMetric[]) {
+  const dates = metrics
+    .map((metric) => metric.recorded_at)
+    .filter(Boolean)
+    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+
+  if (!dates.length) {
+    return "暂无身体记录"
+  }
+
+  const recent = dates.slice(-30)
+  return `${formatFullDate(recent[0])} – ${formatFullDate(recent[recent.length - 1])}`
+}
+
+function formatShortDate(date?: string | null) {
+  if (!date) {
+    return null
+  }
+
+  const parsed = new Date(date)
+  if (Number.isNaN(parsed.getTime())) {
+    return null
+  }
+
+  return `${(parsed.getMonth() + 1).toString().padStart(2, "0")}.${parsed.getDate().toString().padStart(2, "0")}`
+}
+
+function formatFullDate(date: string) {
+  const parsed = new Date(date)
+  if (Number.isNaN(parsed.getTime())) {
+    return date.slice(0, 10)
+  }
+
+  return `${parsed.getFullYear()}.${(parsed.getMonth() + 1).toString().padStart(2, "0")}.${parsed.getDate().toString().padStart(2, "0")}`
+}
+
+function getBmiLevel(bmi: number) {
+  if (bmi < 18.5) {
+    return "偏低"
+  }
+  if (bmi < 24) {
+    return "正常"
+  }
+  if (bmi < 28) {
+    return "偏高"
+  }
+  return "较高"
+}
+
+function getBodyFatLevel(bodyFat: number) {
+  if (bodyFat < 12) {
+    return "偏低"
+  }
+  if (bodyFat < 22) {
+    return "正常"
+  }
+  if (bodyFat < 30) {
+    return "偏高"
+  }
+  return "较高"
+}
+
+function buildAreaPath(values: Array<number | null>, width: number, height: number) {
+  const usable = values.map((value) => (typeof value === "number" && Number.isFinite(value) ? value : null))
+  const validValues = usable.filter((value): value is number => value !== null)
+  if (validValues.length < 2) {
+    return `M0 ${height} L${width} ${height} L${width} 215 L0 215 Z`
+  }
+
+  const min = Math.min(...validValues) - 1
+  const max = Math.max(...validValues) + 1
+  const step = width / (usable.length - 1)
+  const points = usable.map((value, index) => {
+    const fallback = validValues[validValues.length - 1]
+    const normalized = value ?? fallback
+    return {
+      x: index * step,
+      y: height - ((normalized - min) / (max - min)) * (height - 35),
+    }
+  })
+  const line = points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ")
+  return `${line} L${width} 215 L0 215 Z`
+}
+
+function PlanStackIllustration() {
+  return (
+    <svg className="hidden h-[140px] w-[150px] shrink-0 lg:block" viewBox="0 0 150 140">
+      {[0, 1, 2, 3, 4].map((item) => (
+        <path d="M75 10 128 38 75 66 22 38Z" fill="#eeeeee" opacity={0.38 + item * 0.1} key={item} transform={`translate(0 ${item * 15})`} />
+      ))}
+      <path d="M75 79 128 106 75 134 22 106Z" fill="#111111" />
+      <path d="M65 102 74 96 83 101 91 94" fill="none" stroke="#ffffff" strokeLinecap="round" strokeWidth="2" />
     </svg>
   )
 }
