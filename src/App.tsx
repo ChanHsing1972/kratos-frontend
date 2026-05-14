@@ -1706,9 +1706,6 @@ export function App() {
           activePlan={activePlan}
           completedExercises={completedExercises}
           dashboardLoading={dashboardLoading}
-          onOpenBodyData={() => {
-            setActiveNav("身体数据")
-          }}
           onOpenPlanComposer={openTrainingPlanComposer}
           onDeletePlan={handleDeleteTrainingPlan}
           onEditPlan={openTrainingPlanEditor}
