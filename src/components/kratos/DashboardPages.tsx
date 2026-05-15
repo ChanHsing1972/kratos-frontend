@@ -998,7 +998,7 @@ function TrainingStatsBar({
   return (
     <section className="mt-4 rounded-[16px] py-4">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {stats.map(({ icon: Icon, label, sub, value }, index) => (
+        {stats.map(({ icon: Icon, label, value }, index) => (
           <div
             className={cn(
               "flex min-w-0 items-center gap-3 xl:border-r xl:border-[#eeeeee] xl:pr-4",
@@ -1386,7 +1386,7 @@ function WeeklyTrainingTimeline({
       {trainingDays.length > 0 ? (
         <div className="relative mt-4 grid gap-3 lg:grid-cols-7">
           <div className="absolute left-[7%] right-[7%] top-[100px] hidden border-t border-dashed border-[#d8d8d8] lg:block" />
-          {days.map((day, index) => {
+          {days.map((day) => {
             const trainingDay = trainingDays.find((item) => item.dateValue === day.value) ?? null
             const dayLog = getLatestWorkoutForDate(workoutLogs, activePlanId, day.value)
             const loggedActions = dayLog ? parseWorkoutActionsFromNotes(dayLog.notes) : []
