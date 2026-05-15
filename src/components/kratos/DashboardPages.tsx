@@ -291,7 +291,7 @@ export function TrainingPlanPage({
             setWeekStart(startOfWeek(date))
             setSelectedDate(dateValue)
             setCalendarVisibleDate(date)
-            setCalendarOpen(false)
+            setCalendarOpen(true)
           }}
           onCalendarVisibleDateChange={setCalendarVisibleDate}
           onSelectDate={setSelectedDate}
@@ -1012,7 +1012,7 @@ function TrainingStatsBar({
             <div className="min-w-0">
               <p className="text-[12px]  text-[#8a8a8a]">{label}</p>
               <p className="truncate text-[16px] font-semibold text-[#111111]">{value}</p>
-              <p className="mt-1 truncate text-[12px] font-medium text-[#8a8a8a]">{sub}</p>
+              {/* <p className="mt-1 truncate text-[12px] font-medium text-[#8a8a8a]">{sub}</p> */}
             </div>
           </div>
         ))}
@@ -1073,7 +1073,7 @@ function TodayTrainingHero({
     : formatDateLabel(dateFromValue(selectedDate))
 
   return (
-    <section className="mt-2 overflow-hidden rounded-[18px] bg-[#000000] text-white ">
+    <section className="mt-1 overflow-hidden rounded-[18px] bg-[#000000] text-white ">
       <div className="grid min-h-[330px] gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(420px,1.5fr)] lg:p-8">
         <div className="flex min-w-0 flex-col justify-between">
           <div>
@@ -1227,14 +1227,14 @@ function TodayTrainingHero({
                       <div>
                         <h3
                           className={cn(
-                            "line-clamp-2 text-[17px] font-semibold leading-7",
+                            "line-clamp-2 text-[17px] font-semibold leading-6",
                             completed ? "text-[#111111]" : "text-white"
                           )}
                         >
                           {action.title}
                         </h3>
 
-                        <p className={cn("mt-0 text-[13px]", completed ? "text-[#777777]" : "text-white/46")}>
+                        <p className={cn("mt-1 text-[13px]", completed ? "text-[#777777]" : "text-white/46")}>
                           动作 {index + 1} / {actionTotal}
                         </p>
                       </div>
@@ -1247,7 +1247,7 @@ function TodayTrainingHero({
             <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[16px] border border-dashed border-white/16 bg-white/[0.06] p-8 text-center">
               <Calendar className="size-8 text-white/70" />
               <h3 className="mt-4 text-[22px] font-black">恢复、散步或记录身体反馈</h3>
-              <p className="mt-3 max-w-[420px] text-[14px] leading-7 text-white/62">
+              <p className="mt-3 max-w-[420px] text-[14px] leading-5 text-white/62">
                 这一天没有匹配到当前计划里的训练日。你可以切换周安排，或让 Kratos 重新规划训练节奏。
               </p>
             </div>
@@ -1318,16 +1318,16 @@ function WeeklyTrainingTimeline({
   const days = buildWeekDays(weekStart)
 
   return (
-    <section className="mt-5 rounded-[16px] border border-[#e6e6e6] bg-white p-5 shadow-[0_16px_38px_rgba(17,17,17,0.035)]">
+    <section className="mt-5 rounded-[16px]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-[18px] font-semibold tracking-[-0.03em]">本周训练安排</h2>
-          <p className="mt-0 text-[12px] text-[#8a8a8a]">{weekRangeLabel}</p>
+          <h2 className="text-[24px] font-semibold tracking-[-0.03em]">本周训练安排</h2>
+          {/* <p className="mt-0 text-[12px] text-[#8a8a8a]">{weekRangeLabel}</p> */}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative" ref={calendarMenuRef}>
             <button
-              className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[#dfdfdf] bg-white px-4 text-[13px] font-bold text-[#111111] transition hover:border-[#111111]"
+              className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[#dfdfdf] bg-white px-4 text-[13px] font-semibold text-[#111111] transition hover:border-[#111111]"
               onClick={onToggleCalendar}
               type="button"
             >
@@ -1384,8 +1384,8 @@ function WeeklyTrainingTimeline({
       </div>
 
       {trainingDays.length > 0 ? (
-        <div className="relative mt-5 grid gap-3 lg:grid-cols-7">
-          <div className="absolute left-[7%] right-[7%] top-[58px] hidden border-t border-dashed border-[#d8d8d8] lg:block" />
+        <div className="relative mt-4 grid gap-3 lg:grid-cols-7">
+          <div className="absolute left-[7%] right-[7%] top-[100px] hidden border-t border-dashed border-[#d8d8d8] lg:block" />
           {days.map((day, index) => {
             const trainingDay = trainingDays.find((item) => item.dateValue === day.value) ?? null
             const dayLog = getLatestWorkoutForDate(workoutLogs, activePlanId, day.value)
@@ -1424,23 +1424,13 @@ function WeeklyTrainingTimeline({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[12px] font-black text-[#777777]">{`周${day.day}`}</p>
-                    <p className="mt-1 text-[16px] font-black">{day.label}</p>
+                    <p className="text-[12px] text-[#777777]">{`周${day.day}`}</p>
+                    <p className="mt-0 text-[20px] font-semibold">{day.label}</p>
                   </div>
-                  <span
-                    className={cn(
-                      "grid size-7 place-items-center rounded-full border text-[11px] font-black",
-                      completed && "border-[#111111] bg-[#111111] text-white",
-                      selected && !completed && "border-[#111111] bg-white text-[#111111]",
-                      !selected && !completed && "border-[#dedede] bg-white text-[#8a8a8a]"
-                    )}
-                  >
-                    {completed ? <Check className="size-4" /> : index + 1}
-                  </span>
                 </div>
                 <div className="mt-5 min-w-0 flex-1">
-                  <h3 className="line-clamp-2 text-[14px] font-black leading-5">{title}</h3>
-                  <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-[#777777]">
+                  <h3 className="line-clamp-2 text-[16px] font-semibold leading-5">{title}</h3>
+                  <p className="mt-2 line-clamp-3 text-[12px] leading-4 text-[#777777]">
                     {trainingDay
                       ? completed && loggedActions.length > 0
                         ? loggedActions.join("；")
@@ -1687,7 +1677,7 @@ function PlanDetailsContent({ plan }: { plan: TrainingPlan | null }) {
         <div>
           <ClipboardList className="mx-auto size-7 text-[#777777]" />
           <h2 className="mt-3 text-[17px] font-black">暂无计划详情</h2>
-          <p className="mx-auto mt-2 max-w-[430px] text-[13px] leading-6 text-[#777777]">
+          <p className="mx-auto mt-2 max-w-[430px] text-[13px] leading-5 text-[#777777]">
             创建或选择一个训练计划后，这里会展示完整内容。
           </p>
         </div>
@@ -1700,14 +1690,11 @@ function PlanDetailsContent({ plan }: { plan: TrainingPlan | null }) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-[12px] font-semibold text-[#8a8a8a]">计划详情</p>
-          <h2 className="mt-2 text-[20px] font-black tracking-[-0.04em]">{plan.title}</h2>
-          <p className="mt-2 max-w-[720px] text-[13px] leading-6 text-[#666666]">
+          <h2 className="mt-0 text-[24px] font-semibold tracking-[-0.04em]">{plan.title}</h2>
+          <p className="mt-2 max-w-[720px] text-[13px] leading-5 text-[#666666]">
             {plan.summary ?? "暂无摘要"}
           </p>
         </div>
-        {/* <span className="rounded-[7px] bg-[#f4f4f4] px-3 py-1.5 text-[12px] font-black text-[#555555]">
-          {planStatusLabel(plan.status)}
-        </span> */}
       </div>
       <div className="mt-5 grid gap-3 md:grid-cols-2">
         <DetailBlock label="目标" value={plan.goal ?? "未设置"} />
@@ -1741,8 +1728,7 @@ function TrainingCalendar({
     <section className="overflow-hidden rounded-[16px] border border-[#e6e6e6] bg-white shadow-[0_14px_34px_rgba(17,17,17,0.08)] ring-1 ring-black/5">
       <div className="flex items-start justify-between gap-3 border-b border-[#ededed] px-3.5 py-3.5">
         <div>
-          <h2 className="text-[15px] font-semibold tracking-[-0.04em] text-[#111111]">{formatMonthTitle(visibleDate)}</h2>
-          <p className="mt-1 text-[11px] leading-4 text-[#9b9b9b]">点选日期即可切换对应训练日</p>
+          <h2 className="mt-1 text-[20px] font-semibold tracking-[-0.04em] text-[#111111]">{formatMonthTitle(visibleDate)}</h2>
         </div>
         <button
           className="grid size-8 place-items-center rounded-full border border-[#e5e5e5] bg-white text-[#111111] transition hover:border-[#111111] hover:bg-[#f7f7f7]"
@@ -1791,14 +1777,14 @@ function TrainingCalendar({
         </button>
       </div>
 
-      <div className="mt-3.5 grid grid-cols-7 gap-1.5 px-3.5 text-center text-[11px] font-medium text-[#9b9b9b]">
+      <div className="mt-3.5 grid grid-cols-7 gap-0 px-3.5 text-center text-[11px] font-medium text-[#9b9b9b]">
         {["一", "二", "三", "四", "五", "六", "日"].map((day) => (
           <span className="py-1.5 uppercase tracking-[0.14em]" key={day}>
             {day}
           </span>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1.5 px-3.5 pb-3.5 pt-2">
+      <div className="grid grid-cols-7 gap-0 px-3.5 pb-3.5 pt-2">
         {days.map(({ currentMonth, date, value }) => {
           const selected = selectedDate === value
           const completed = completedDateSet.has(value)
@@ -1807,11 +1793,11 @@ function TrainingCalendar({
           return (
             <button
               className={cn(
-                "relative flex h-11 flex-col items-center justify-center rounded-[10px] border text-[12px] font-medium transition-all duration-200 ease-out",
+                "relative flex h-10 flex-col items-center justify-center rounded-[10px] text-[14px] font-medium transition-all duration-200 ease-out",
                 currentMonth ? "text-[#111111]" : "text-[#c7c7c7]",
-                selected && "border-[#111111] bg-white text-[#111111] shadow-[0_10px_22px_rgba(17,17,17,0.09)] ring-1 ring-[#111111]/70",
-                today && !selected && "border-[#111111] bg-white shadow-[0_0_0_1px_rgba(17,17,17,0.05)]",
-                completed && !today && !selected && "border-[#d9d9d9] bg-white text-[#111111] shadow-[0_6px_14px_rgba(17,17,17,0.06)]"
+                // selected && "border *:border-[#111111] text-[#111111] ring-1 ring-[#111111]/70",
+                // today && !selected && "border border-[#111111]",
+                // completed && !today && !selected && "border border-[#d9d9d9] text-[#111111]"
               )}
               key={value}
               onClick={() => onSelectDate(value)}
@@ -1819,10 +1805,10 @@ function TrainingCalendar({
             >
               <span
                 className={cn(
-                  "relative grid size-7 place-items-center rounded-[8px]",
-                  selected && " bg-white text-[#111111]",
-                  completed && !selected && "  bg-white text-[#111111] ",
-                  today && !selected && "  bg-white text-[#111111]"
+                  "relative grid size-9  rounded-[8px] place-items-center hover:bg-[#eaeaea] transition-colors duration-200",
+                  selected && " bg-white text-[#111111] border border-[#111111]",
+                  completed && !selected && "  bg-white text-[#111111] border border-[#d9d9d9] ",
+                  today && "  bg-[#FE3A30] text-white rounded-[20px] size-6 hover:bg-[#FE3A30]"
                 )}
               >
                 {date.getDate()}
