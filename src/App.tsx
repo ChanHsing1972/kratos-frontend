@@ -8,10 +8,7 @@ import {
 
 import { Menu } from "lucide-react"
 
-import {
-  initialMessages,
-  initialNotifications,
-} from "@/data/kratos"
+import { initialMessages, initialNotifications } from "@/data/kratos"
 import {
   AUTH_TOKEN_KEY,
   createAgentCheckin,
@@ -62,6 +59,7 @@ import {
   TrainingPlanPage,
 } from "@/components/kratos/DashboardPages"
 import { Sidebar } from "@/components/kratos/Sidebar"
+import { SidebarProvider } from "@/components/ui/sidebar"
 import { useTheme } from "@/components/theme-provider"
 import type {
   AgentCheckin,
@@ -129,13 +127,19 @@ export function App() {
   const [trainingPlanModalOpen, setTrainingPlanModalOpen] = useState(false)
   const [trainingPlanDraft, setTrainingPlanDraft] =
     useState<TrainingPlanPayload | null>(null)
-  const [editingTrainingPlanId, setEditingTrainingPlanId] = useState<number | null>(null)
+  const [editingTrainingPlanId, setEditingTrainingPlanId] = useState<
+    number | null
+  >(null)
   const [trainingPlanSubmitting, setTrainingPlanSubmitting] = useState(false)
-  const [trainingPlanError, setTrainingPlanError] = useState<string | null>(null)
-  const [chatTrainingPlanSavingId, setChatTrainingPlanSavingId] = useState<string | null>(null)
-  const [generatedTrainingPlanKeys, setGeneratedTrainingPlanKeys] = useState<Set<string>>(
-    () => readGeneratedTrainingPlanKeys()
+  const [trainingPlanError, setTrainingPlanError] = useState<string | null>(
+    null
   )
+  const [chatTrainingPlanSavingId, setChatTrainingPlanSavingId] = useState<
+    string | null
+  >(null)
+  const [generatedTrainingPlanKeys, setGeneratedTrainingPlanKeys] = useState<
+    Set<string>
+  >(() => readGeneratedTrainingPlanKeys())
   const [thinkingExpanded, setThinkingExpanded] = useState(true)
   const [composerValue, setComposerValue] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
@@ -143,8 +147,12 @@ export function App() {
   const [agentStreaming, setAgentStreaming] = useState(false)
   const [dashboardLoading, setDashboardLoading] = useState(false)
   const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>([])
-  const [fitnessContext, setFitnessContext] = useState<FitnessContext | null>(null)
-  const [fitnessProfile, setFitnessProfile] = useState<FitnessProfile | null>(null)
+  const [fitnessContext, setFitnessContext] = useState<FitnessContext | null>(
+    null
+  )
+  const [fitnessProfile, setFitnessProfile] = useState<FitnessProfile | null>(
+    null
+  )
   const [bodyMetrics, setBodyMetrics] = useState<BodyMetric[]>([])
   const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([])
   const [agentCheckins, setAgentCheckins] = useState<AgentCheckin[]>([])
@@ -154,12 +162,15 @@ export function App() {
   const [detailPanel, setDetailPanel] = useState<DetailPanel | null>(null)
   const [completedExercises, setCompletedExercises] = useState<string[]>([])
   const [trainingStarted, setTrainingStarted] = useState(false)
-  const [trainingSession, setTrainingSession] = useState<TrainingSession | null>(null)
+  const [trainingSession, setTrainingSession] =
+    useState<TrainingSession | null>(null)
   const [trainingElapsedSeconds, setTrainingElapsedSeconds] = useState(0)
   const [trainingPaused, setTrainingPaused] = useState(false)
   const [trainingFeedbackOpen, setTrainingFeedbackOpen] = useState(false)
   const [trainingFeedback, setTrainingFeedback] = useState("")
-  const [trainingFeedbackError, setTrainingFeedbackError] = useState<string | null>(null)
+  const [trainingFeedbackError, setTrainingFeedbackError] = useState<
+    string | null
+  >(null)
   const [trainingFeedbackLoading, setTrainingFeedbackLoading] = useState(false)
   const [trainingAdjustment, setTrainingAdjustment] =
     useState<TrainingPlanAdjustmentResponse | null>(null)
@@ -304,11 +315,11 @@ export function App() {
       setCurrentUser(user)
       const context = await refreshDashboard(token.access_token)
       setAuthModalOpen(false)
-      setOnboardingOpen(authMode === "register" || !context?.onboarding.ready_for_agent)
+      setOnboardingOpen(
+        authMode === "register" || !context?.onboarding.ready_for_agent
+      )
       setToast(
-        authMode === "register"
-          ? "账号已创建，先完成 2 分钟建档"
-          : "登录成功"
+        authMode === "register" ? "账号已创建，先完成 2 分钟建档" : "登录成功"
       )
     } catch (error) {
       setAuthError(getErrorMessage(error))
@@ -390,7 +401,10 @@ export function App() {
       setProfileError("年龄必须是 0 或更大的整数")
       return
     }
-    const parsedDays = parseOptionalInteger(form.availableDaysPerWeek, "每周可训练天数")
+    const parsedDays = parseOptionalInteger(
+      form.availableDaysPerWeek,
+      "每周可训练天数"
+    )
     if (typeof parsedDays === "string") {
       setProfileError(parsedDays)
       return
@@ -426,7 +440,9 @@ export function App() {
         injury_history: compactOptionalText(form.injuryHistory),
         location: compactOptionalText(form.location),
         medical_conditions: compactOptionalText(form.medicalConditions),
-        preferred_workout_types: compactOptionalText(form.preferredWorkoutTypes),
+        preferred_workout_types: compactOptionalText(
+          form.preferredWorkoutTypes
+        ),
         workout_minutes_per_session: parsedMinutes,
       })
       setFitnessProfile(updatedProfile)
@@ -494,7 +510,9 @@ export function App() {
 
   const updateSessionMeta = (
     sessionId: string,
-    update: Partial<ChatSession> | ((current: Partial<ChatSession>) => Partial<ChatSession>)
+    update:
+      | Partial<ChatSession>
+      | ((current: Partial<ChatSession>) => Partial<ChatSession>)
   ) => {
     setChatSessionMeta((current) => {
       const previous = current[sessionId] ?? {}
@@ -510,7 +528,9 @@ export function App() {
     setChatSessions((current) =>
       current
         .map((session) =>
-          session.id === sessionId ? { ...session, ...resolveSessionUpdate(session, update) } : session
+          session.id === sessionId
+            ? { ...session, ...resolveSessionUpdate(session, update) }
+            : session
         )
         .filter((session) => !session.deleted)
         .sort(sortChatSessions)
@@ -607,7 +627,10 @@ export function App() {
       return null
     }
 
-    const parsedDays = parseOptionalInteger(form.availableDaysPerWeek, "每周可训练天数")
+    const parsedDays = parseOptionalInteger(
+      form.availableDaysPerWeek,
+      "每周可训练天数"
+    )
     if (typeof parsedDays === "string") {
       setError(parsedDays)
       return null
@@ -664,7 +687,10 @@ export function App() {
       setError(targetWeightKg)
       return null
     }
-    const bodyFatPercentage = parseOptionalNumber(form.bodyFatPercentage, "体脂率")
+    const bodyFatPercentage = parseOptionalNumber(
+      form.bodyFatPercentage,
+      "体脂率"
+    )
     if (typeof bodyFatPercentage === "string") {
       setError(bodyFatPercentage)
       return null
@@ -775,7 +801,10 @@ export function App() {
       setBodyMetricError(targetWeightKg)
       return
     }
-    const bodyFatPercentage = parseOptionalNumber(form.bodyFatPercentage, "体脂率")
+    const bodyFatPercentage = parseOptionalNumber(
+      form.bodyFatPercentage,
+      "体脂率"
+    )
     if (typeof bodyFatPercentage === "string") {
       setBodyMetricError(bodyFatPercentage)
       return
@@ -859,7 +888,11 @@ export function App() {
         setBodyMetrics((current) => [metric, ...current])
       }
 
-      if (energyLevel !== null || sleepQuality !== null || sorenessLevel !== null) {
+      if (
+        energyLevel !== null ||
+        sleepQuality !== null ||
+        sorenessLevel !== null
+      ) {
         const checkin = await createAgentCheckin(token, {
           energy_level: energyLevel,
           soreness_level: sorenessLevel,
@@ -906,9 +939,10 @@ export function App() {
       setChatSessions(restoredSessions)
       if (!options.preserveMessages) {
         const currentSessionId =
-          agentSessionId && restoredSessions.some((session) => session.id === agentSessionId)
+          agentSessionId &&
+          restoredSessions.some((session) => session.id === agentSessionId)
             ? agentSessionId
-            : restoredSessions[0]?.id ?? null
+            : (restoredSessions[0]?.id ?? null)
         const sessionRuns = currentSessionId
           ? runs.filter((run) => run.session_id === currentSessionId)
           : []
@@ -1058,7 +1092,9 @@ export function App() {
                   preview: body,
                   updatedAt: new Date().toISOString(),
                   messageCount: 2,
-                  pinned: Boolean(chatSessionMetaRef.current[nextSessionId]?.pinned),
+                  pinned: Boolean(
+                    chatSessionMetaRef.current[nextSessionId]?.pinned
+                  ),
                 },
                 ...current,
               ].sort(sortChatSessions)
@@ -1098,9 +1134,12 @@ export function App() {
               }
 
               if (event.type === "final") {
-                const suggestedTrainingPlan = trainingPlanPayloadFromAgentResult(event.raw)
+                const suggestedTrainingPlan =
+                  trainingPlanPayloadFromAgentResult(event.raw)
                 const generatedAlready = suggestedTrainingPlan
-                  ? generatedTrainingPlanKeys.has(trainingPlanDraftKey(suggestedTrainingPlan))
+                  ? generatedTrainingPlanKeys.has(
+                      trainingPlanDraftKey(suggestedTrainingPlan)
+                    )
                   : false
                 return {
                   ...message,
@@ -1308,14 +1347,13 @@ export function App() {
       return
     }
 
-    const elapsedSeconds =
-      trainingSession.isPaused
-        ? Math.max(1, trainingSession.accumulatedSeconds)
-        : Math.max(
-            1,
-            trainingSession.accumulatedSeconds +
-              Math.floor((Date.now() - trainingSession.startedAt) / 1000)
-          )
+    const elapsedSeconds = trainingSession.isPaused
+      ? Math.max(1, trainingSession.accumulatedSeconds)
+      : Math.max(
+          1,
+          trainingSession.accumulatedSeconds +
+            Math.floor((Date.now() - trainingSession.startedAt) / 1000)
+        )
     const completedActionTitles = actionTitles.filter((_, index) =>
       completedExercises.includes(actionIds[index])
     )
@@ -1323,7 +1361,9 @@ export function App() {
       completedExercises.includes(action)
     )
     const actionsToSave =
-      completedActionTitles.length > 0 ? completedActionTitles : ["未标记完成动作"]
+      completedActionTitles.length > 0
+        ? completedActionTitles
+        : ["未标记完成动作"]
 
     void saveCompletedWorkout(
       token,
@@ -1392,7 +1432,9 @@ export function App() {
     }
   }
 
-  const openTrainingPlanComposer = (draft: TrainingPlanPayload | null = null) => {
+  const openTrainingPlanComposer = (
+    draft: TrainingPlanPayload | null = null
+  ) => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
@@ -1443,7 +1485,11 @@ export function App() {
 
     try {
       if (editingTrainingPlanId) {
-        const updated = await updateTrainingPlan(token, editingTrainingPlanId, payload)
+        const updated = await updateTrainingPlan(
+          token,
+          editingTrainingPlanId,
+          payload
+        )
         setTrainingPlans((current) =>
           current.map((plan) => (plan.id === updated.id ? updated : plan))
         )
@@ -1498,7 +1544,10 @@ export function App() {
       setMessages((current) =>
         current.map((message) =>
           message.id === messageId
-            ? { ...message, trainingPlanCreatedId: message.trainingPlanCreatedId ?? -1 }
+            ? {
+                ...message,
+                trainingPlanCreatedId: message.trainingPlanCreatedId ?? -1,
+              }
             : message
         )
       )
@@ -1571,7 +1620,9 @@ export function App() {
             return updated
           }
 
-          if (activePlansToPause.some((activeItem) => activeItem.id === item.id)) {
+          if (
+            activePlansToPause.some((activeItem) => activeItem.id === item.id)
+          ) {
             return { ...item, status: "paused" }
           }
 
@@ -1597,7 +1648,9 @@ export function App() {
       return
     }
 
-    const confirmed = window.confirm(`确定删除「${plan.title}」吗？相关训练记录会保留。`)
+    const confirmed = window.confirm(
+      `确定删除「${plan.title}」吗？相关训练记录会保留。`
+    )
     if (!confirmed) {
       return
     }
@@ -1606,7 +1659,9 @@ export function App() {
 
     try {
       await deleteTrainingPlan(token, plan.id)
-      setTrainingPlans((current) => current.filter((item) => item.id !== plan.id))
+      setTrainingPlans((current) =>
+        current.filter((item) => item.id !== plan.id)
+      )
       await refreshDashboard(token, { preserveMessages: true })
       setToast("训练计划已删除")
     } catch (error) {
@@ -1637,12 +1692,16 @@ export function App() {
     setTrainingFeedbackError(null)
 
     try {
-      const adjustment = await previewTrainingPlanAdjustment(token, activePlan.id, {
-        completed: lastCompletedWorkout.completed,
-        duration_seconds: lastCompletedWorkout.durationSeconds,
-        feedback: trainingFeedback.trim(),
-        workout_title: lastCompletedWorkout.title,
-      })
+      const adjustment = await previewTrainingPlanAdjustment(
+        token,
+        activePlan.id,
+        {
+          completed: lastCompletedWorkout.completed,
+          duration_seconds: lastCompletedWorkout.durationSeconds,
+          feedback: trainingFeedback.trim(),
+          workout_title: lastCompletedWorkout.title,
+        }
+      )
       setTrainingAdjustment(adjustment)
     } catch (error) {
       setTrainingFeedbackError(getErrorMessage(error))
@@ -1668,11 +1727,7 @@ export function App() {
 
     try {
       const proposal = compactTrainingPlanProposal(trainingAdjustment.proposal)
-      const updated = await updateTrainingPlan(
-        token,
-        activePlan.id,
-        proposal
-      )
+      const updated = await updateTrainingPlan(token, activePlan.id, proposal)
       setTrainingPlans((current) =>
         current.map((plan) => (plan.id === updated.id ? updated : plan))
       )
@@ -1780,10 +1835,14 @@ export function App() {
 
   return (
     <div className="min-h-svh bg-white text-[#111111]">
-      <div className="flex h-[100svh] w-full overflow-hidden bg-white">
+      <SidebarProvider
+        className="flex h-[100svh] w-full overflow-hidden bg-white"
+        open={!sidebarCollapsed}
+        onOpenChange={(open) => setSidebarCollapsed(!open)}
+      >
         <button
           aria-label="打开侧边栏"
-          className="fixed top-4 left-4 z-40 grid size-10 place-items-center rounded-[10px] border border-[#e4e4e4] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] xl:hidden"
+          className="fixed top-4 left-4 z-40 grid size-10 place-items-center rounded-[10px] border border-[#e4e4e4] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] md:hidden"
           onClick={() => setSidebarDrawerOpen(true)}
           type="button"
         >
@@ -1792,7 +1851,7 @@ export function App() {
         {sidebarDrawerOpen ? (
           <button
             aria-label="关闭侧边栏"
-            className="fixed inset-0 z-40 bg-black/28 xl:hidden"
+            className="fixed inset-0 z-40 bg-black/28 md:hidden"
             onClick={() => setSidebarDrawerOpen(false)}
             type="button"
           />
@@ -1832,7 +1891,7 @@ export function App() {
           onToggleMenu={() => setProfileMenuOpen((current) => !current)}
         />
         {renderWorkspace()}
-      </div>
+      </SidebarProvider>
 
       <AuthModal
         error={authError}
@@ -1909,10 +1968,7 @@ export function App() {
         onPreview={handlePreviewTrainingAdjustment}
         open={trainingFeedbackOpen}
       />
-      <DetailModal
-        panel={detailPanel}
-        onClose={() => setDetailPanel(null)}
-      />
+      <DetailModal panel={detailPanel} onClose={() => setDetailPanel(null)} />
       <Toast message={toast} />
     </div>
   )
@@ -1933,8 +1989,10 @@ function buildConversationEvalExport({
     (left, right) =>
       new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
   )
-  const sessionId = orderedRuns[0]?.session_id ?? session?.id ?? "unknown-session"
-  const sessionTitle = session?.title ?? titleFromPrompt(orderedRuns[0]?.user_message ?? "")
+  const sessionId =
+    orderedRuns[0]?.session_id ?? session?.id ?? "unknown-session"
+  const sessionTitle =
+    session?.title ?? titleFromPrompt(orderedRuns[0]?.user_message ?? "")
 
   return {
     format_version: AGENT_EVAL_FORMAT_VERSION,
@@ -2056,7 +2114,9 @@ function compactText(value: string) {
 }
 
 function inferAnswerKeywords(answer: string) {
-  const words = Array.from(new Set(answer.match(/[\p{Script=Han}A-Za-z0-9]{2,}/gu) ?? []))
+  const words = Array.from(
+    new Set(answer.match(/[\p{Script=Han}A-Za-z0-9]{2,}/gu) ?? [])
+  )
   return words.slice(0, 8)
 }
 
@@ -2085,7 +2145,9 @@ function readGeneratedTrainingPlanKeys() {
 
     const parsed = JSON.parse(raw) as unknown
     return Array.isArray(parsed)
-      ? new Set(parsed.filter((item): item is string => typeof item === "string"))
+      ? new Set(
+          parsed.filter((item): item is string => typeof item === "string")
+        )
       : new Set<string>()
   } catch {
     return new Set<string>()
@@ -2133,8 +2195,11 @@ function isDailyPlanForAdjustment(plan: TrainingPlan | null) {
     return false
   }
 
-  return !plan.end_date || /今日|当天|每日|单日|本次|今天|Kratos 生成/.test(
-    `${plan.title} ${plan.summary ?? ""} ${plan.goal ?? ""}`
+  return (
+    !plan.end_date ||
+    /今日|当天|每日|单日|本次|今天|Kratos 生成/.test(
+      `${plan.title} ${plan.summary ?? ""} ${plan.goal ?? ""}`
+    )
   )
 }
 
@@ -2177,7 +2242,9 @@ function sortChatSessions(left: ChatSession, right: ChatSession) {
     return left.pinned ? -1 : 1
   }
 
-  return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+  return (
+    new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
+  )
 }
 
 function formatDuration(totalSeconds: number) {
@@ -2193,6 +2260,8 @@ function formatDuration(totalSeconds: number) {
 
 function compactTrainingPlanProposal(proposal: Partial<TrainingPlanPayload>) {
   return Object.fromEntries(
-    Object.entries(proposal).filter(([, value]) => value !== null && value !== undefined)
+    Object.entries(proposal).filter(
+      ([, value]) => value !== null && value !== undefined
+    )
   ) as Partial<TrainingPlanPayload>
 }

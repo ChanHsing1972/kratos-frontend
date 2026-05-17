@@ -7,16 +7,16 @@ import {
   type ReactNode,
 } from "react"
 import {
+  ArrowUp,
   Bell,
   Check,
   ChevronRight,
   Copy,
   Eye,
+  Plus,
   LoaderCircle,
   Moon,
-  Paperclip,
   PencilLine,
-  SendHorizontal,
   Sparkles,
   Square,
   Sun,
@@ -34,6 +34,12 @@ import { MarkdownMessage } from "@/components/kratos/MarkdownMessage"
 import { Button } from "@/components/ui/button"
 import { copyText } from "@/lib/clipboard"
 import { cn } from "@/lib/utils"
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@/components/ui/toggle-group"
+import { InputGroup, InputGroupAddon, InputGroupTextarea, InputGroupButton, InputGroupText } from "@/components/ui/input-group"
+import { Separator } from "@/components/ui/separator"
 
 type MainConversationProps = {
   activeSessionTitle: string
@@ -828,12 +834,10 @@ function Composer({
   }, [value])
 
   return (
-    <section className="rounded-[12px] border border-[#e7e7e7] bg-white pl-4 pr-2 pt-3 pb-2 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors focus-within:border-[#111111] focus-within:shadow-[0_0_0_3px_rgba(17,17,17,0.08)]">
-
+    <InputGroup className="rounded-lg bg-background p-1">
       {mode === "write" ? (
-        <textarea
+        <InputGroupTextarea
           ref={textareaRef}
-          className="max-h-40 min-h-9 w-full resize-none overflow-y-auto bg-transparent text-[12px] leading-5 text-[#222222] outline-none placeholder:text-[#8c8c8c] disabled:cursor-not-allowed disabled:opacity-60"
           disabled={sending}
           onChange={(event) => onChange(event.target.value)}
           onCompositionEnd={(event) => {
@@ -843,76 +847,87 @@ function Composer({
             event.currentTarget.dataset.composing = "true"
           }}
           onKeyDown={onKeyDown}
-          placeholder={sending ? "Kratos 正在回复..." : "输入 Markdown 内容，Shift + Enter 换行"}
+          placeholder={
+            sending
+              ? "Kratos 正在思考..."
+              : "今天我想完成什么..."
+            // :"Ask, search or chat..."
+          }
           rows={1}
           value={value}
+          className="min-h-16 resize-none text-base disabled:opacity-100 md:text-sm"
         />
       ) : (
-        <div className="min-h-10 rounded-[8px] bg-[#fbfbfa] px-3 py-2 mb-1.5">
+        <div
+          data-slot="input-group-control"
+          className="min-h-16 w-full px-2.5 py-2"
+        >
           {value.trim() ? (
-            <MarkdownMessage className="text-[12px] text-[#222222]">
+            <MarkdownMessage className="text-sm leading-6 text-foreground">
               {value}
             </MarkdownMessage>
           ) : (
-            <p className="text-[12px] leading-5 text-[#8c8c8c]">
-              Markdown 预览会显示在这里
+            <p className="text-sm leading-6 text-muted-foreground">
+              没有预览的内容
             </p>
           )}
         </div>
       )}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <label className="cursor-pointer rounded-[6px] text-[#1f1f1f] focus-within:ring-2 focus-within:ring-[#111111]/30">
+
+      <InputGroupAddon align="block-end">
+        <InputGroupButton
+          asChild
+          type="button"
+          variant="outline"
+          aria-label="上传附件"
+          className="size-6 rounded-full p-0 shadow-none"
+        >
+          <label className="cursor-pointer">
             <input className="hidden" onChange={onAttachment} type="file" />
-            <Paperclip className="size-4.5" strokeWidth={1.8} />
+            <Plus className="size-3.5" />
           </label>
-          <div className="flex items-center rounded-[8px] bg-[#f3f3f3] p-0.5">
-            <button
-              aria-label="编辑 Markdown"
-              className={cn(
-                "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
-                mode === "write" &&
-                "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
-              )}
-              onClick={() => setMode("write")}
-              title="编辑 Markdown"
-              type="button"
-            >
-              <PencilLine className="size-3.5" strokeWidth={1.8} />
-              编辑
-            </button>
-            <button
-              aria-label="预览 Markdown"
-              className={cn(
-                "inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-[#777777] transition-colors focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
-                mode === "preview" &&
-                "bg-white text-[#111111] shadow-[0_1px_4px_rgba(0,0,0,0.08)]"
-              )}
-              onClick={() => setMode("preview")}
-              title="预览 Markdown"
-              type="button"
-            >
-              <Eye className="size-3.5" strokeWidth={1.8} />
-              预览
-            </button>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            aria-label={sending ? "Stop" : "Send"}
-            className="size-10 rounded-[9px] bg-[#0f0f0f] text-white hover:bg-[#0f0f0f]/90"
-            onClick={sending ? onStop : onSend}
-            size="icon"
-            type="button"
+        </InputGroupButton>
+
+        <ToggleGroup type="single" size="sm" defaultValue="write" variant="outline">
+          <ToggleGroupItem
+            value="write"
+            onClick={() => setMode("write")}
           >
-            {sending ? (
-              <Square className="size-4 fill-white" strokeWidth={2} />
-            ) : (
-              <SendHorizontal className="size-5" strokeWidth={2} />
-            )}
-          </Button>
-        </div>
-      </div>
-    </section>
+            <PencilLine className="size-3.5" />
+            编辑
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="preview"
+            onClick={() => setMode("preview")}
+          >
+            <Eye className="size-3.5" />
+            预览
+          </ToggleGroupItem>
+        </ToggleGroup>
+
+        <InputGroupText className="ml-auto text-sm text-muted-foreground">
+          {value.length}/1000
+        </InputGroupText>
+
+        <Separator orientation="vertical" className="mx-1" />
+
+        <Button
+          aria-label={sending ? "停止生成" : "发送"}
+          onClick={() => {
+            if (!sending && !value.trim()) return
+            sending ? onStop() : onSend()
+          }}
+          size="icon"
+          type="button"
+          className="size-8 rounded-full p-0 shadow-none"
+        >
+          {sending ? (
+            <Square className="size-4 fill-current" />
+          ) : (
+            <ArrowUp className="size-4" />
+          )}
+        </Button>
+      </InputGroupAddon>
+    </InputGroup>
   )
 }
