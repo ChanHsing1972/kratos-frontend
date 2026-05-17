@@ -6,6 +6,7 @@ import App from "./App.tsx"
 import { ThemeProvider } from "@/components/theme-provider.tsx"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider defaultTheme="light" storageKey="kratos-agent-theme">

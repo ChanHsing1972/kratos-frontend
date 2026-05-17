@@ -1,4 +1,10 @@
-import { useEffect, useState } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type FormEvent,
+} from "react"
 import {
   Activity,
   BarChart3,
@@ -10,17 +16,18 @@ import {
   LoaderCircle,
   LogIn,
   LogOut,
-  MessageCircle,
   MessageCirclePlus,
   MoreHorizontal,
   Pin,
   PinOff,
   Trash2,
   User,
-  UserPlus,
 } from "lucide-react"
 
 import type { ChatSession, UserProfile } from "@/types/kratos"
+import type { FitnessProfile, ProfileForm } from "@/types/kratos"
+import { profileFormFromUser } from "@/lib/kratos"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +35,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Field, FieldGroup } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Sidebar as ShadSidebar,
   SidebarContent,
@@ -43,8 +61,9 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { UserAvatar } from "@/components/kratos/UserAvatar"
+import { Avatar, AvatarFallback, AvatarBadge, AvatarImage } from "@/components/ui/avatar"
 
 type SidebarProps = {
   activeNav: string
@@ -54,21 +73,23 @@ type SidebarProps = {
   currentUser: UserProfile | null
   drawerOpen: boolean
   menuOpen: boolean
+  profile: FitnessProfile | null
+  profileError: string | null
+  profileSubmitting: boolean
   onCreateConversation: () => void
   onDeleteConversation: (sessionId: string) => void
-  onEditProfile: () => void
   onExportConversation: (sessionId: string) => void
   onRenameConversation: (sessionId: string, title: string) => void
   onLogin: () => void
   onLogout: () => void
   onNavSelect: (label: string) => void
-  onOpenProfile: () => void
+  onProfileSubmit: (form: ProfileForm) => void
   onSelectConversation: (sessionId: string) => void
   onRefreshProfile: () => void
   onRegister: () => void
   onTogglePinConversation: (sessionId: string) => void
   onToggleCollapse: () => void
-  onToggleMenu: () => void
+  onToggleMenu: (open: boolean) => void
 }
 
 const primaryNavItems = [
@@ -85,15 +106,17 @@ export function Sidebar({
   currentUser,
   drawerOpen,
   menuOpen,
+  profile,
+  profileError,
+  profileSubmitting,
   onCreateConversation,
   onDeleteConversation,
-  onEditProfile,
   onExportConversation,
   onRenameConversation,
   onLogin,
   onLogout,
   onNavSelect,
-  onOpenProfile,
+  onProfileSubmit,
   onSelectConversation,
   onRefreshProfile,
   onRegister,
@@ -107,7 +130,7 @@ export function Sidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" tooltip="Kratos">
-              <div className="hidden aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground group-data-[collapsible=icon]:flex transition-all duration-300">
+              <div className="hidden aspect-square font-black size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground group-data-[collapsible=icon]:flex transition-all duration-300">
                 K
               </div>
               <div className="grid flex-1 text-left text-lg leading-tight">
@@ -138,7 +161,7 @@ export function Sidebar({
                     type="button"
                   >
                     <item.icon />
-                    <span>{item.label}</span>
+                    {item.label}
                   </SidebarMenuButton>
                   {item.external ? (
                     <SidebarMenuAction aria-label="打开评估平台" type="button">
@@ -190,13 +213,15 @@ export function Sidebar({
         <PersonalInfoModule
           authLoading={authLoading}
           menuOpen={menuOpen}
-          onEditProfile={onEditProfile}
           onLogin={onLogin}
           onLogout={onLogout}
-          onOpenProfile={onOpenProfile}
+          onProfileSubmit={onProfileSubmit}
           onRefreshProfile={onRefreshProfile}
           onRegister={onRegister}
           onToggleMenu={onToggleMenu}
+          profile={profile}
+          profileError={profileError}
+          profileSubmitting={profileSubmitting}
           user={currentUser}
         />
       </SidebarFooter>
@@ -328,25 +353,65 @@ function ConversationRow({
 function PersonalInfoModule({
   authLoading,
   menuOpen,
-  onEditProfile,
   onLogin,
   onLogout,
-  onOpenProfile,
+  onProfileSubmit,
   onRegister,
   onToggleMenu,
+  profile,
+  profileError,
+  profileSubmitting,
   user,
 }: {
   authLoading: boolean
   menuOpen: boolean
-  onEditProfile: () => void
   onLogin: () => void
   onLogout: () => void
-  onOpenProfile: () => void
+  onProfileSubmit: (form: ProfileForm) => void
   onRefreshProfile: () => void
   onRegister: () => void
-  onToggleMenu: () => void
+  onToggleMenu: (open: boolean) => void
+  profile: FitnessProfile | null
+  profileError: string | null
+  profileSubmitting: boolean
   user: UserProfile | null
 }) {
+  const [activeDialog, setActiveDialog] = useState<
+    "personal" | "training" | null
+  >(null)
+  const [form, setForm] = useState<ProfileForm>(() =>
+    profileFormFromUser(profile)
+  )
+  const wasSubmitting = useRef(false)
+
+  useEffect(() => {
+    if (wasSubmitting.current && !profileSubmitting && !profileError) {
+      wasSubmitting.current = profileSubmitting
+      const closeTimer = window.setTimeout(() => {
+        setActiveDialog(null)
+      }, 0)
+
+      return () => window.clearTimeout(closeTimer)
+    }
+
+    wasSubmitting.current = profileSubmitting
+  }, [profileError, profileSubmitting])
+
+  const openProfileDialog = (dialog: "personal" | "training") => {
+    setForm(profileFormFromUser(profile))
+    setActiveDialog(dialog)
+    onToggleMenu(false)
+  }
+
+  const closeProfileDialog = () => {
+    setActiveDialog(null)
+  }
+
+  const submitProfile = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    onProfileSubmit(form)
+  }
+
   if (authLoading) {
     return (
       <SidebarMenu>
@@ -364,10 +429,10 @@ function PersonalInfoModule({
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton onClick={onLogin} size="lg" tooltip="未登录用户">
-            <User />
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">未登录用户</span>
+          <SidebarMenuButton onClick={onLogin} size="lg" tooltip="未登录" type="button">
+            <LogIn />
+            <div className="ml-1 grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-medium">未登录</span>
               <span className="truncate text-xs">登录同步训练档案</span>
             </div>
           </SidebarMenuButton>
@@ -376,16 +441,9 @@ function PersonalInfoModule({
             onClick={onRegister}
             type="button"
           >
-            <UserPlus />
           </SidebarMenuAction>
         </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton onClick={onLogin} tooltip="登录" type="button">
-            <LogIn />
-            <span>登录</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
+      </SidebarMenu >
     )
   }
 
@@ -395,17 +453,19 @@ function PersonalInfoModule({
         <DropdownMenu
           open={menuOpen}
           onOpenChange={(open) => {
-            if (open !== menuOpen) {
-              onToggleMenu()
-            }
+            onToggleMenu(open)
           }}
         >
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton size="lg" tooltip={user.username} type="button">
-              <UserAvatar />
+              <Avatar>
+                <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
+                <AvatarFallback>{getUserInitials(user.username)}</AvatarFallback>
+                <AvatarBadge className="bg-green-600 dark:bg-green-800" />
+              </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.username}</span>
-                <span className="truncate text-xs">个人资料</span>
+                <span className="truncate text-xs">个人用户</span>
               </div>
               <ChevronDown
                 className={cn("ml-auto", menuOpen && "rotate-180")}
@@ -413,13 +473,24 @@ function PersonalInfoModule({
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="right">
-            <DropdownMenuItem onClick={onOpenProfile}>
-              <User />
-              查看个人资料
+            <DropdownMenuItem>
+              <Avatar>
+                <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
+                <AvatarFallback>{getUserInitials(user.username)}</AvatarFallback>
+                <AvatarBadge className="bg-green-600 dark:bg-green-800" />
+              </Avatar>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">{user.username}</span>
+              </div>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onEditProfile}>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => openProfileDialog("personal")}>
+              <User />
+              个人信息
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openProfileDialog("training")}>
               <Edit3 />
-              编辑个人资料
+              训练数据
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>
@@ -428,26 +499,315 @@ function PersonalInfoModule({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Dialog
+          open={activeDialog === "personal"}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeProfileDialog()
+            }
+          }}
+        >
+          <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>个人信息</DialogTitle>
+              <DialogDescription>您的基础信息、健康和饮食偏好。</DialogDescription>
+            </DialogHeader>
+
+            <form id="sidebar-personal-form" onSubmit={submitProfile}>
+              <FieldGroup>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <ProfileInput
+                    label="性别"
+                    onChange={(value) =>
+                      setForm((current) => ({ ...current, gender: value }))
+                    }
+                    placeholder="男/女"
+                    value={form.gender}
+                  />
+                  <ProfileInput
+                    label="年龄"
+                    max={120}
+                    min={0}
+                    onChange={(value) =>
+                      setForm((current) => ({ ...current, age: value }))
+                    }
+                    placeholder=""
+                    type="number"
+                    value={form.age}
+                  />
+                  <ProfileInput
+                    label="地区"
+                    onChange={(value) =>
+                      setForm((current) => ({ ...current, location: value }))
+                    }
+                    placeholder=""
+                    value={form.location}
+                  />
+                </div>
+                <ProfileTextarea
+                  label="医疗情况"
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      medicalConditions: value,
+                    }))
+                  }
+                  placeholder="例如 无 / 高血压 / 哮喘"
+                  value={form.medicalConditions}
+                />
+                <ProfileTextarea
+                  label="饮食习惯"
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      dietaryHabits: value,
+                    }))
+                  }
+                  placeholder="例如 高蛋白、少糖、乳糖不耐受"
+                  value={form.dietaryHabits}
+                />
+                <ProfileTextarea
+                  label="饮食限制"
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      dietaryRestrictions: value,
+                    }))
+                  }
+                  placeholder="例如 乳糖不耐受、海鲜过敏、不吃牛肉"
+                  value={form.dietaryRestrictions}
+                />
+                {profileError ? (
+                  <DialogDescription role="alert">
+                    {profileError}
+                  </DialogDescription>
+                ) : null}
+              </FieldGroup>
+            </form>
+
+            <ProfileDialogFooter
+              formId="sidebar-personal-form"
+              loading={profileSubmitting}
+              onCancel={closeProfileDialog}
+            />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={activeDialog === "training"}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeProfileDialog()
+            }
+          }}
+        >
+          <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>训练数据</DialogTitle>
+              <DialogDescription>您的训练目标、经验、器械和限制条件。</DialogDescription>
+            </DialogHeader>
+
+            <form id="sidebar-training-form" onSubmit={submitProfile}>
+              <FieldGroup>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <ProfileInput
+                    label="活动水平"
+                    onChange={(value) =>
+                      setForm((current) => ({
+                        ...current,
+                        activityLevel: value,
+                      }))
+                    }
+                    placeholder="例如 久坐 / 中等 / 高"
+                    value={form.activityLevel}
+                  />
+                  <ProfileInput
+                    label="训练经验"
+                    onChange={(value) =>
+                      setForm((current) => ({
+                        ...current,
+                        experienceLevel: value,
+                      }))
+                    }
+                    placeholder="例如 新手 / 中级"
+                    value={form.experienceLevel}
+                  />
+                  <ProfileInput
+                    label="每周可练天数"
+                    max={7}
+                    min={0}
+                    onChange={(value) =>
+                      setForm((current) => ({
+                        ...current,
+                        availableDaysPerWeek: value,
+                      }))
+                    }
+                    placeholder="例如 4"
+                    type="number"
+                    value={form.availableDaysPerWeek}
+                  />
+                  <ProfileInput
+                    label="单次训练时长 (分钟)"
+                    min={0}
+                    onChange={(value) =>
+                      setForm((current) => ({
+                        ...current,
+                        workoutMinutesPerSession: value,
+                      }))
+                    }
+                    placeholder="例如 45"
+                    type="number"
+                    value={form.workoutMinutesPerSession}
+                  />
+                  <ProfileInput
+                    label="可用器械"
+                    onChange={(value) =>
+                      setForm((current) => ({
+                        ...current,
+                        equipmentAccess: value,
+                      }))
+                    }
+                    placeholder="例如 健身房、哑铃、弹力带"
+                    value={form.equipmentAccess}
+                  />
+                  <ProfileInput
+                    label="偏好训练"
+                    onChange={(value) =>
+                      setForm((current) => ({
+                        ...current,
+                        preferredWorkoutTypes: value,
+                      }))
+                    }
+                    placeholder="例如 力量训练、跑步、瑜伽"
+                    value={form.preferredWorkoutTypes}
+                  />
+                </div>
+                <ProfileInput
+                  label="健身目标"
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      fitnessGoal: value,
+                    }))
+                  }
+                  placeholder="例如 减脂 / 增肌 / 塑形"
+                  value={form.fitnessGoal}
+                />
+                <ProfileTextarea
+                  label="当前训练状态"
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      fitnessSummary: value,
+                    }))
+                  }
+                  placeholder="例如 近期恢复一般，想先提升基础力量"
+                  value={form.fitnessSummary}
+                />
+                <ProfileTextarea
+                  label="伤病史"
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      injuryHistory: value,
+                    }))
+                  }
+                  placeholder="例如 右膝偶尔不适，避免跳跃"
+                  value={form.injuryHistory}
+                />
+                {profileError ? (
+                  <DialogDescription role="alert">
+                    {profileError}
+                  </DialogDescription>
+                ) : null}
+              </FieldGroup>
+            </form>
+
+            <ProfileDialogFooter
+              formId="sidebar-training-form"
+              loading={profileSubmitting}
+              onCancel={closeProfileDialog}
+            />
+          </DialogContent>
+        </Dialog>
       </SidebarMenuItem>
     </SidebarMenu>
   )
 }
 
-function formatStoredTime(time: string | number | Date) {
-  const date = new Date(time)
-  const now = new Date()
+function ProfileDialogFooter({
+  formId,
+  loading,
+  onCancel,
+}: {
+  formId: string
+  loading: boolean
+  onCancel: () => void
+}) {
+  return (
+    <DialogFooter>
+      <Button onClick={onCancel} type="button" variant="outline">
+        取消
+      </Button>
+      <Button disabled={loading} form={formId} type="submit">
+        {loading ? <LoaderCircle className="animate-spin" /> : null}
+        保存更新
+      </Button>
+    </DialogFooter>
+  )
+}
 
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const yesterdayStart = new Date(todayStart)
-  yesterdayStart.setDate(todayStart.getDate() - 1)
+function ProfileInput({
+  label,
+  onChange,
+  value,
+  ...props
+}: Omit<ComponentProps<typeof Input>, "onChange" | "value"> & {
+  label: string
+  onChange: (value: string) => void
+  value: string
+}) {
+  const id = `profile-${label}`
 
-  if (date >= todayStart) {
-    return "今天"
-  }
+  return (
+    <Field>
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        onChange={(event) => onChange(event.target.value)}
+        value={value}
+        {...props}
+      />
+    </Field>
+  )
+}
 
-  if (date >= yesterdayStart) {
-    return "昨天"
-  }
+function ProfileTextarea({
+  label,
+  onChange,
+  value,
+  ...props
+}: Omit<ComponentProps<typeof Textarea>, "onChange" | "value"> & {
+  label: string
+  onChange: (value: string) => void
+  value: string
+}) {
+  const id = `profile-${label}`
 
-  return `${date.getMonth() + 1} 月 ${date.getDate()} 日`
+  return (
+    <Field>
+      <Label htmlFor={id}>{label}</Label>
+      <Textarea
+        id={id}
+        onChange={(event) => onChange(event.target.value)}
+        value={value}
+        {...props}
+      />
+    </Field>
+  )
+}
+
+function getUserInitials(username: string) {
+  return username.trim().slice(0, 2).toUpperCase() || "KR"
 }

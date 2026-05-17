@@ -16,8 +16,19 @@ import type {
   UserProfile,
 } from "@/types/kratos"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import { profileFormFromUser } from "@/lib/kratos"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Field, FieldGroup } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export function AuthModal({
   error,
@@ -40,7 +51,7 @@ export function AuthModal({
     username: "",
     password: "",
   })
-  const [agreed, setAgreed] = useState(false);
+  const [agreed, setAgreed] = useState(false)
 
   if (!open) {
     return null
@@ -53,121 +64,99 @@ export function AuthModal({
 
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4 backdrop-blur-[2px]">
-      <form
-        className="w-full max-w-[420px] rounded-[20px] border border-white/80 bg-white p-5 shadow-[0_22px_70px_rgba(0,0,0,0.25)]"
-        onSubmit={submit}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-[20px] font-black tracking-[-0.04em]">
-              {mode === "login" ? "登录 Kratos" : "创建 Kratos 账号"}
-            </h2>
-            <p className=" text-[12px] leading-5 text-[#777777]">
-              让健身更智能，让训练更高效
-            </p>
-          </div>
-          <button
-            className="grid size-8 place-items-center rounded-full hover:bg-[#f4f4f4] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
-            onClick={onClose}
-            type="button"
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          onClose()
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-sm pt-5">
+        <DialogHeader>
+          <DialogTitle className="font-semibold">
+            {mode === "login" ? "登录 Kratos" : "创建 Kratos 账号"}
+          </DialogTitle>
+          <DialogDescription>让健身更智能，让训练更高效</DialogDescription>
+        </DialogHeader>
+        <form id="auth-form" onSubmit={submit}>
+          <FieldGroup>
+            <Field>
+              <Label htmlFor="username">用户名</Label>
+              <Input
+                id="username"
+                name="username"
+                minLength={3}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    username: event.target.value,
+                  }))
+                }
+                placeholder="至少 3 个字符"
+                required
+                value={form.username}
+              />
+            </Field>
+            <Field>
+              <Label htmlFor="password">密码</Label>
+              <Input
+                id="password"
+                name="password"
+                minLength={6}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    password: event.target.value,
+                  }))
+                }
+                placeholder="至少 6 个字符"
+                required
+                type="password"
+                value={form.password}
+              />
+            </Field>
+            <Field orientation="horizontal" className="text-sm text-muted-foreground">
+              <Checkbox
+                checked={agreed}
+                id="terms-checkbox-2"
+                name="terms-checkbox-2"
+                onCheckedChange={(checked) => setAgreed(checked === true)}
+              />
+              我已阅读并同意《用户协议》和《隐私政策》
+            </Field>
+            {error ? (
+              <Field>
+                <DialogDescription role="alert">{error}</DialogDescription>
+              </Field>
+            ) : null}
+          </FieldGroup>
+        </form>
+        <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0 ">
+          <Button
+            disabled={loading || !agreed}
+            form="auth-form"
+            type="submit"
           >
-            <X className="size-4" />
-          </button>
-        </div>
-
-        <div className="mt-5 grid grid-cols-2 rounded-[10px] bg-[#f3f3f2] p-1">
-          <button
-            className={cn(
-              "h-9 rounded-[8px] text-[13px] font-bold focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
-              mode === "login" && "bg-white shadow-sm"
-            )}
-            onClick={() => onModeChange("login")}
-            type="button"
-          >
-            登录
-          </button>
-          <button
-            className={cn(
-              "h-9 rounded-[8px] text-[13px] font-bold focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
-              mode === "register" && "bg-white shadow-sm"
-            )}
-            onClick={() => onModeChange("register")}
-            type="button"
-          >
-            注册
-          </button>
-        </div>
-
-        <div className="mt-2 flex flex-col gap-3">
-          <FormInput
-            label="用户名"
-            minLength={3}
-            onChange={(value) =>
-              setForm((current) => ({ ...current, username: value }))
+            {loading
+              ? "加载中..."
+              : mode === "login"
+                ? "登录"
+                : "注册并登录"}
+          </Button>
+          <Button
+            onClick={() =>
+              onModeChange(mode === "login" ? "register" : "login")
             }
-            placeholder="至少 3 个字符"
-            required
-            value={form.username}
-          />
-          <FormInput
-            label="密码"
-            minLength={6}
-            onChange={(value) =>
-              setForm((current) => ({ ...current, password: value }))
-            }
-            placeholder="至少 6 个字符"
-            required
-            type="password"
-            value={form.password}
-          />
+            type="button"
+            variant="outline"
+          >
+            {mode === "login" ? "注册" : "登录"}
+          </Button>
 
-          <label className="flex items-start gap-2 rounded-[10px] px-1 py-1 text-[12px] leading-5 text-[#666666]">
-            <input
-              checked={agreed}
-              className="mt-0.5 size-4 rounded border border-[#d8d8d8] accent-black"
-              onChange={(e) => setAgreed(e.target.checked)}
-              type="checkbox"
-            />
-            <span>
-              我已阅读并同意《
-              <button
-                className="text-[#111111] underline underline-offset-2"
-                type="button"
-              >
-                用户协议
-              </button>
-              》和《
-              <button
-                className="text-[#111111] underline underline-offset-2"
-                type="button"
-              >
-                隐私政策
-              </button>
-              》
-            </span>
-          </label>
-
-          {/* {mode === "register" ? (
-            <p className="rounded-[10px] bg-[#f6f6f5] px-3 py-2 text-[12px] leading-5 text-[#666666]">
-              注册只创建账号；登录后会进入 2 分钟建档，把个人信息和身体数据分别写入正确的数据表。
-            </p>
-          ) : null} */}
-        </div>
-
-        {error ? <ErrorMessage message={error} /> : null}
-
-        <Button
-          className="mt-4 h-11 w-full rounded-[10px] bg-[#111111] text-[14px] font-bold text-white hover:bg-[#111111]/90 disabled:opacity-50
-disabled:cursor-not-allowed"
-          disabled={loading || !agreed}
-          type="submit"
-        >
-          {loading ? <LoaderCircle className="size-4 animate-spin" /> : null}
-          {mode === "login" ? "登录" : "注册并登录"}
-        </Button>
-      </form>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog >
   )
 }
 

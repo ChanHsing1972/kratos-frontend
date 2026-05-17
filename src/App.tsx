@@ -31,7 +31,6 @@ import {
 } from "@/lib/api"
 import {
   buildPlanPanel,
-  buildProfilePanel,
   chatMessagesFromAgentRuns,
   chatSessionsFromAgentRuns,
   compactOptionalText,
@@ -48,7 +47,6 @@ import {
   BodyMetricModal,
   DetailModal,
   OnboardingModal,
-  ProfileEditModal,
   TrainingFeedbackModal,
   TrainingPlanModal,
   Toast,
@@ -115,7 +113,6 @@ export function App() {
   const [authError, setAuthError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
-  const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [profileSubmitting, setProfileSubmitting] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
@@ -272,7 +269,7 @@ export function App() {
         Math.max(
           0,
           trainingSession.accumulatedSeconds +
-            Math.floor((Date.now() - trainingSession.startedAt) / 1000)
+          Math.floor((Date.now() - trainingSession.startedAt) / 1000)
         )
       )
     }
@@ -341,7 +338,6 @@ export function App() {
     setAgentSessionId(null)
     setChatSessions([])
     setProfileMenuOpen(false)
-    setProfileModalOpen(false)
     setOnboardingOpen(false)
     setBodyMetricModalOpen(false)
     setToast("已退出登录")
@@ -365,17 +361,6 @@ export function App() {
       setCurrentUser(null)
       setToast(getErrorMessage(error))
     }
-  }
-
-  const openProfileEditor = () => {
-    if (!currentUser) {
-      openAuth("login")
-      return
-    }
-
-    setProfileError(null)
-    setProfileMenuOpen(false)
-    setProfileModalOpen(true)
   }
 
   const openBodyMetricEditor = () => {
@@ -447,7 +432,6 @@ export function App() {
       })
       setFitnessProfile(updatedProfile)
       await refreshDashboard(token, { preserveMessages: true })
-      setProfileModalOpen(false)
       setToast("个人资料已更新")
     } catch (error) {
       setProfileError(getErrorMessage(error))
@@ -501,6 +485,7 @@ export function App() {
         )
       )
       setToast("对话已切换")
+
     } catch (error) {
       setToast(getErrorMessage(error))
     } finally {
@@ -940,7 +925,7 @@ export function App() {
       if (!options.preserveMessages) {
         const currentSessionId =
           agentSessionId &&
-          restoredSessions.some((session) => session.id === agentSessionId)
+            restoredSessions.some((session) => session.id === agentSessionId)
             ? agentSessionId
             : (restoredSessions[0]?.id ?? null)
         const sessionRuns = currentSessionId
@@ -949,9 +934,9 @@ export function App() {
         setMessages(
           sessionRuns.length
             ? markGeneratedTrainingPlanMessages(
-                chatMessagesFromAgentRuns(sessionRuns),
-                generatedTrainingPlanKeys
-              )
+              chatMessagesFromAgentRuns(sessionRuns),
+              generatedTrainingPlanKeys
+            )
             : initialMessages
         )
         setAgentSessionId(currentSessionId)
@@ -1138,8 +1123,8 @@ export function App() {
                   trainingPlanPayloadFromAgentResult(event.raw)
                 const generatedAlready = suggestedTrainingPlan
                   ? generatedTrainingPlanKeys.has(
-                      trainingPlanDraftKey(suggestedTrainingPlan)
-                    )
+                    trainingPlanDraftKey(suggestedTrainingPlan)
+                  )
                   : false
                 return {
                   ...message,
@@ -1175,18 +1160,18 @@ export function App() {
         current.map((item) =>
           item.id === assistantMessageId
             ? {
-                ...item,
-                body: item.body || "抱歉，Agent 连接失败了。",
-                error: message,
-                streaming: false,
-                trace: [
-                  ...(item.trace ?? []),
-                  {
-                    type: "error",
-                    content: message,
-                  },
-                ],
-              }
+              ...item,
+              body: item.body || "抱歉，Agent 连接失败了。",
+              error: message,
+              streaming: false,
+              trace: [
+                ...(item.trace ?? []),
+                {
+                  type: "error",
+                  content: message,
+                },
+              ],
+            }
             : item
         )
       )
@@ -1204,17 +1189,17 @@ export function App() {
       current.map((message) =>
         message.streaming
           ? {
-              ...message,
-              completedAt: Date.now(),
-              streaming: false,
-              trace: [
-                ...(message.trace ?? []),
-                {
-                  type: "status",
-                  content: "用户已中断本次回复",
-                },
-              ],
-            }
+            ...message,
+            completedAt: Date.now(),
+            streaming: false,
+            trace: [
+              ...(message.trace ?? []),
+              {
+                type: "status",
+                content: "用户已中断本次回复",
+              },
+            ],
+          }
           : message
       )
     )
@@ -1350,10 +1335,10 @@ export function App() {
     const elapsedSeconds = trainingSession.isPaused
       ? Math.max(1, trainingSession.accumulatedSeconds)
       : Math.max(
-          1,
-          trainingSession.accumulatedSeconds +
-            Math.floor((Date.now() - trainingSession.startedAt) / 1000)
-        )
+        1,
+        trainingSession.accumulatedSeconds +
+        Math.floor((Date.now() - trainingSession.startedAt) / 1000)
+      )
     const completedActionTitles = actionTitles.filter((_, index) =>
       completedExercises.includes(actionIds[index])
     )
@@ -1545,9 +1530,9 @@ export function App() {
         current.map((message) =>
           message.id === messageId
             ? {
-                ...message,
-                trainingPlanCreatedId: message.trainingPlanCreatedId ?? -1,
-              }
+              ...message,
+              trainingPlanCreatedId: message.trainingPlanCreatedId ?? -1,
+            }
             : message
         )
       )
@@ -1864,31 +1849,23 @@ export function App() {
           currentUser={currentUser}
           drawerOpen={sidebarDrawerOpen}
           menuOpen={profileMenuOpen}
+          profile={fitnessProfile}
+          profileError={profileError}
+          profileSubmitting={profileSubmitting}
           onCreateConversation={handleCreateConversation}
           onDeleteConversation={handleDeleteConversation}
-          onEditProfile={openProfileEditor}
           onExportConversation={handleExportConversation}
           onRenameConversation={handleRenameConversation}
           onLogin={() => openAuth("login")}
           onLogout={handleLogout}
           onNavSelect={handleNavSelect}
-          onOpenProfile={() =>
-            setDetailPanel(
-              buildProfilePanel(
-                currentUser,
-                fitnessProfile,
-                latestMetric,
-                onboardingStatus,
-                completedExercises
-              )
-            )
-          }
+          onProfileSubmit={handleProfileSubmit}
           onSelectConversation={handleSelectConversation}
           onRefreshProfile={handleRefreshProfile}
           onRegister={() => openAuth("register")}
           onTogglePinConversation={handleTogglePinConversation}
           onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
-          onToggleMenu={() => setProfileMenuOpen((current) => !current)}
+          onToggleMenu={(open) => setProfileMenuOpen(open)}
         />
         {renderWorkspace()}
       </SidebarProvider>
@@ -1916,16 +1893,6 @@ export function App() {
         open={onboardingOpen && Boolean(currentUser)}
         profile={fitnessProfile}
         status={onboardingStatus}
-      />
-      <ProfileEditModal
-        error={profileError}
-        key={`${currentUser?.id ?? "guest"}-${profileModalOpen ? "open" : "closed"}`}
-        loading={profileSubmitting}
-        onClose={() => setProfileModalOpen(false)}
-        onSubmit={handleProfileSubmit}
-        open={profileModalOpen}
-        profile={fitnessProfile}
-        user={currentUser}
       />
       <BodyMetricModal
         error={bodyMetricError}
@@ -2008,9 +1975,9 @@ function buildConversationEvalExport({
       session_title: sessionTitle,
       user: user
         ? {
-            id: user.id,
-            username: user.username,
-          }
+          id: user.id,
+          username: user.username,
+        }
         : null,
     },
     items: orderedRuns.map((run, index) => {
@@ -2146,8 +2113,8 @@ function readGeneratedTrainingPlanKeys() {
     const parsed = JSON.parse(raw) as unknown
     return Array.isArray(parsed)
       ? new Set(
-          parsed.filter((item): item is string => typeof item === "string")
-        )
+        parsed.filter((item): item is string => typeof item === "string")
+      )
       : new Set<string>()
   } catch {
     return new Set<string>()
