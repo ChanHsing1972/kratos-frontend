@@ -831,7 +831,7 @@ function Composer({
   }, [value])
 
   return (
-    <InputGroup className="bg-background p-1">
+    <InputGroup className="bg-background p-1 max-h-60">
       {mode === "write" ? (
         <InputGroupTextarea
           ref={textareaRef}

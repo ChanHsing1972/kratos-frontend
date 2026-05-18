@@ -346,7 +346,7 @@ export function App() {
         authMode === "register" || !context?.onboarding.ready_for_agent
       )
       sonnerToast.success(
-        authMode === "register" ? "账号已创建，先完成 2 分钟建档" : "登录成功"
+        authMode === "register" ? "账号创建成功，请先完成建档" : `欢迎回来，${user.username}`
       )
     } catch (error) {
       setAuthError(getErrorMessage(error))
@@ -571,7 +571,7 @@ export function App() {
       setAgentSessionId(null)
       setActiveNav("new")
     }
-    sonnerToast.success("对话已从侧边栏移除")
+    sonnerToast.success("对话已删除")
   }
 
   const handleExportConversation = async (sessionId: string) => {
@@ -582,7 +582,7 @@ export function App() {
     }
 
     const session = chatSessions.find((item) => item.id === sessionId)
-    sonnerToast.info("正在导出对话 JSON")
+    sonnerToast.info("正在导出为 JSON 文件")
 
     try {
       const runs = await listAgentRuns(token, 200)
@@ -601,7 +601,7 @@ export function App() {
         payload,
         `${safeFilename(session?.title ?? "kratos-conversation")}-${sessionId}.json`
       )
-      sonnerToast.success("对话 JSON 已导出，可在评估平台一键导入")
+      sonnerToast.success("对话 JSON 已导出")
     } catch (error) {
       sonnerToast.error(getErrorMessage(error), { richColors: true })
     }
@@ -923,7 +923,7 @@ export function App() {
 
       await refreshDashboard(token, { preserveMessages: true })
       setBodyMetricModalOpen(false)
-      sonnerToast.success("身体数据已写入数据库")
+      sonnerToast.success("身体数据已更新")
     } catch (error) {
       setBodyMetricError(getErrorMessage(error))
     } finally {
@@ -1038,7 +1038,7 @@ export function App() {
 
       const context = await refreshDashboard(token, { preserveMessages: true })
       setOnboardingOpen(!context?.onboarding.ready_for_agent)
-      sonnerToast.success("建档完成，Kratos 现在更了解你了")
+      sonnerToast.success("建档完成，Kratos 现在更了解您了")
     } catch (error) {
       setOnboardingError(getErrorMessage(error))
     } finally {
@@ -1049,12 +1049,12 @@ export function App() {
   const handleSendMessage = async () => {
     const body = composerValue.trim()
     if (!body) {
-      sonnerToast.error("不可发送空白消息")
+      sonnerToast.warning("不可发送空白消息")
       return
     }
 
     if (agentStreaming) {
-      sonnerToast.error("Kratos 正在回复，请稍等")
+      sonnerToast.warning("Kratos 正在回复，请稍等")
       return
     }
 
@@ -1299,7 +1299,7 @@ export function App() {
     }
 
     if (trainingSession) {
-      sonnerToast.info("已有训练进行中，请先结束当前训练")
+      sonnerToast.warning("已有训练进行中，请先结束当前训练")
       return
     }
 
@@ -1334,7 +1334,7 @@ export function App() {
     })
     setTrainingElapsedSeconds(elapsedSeconds)
     setTrainingPaused(true)
-    sonnerToast.success("训练已暂停")
+    sonnerToast.info("训练已暂停")
   }
 
   const handleResumeTraining = () => {
@@ -1348,7 +1348,7 @@ export function App() {
       startedAt: Date.now(),
     })
     setTrainingPaused(false)
-    sonnerToast.success("训练已继续")
+    sonnerToast.info("训练已继续")
   }
 
   const handleCompleteTrainingDay = (
@@ -1520,7 +1520,7 @@ export function App() {
         setTrainingPlanDraft(null)
         setEditingTrainingPlanId(null)
         setActiveNav("训练计划")
-        sonnerToast.success("训练计划已更新，已完成训练仍显示历史快照")
+        sonnerToast.success("训练计划已更新")
         return
       }
 
