@@ -7,6 +7,7 @@ import {
 } from "react"
 
 import { Menu } from "lucide-react"
+import { toast as sonnerToast } from "sonner"
 
 import { initialMessages, initialNotifications } from "@/data/kratos"
 import {
@@ -49,7 +50,6 @@ import {
   OnboardingModal,
   TrainingFeedbackModal,
   TrainingPlanModal,
-  Toast,
 } from "@/components/kratos/Modals"
 import {
   BodyDataPage,
@@ -58,6 +58,7 @@ import {
 } from "@/components/kratos/DashboardPages"
 import { Sidebar } from "@/components/kratos/Sidebar"
 import { SidebarProvider } from "@/components/ui/sidebar"
+import { Toaster } from "@/components/ui/sonner"
 import { useTheme } from "@/components/theme-provider"
 import type {
   AgentCheckin,
@@ -85,7 +86,25 @@ import type {
 
 const CHAT_SESSION_META_KEY = "kratos-chat-session-meta"
 const GENERATED_TRAINING_PLAN_KEY = "kratos-generated-training-plan-keys"
+const AUTH_USER_CACHE_KEY = "kratos-auth-user"
 const AGENT_EVAL_FORMAT_VERSION = "agent-eval-json/v1"
+
+type DashboardSnapshot = {
+  context: FitnessContext
+  plans: TrainingPlan[]
+  runs: AgentRun[]
+}
+
+type InitialAuthSnapshot = DashboardSnapshot & {
+  user: UserProfile
+}
+
+let initialAuthSnapshot:
+  | {
+    promise: Promise<InitialAuthSnapshot>
+    token: string
+  }
+  | null = null
 
 type TrainingSession = {
   actionIds: string[]
@@ -108,10 +127,14 @@ export function App() {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [authMode, setAuthMode] = useState<AuthMode>("login")
   const [authModalOpen, setAuthModalOpen] = useState(false)
-  const [authLoading, setAuthLoading] = useState(true)
+  const [authLoading, setAuthLoading] = useState(
+    () => Boolean(localStorage.getItem(AUTH_TOKEN_KEY)) && !readCachedUser()
+  )
   const [authSubmitting, setAuthSubmitting] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() =>
+    readCachedUser()
+  )
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [profileSubmitting, setProfileSubmitting] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
@@ -176,7 +199,6 @@ export function App() {
     durationSeconds: number
     title: string
   } | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
   const activeStreamRef = useRef<AbortController | null>(null)
   const chatSessionMetaRef = useRef(chatSessionMeta)
 
@@ -217,41 +239,48 @@ export function App() {
   useEffect(() => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
+      clearCachedUser()
+      setCurrentUser(null)
       setAuthLoading(false)
       return
     }
 
-    getCurrentUser(token)
-      .then(async (user) => {
+    setAuthLoading(!readCachedUser())
+    setDashboardLoading(true)
+    let ignore = false
+
+    loadInitialAuthSnapshot(token)
+      .then(({ context, plans, runs, user }) => {
+        if (ignore) {
+          return
+        }
+        writeCachedUser(user)
         setCurrentUser(user)
-        const context = await refreshDashboard(token)
+        applyDashboardSnapshot(context, plans, runs)
         setOnboardingOpen(!context?.onboarding.ready_for_agent)
-        setToast(`欢迎回来，${user.username}`)
       })
       .catch(() => {
+        if (ignore) {
+          return
+        }
         localStorage.removeItem(AUTH_TOKEN_KEY)
+        clearCachedUser()
         setCurrentUser(null)
       })
       .finally(() => {
+        if (ignore) {
+          return
+        }
         setAuthLoading(false)
+        setDashboardLoading(false)
       })
+
+    return () => {
+      ignore = true
+    }
     // Only restore persisted auth state on first mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  useEffect(() => {
-    if (!toast) {
-      return undefined
-    }
-
-    const timer = window.setTimeout(() => {
-      setToast(null)
-    }, 2600)
-
-    return () => {
-      window.clearTimeout(timer)
-    }
-  }, [toast])
 
   useEffect(() => {
     if (!trainingSession) {
@@ -309,13 +338,14 @@ export function App() {
       const token = await loginUser(form.username, form.password)
       localStorage.setItem(AUTH_TOKEN_KEY, token.access_token)
       const user = await getCurrentUser(token.access_token)
+      writeCachedUser(user)
       setCurrentUser(user)
       const context = await refreshDashboard(token.access_token)
       setAuthModalOpen(false)
       setOnboardingOpen(
         authMode === "register" || !context?.onboarding.ready_for_agent
       )
-      setToast(
+      sonnerToast.success(
         authMode === "register" ? "账号已创建，先完成 2 分钟建档" : "登录成功"
       )
     } catch (error) {
@@ -327,6 +357,7 @@ export function App() {
 
   const handleLogout = () => {
     localStorage.removeItem(AUTH_TOKEN_KEY)
+    clearCachedUser()
     setCurrentUser(null)
     setFitnessContext(null)
     setTrainingPlans([])
@@ -340,7 +371,7 @@ export function App() {
     setProfileMenuOpen(false)
     setOnboardingOpen(false)
     setBodyMetricModalOpen(false)
-    setToast("已退出登录")
+    sonnerToast.info("已退出登录")
   }
 
   const handleRefreshProfile = async () => {
@@ -352,14 +383,16 @@ export function App() {
 
     try {
       const user = await getCurrentUser(token)
+      writeCachedUser(user)
       setCurrentUser(user)
       const context = await refreshDashboard(token)
       setOnboardingOpen(!context?.onboarding.ready_for_agent)
-      setToast("个人资料已刷新")
+      sonnerToast.success("个人资料已刷新")
     } catch (error) {
       localStorage.removeItem(AUTH_TOKEN_KEY)
+      clearCachedUser()
       setCurrentUser(null)
-      setToast(getErrorMessage(error))
+      sonnerToast.error(getErrorMessage(error), { richColors: true })
     }
   }
 
@@ -432,7 +465,7 @@ export function App() {
       })
       setFitnessProfile(updatedProfile)
       await refreshDashboard(token, { preserveMessages: true })
-      setToast("个人资料已更新")
+      sonnerToast.success("个人资料已更新")
     } catch (error) {
       setProfileError(getErrorMessage(error))
     } finally {
@@ -459,7 +492,7 @@ export function App() {
     setActiveNav("new")
     setConversationLoading(false)
     setSidebarDrawerOpen(false)
-    setToast("已新建对话")
+    sonnerToast.success("已新建对话")
   }
 
   const handleSelectConversation = async (sessionId: string) => {
@@ -484,10 +517,10 @@ export function App() {
           generatedTrainingPlanKeys
         )
       )
-      setToast("对话已切换")
+      sonnerToast.success("对话已切换")
 
     } catch (error) {
-      setToast(getErrorMessage(error))
+      sonnerToast.error(getErrorMessage(error), { richColors: true })
     } finally {
       setConversationLoading(false)
     }
@@ -524,7 +557,7 @@ export function App() {
 
   const handleRenameConversation = (sessionId: string, title: string) => {
     updateSessionMeta(sessionId, { title })
-    setToast("对话已重命名")
+    sonnerToast.success("对话已重命名")
   }
 
   const handleTogglePinConversation = (sessionId: string) => {
@@ -538,7 +571,7 @@ export function App() {
       setAgentSessionId(null)
       setActiveNav("new")
     }
-    setToast("对话已从侧边栏移除")
+    sonnerToast.success("对话已从侧边栏移除")
   }
 
   const handleExportConversation = async (sessionId: string) => {
@@ -549,13 +582,13 @@ export function App() {
     }
 
     const session = chatSessions.find((item) => item.id === sessionId)
-    setToast("正在导出对话 JSON")
+    sonnerToast.info("正在导出对话 JSON")
 
     try {
       const runs = await listAgentRuns(token, 200)
       const sessionRuns = runs.filter((run) => run.session_id === sessionId)
       if (!sessionRuns.length) {
-        setToast("这段对话暂无可导出的消息")
+        sonnerToast.info("这段对话暂无可导出的消息")
         return
       }
 
@@ -568,9 +601,9 @@ export function App() {
         payload,
         `${safeFilename(session?.title ?? "kratos-conversation")}-${sessionId}.json`
       )
-      setToast("对话 JSON 已导出，可在评估平台一键导入")
+      sonnerToast.success("对话 JSON 已导出，可在评估平台一键导入")
     } catch (error) {
-      setToast(getErrorMessage(error))
+      sonnerToast.error(getErrorMessage(error), { richColors: true })
     }
   }
 
@@ -890,7 +923,7 @@ export function App() {
 
       await refreshDashboard(token, { preserveMessages: true })
       setBodyMetricModalOpen(false)
-      setToast("身体数据已写入数据库")
+      sonnerToast.success("身体数据已写入数据库")
     } catch (error) {
       setBodyMetricError(getErrorMessage(error))
     } finally {
@@ -905,49 +938,53 @@ export function App() {
     setDashboardLoading(true)
 
     try {
-      const [context, plans, runs] = await Promise.all([
-        getFitnessContext(token),
-        listTrainingPlans(token),
-        listAgentRuns(token, 200),
-      ])
-
-      setFitnessContext(context)
-      setTrainingPlans(plans)
-      setFitnessProfile(context.profile)
-      setBodyMetrics(context.recent_body_metrics)
-      setWorkoutLogs(context.recent_workout_logs)
-      setAgentCheckins(context.recent_checkins)
-      const restoredSessions = chatSessionsFromAgentRuns(
-        runs,
-        chatSessionMetaRef.current
-      )
-      setChatSessions(restoredSessions)
-      if (!options.preserveMessages) {
-        const currentSessionId =
-          agentSessionId &&
-            restoredSessions.some((session) => session.id === agentSessionId)
-            ? agentSessionId
-            : (restoredSessions[0]?.id ?? null)
-        const sessionRuns = currentSessionId
-          ? runs.filter((run) => run.session_id === currentSessionId)
-          : []
-        setMessages(
-          sessionRuns.length
-            ? markGeneratedTrainingPlanMessages(
-              chatMessagesFromAgentRuns(sessionRuns),
-              generatedTrainingPlanKeys
-            )
-            : initialMessages
-        )
-        setAgentSessionId(currentSessionId)
-        setActiveNav(currentSessionId ?? "new")
-      }
+      const { context, plans, runs } = await loadDashboardSnapshot(token)
+      applyDashboardSnapshot(context, plans, runs, options)
       return context
     } catch (error) {
-      setToast(getErrorMessage(error))
+      sonnerToast.error(getErrorMessage(error), { richColors: true })
       return null
     } finally {
       setDashboardLoading(false)
+    }
+  }
+
+  function applyDashboardSnapshot(
+    context: FitnessContext,
+    plans: TrainingPlan[],
+    runs: AgentRun[],
+    options: { preserveMessages?: boolean } = {}
+  ) {
+    setFitnessContext(context)
+    setTrainingPlans(plans)
+    setFitnessProfile(context.profile)
+    setBodyMetrics(context.recent_body_metrics)
+    setWorkoutLogs(context.recent_workout_logs)
+    setAgentCheckins(context.recent_checkins)
+    const restoredSessions = chatSessionsFromAgentRuns(
+      runs,
+      chatSessionMetaRef.current
+    )
+    setChatSessions(restoredSessions)
+    if (!options.preserveMessages) {
+      const currentSessionId =
+        agentSessionId &&
+          restoredSessions.some((session) => session.id === agentSessionId)
+          ? agentSessionId
+          : (restoredSessions[0]?.id ?? null)
+      const sessionRuns = currentSessionId
+        ? runs.filter((run) => run.session_id === currentSessionId)
+        : []
+      setMessages(
+        sessionRuns.length
+          ? markGeneratedTrainingPlanMessages(
+            chatMessagesFromAgentRuns(sessionRuns),
+            generatedTrainingPlanKeys
+          )
+          : initialMessages
+      )
+      setAgentSessionId(currentSessionId)
+      setActiveNav(currentSessionId ?? "new")
     }
   }
 
@@ -1001,7 +1038,7 @@ export function App() {
 
       const context = await refreshDashboard(token, { preserveMessages: true })
       setOnboardingOpen(!context?.onboarding.ready_for_agent)
-      setToast("建档完成，Kratos 现在更了解你了")
+      sonnerToast.success("建档完成，Kratos 现在更了解你了")
     } catch (error) {
       setOnboardingError(getErrorMessage(error))
     } finally {
@@ -1012,19 +1049,19 @@ export function App() {
   const handleSendMessage = async () => {
     const body = composerValue.trim()
     if (!body) {
-      setToast("不可发送空白消息")
+      sonnerToast.error("不可发送空白消息")
       return
     }
 
     if (agentStreaming) {
-      setToast("Kratos 正在回复，请稍等")
+      sonnerToast.error("Kratos 正在回复，请稍等")
       return
     }
 
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
-      setToast("登录后开始对话")
+      sonnerToast.info("登录后开始对话")
       return
     }
 
@@ -1155,7 +1192,7 @@ export function App() {
       }
 
       const message = getErrorMessage(error)
-      setToast(message)
+      sonnerToast.error(message)
       setMessages((current) =>
         current.map((item) =>
           item.id === assistantMessageId
@@ -1203,7 +1240,7 @@ export function App() {
           : message
       )
     )
-    setToast("已中断 Agent 回复")
+    sonnerToast.warning("已中断 Agent 回复")
   }
 
   const handleQuickAction = (action: QuickAction) => {
@@ -1211,7 +1248,7 @@ export function App() {
       setActiveNav("历史记录")
     }
     setComposerValue(action.prompt)
-    setToast(`${action.title}已填入输入框`)
+    sonnerToast.info(`${action.title}已填入输入框`)
   }
 
   const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1231,7 +1268,7 @@ export function App() {
   const handleAttachment = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      setToast(`已选择 ${file.name}`)
+      sonnerToast.success(`已选择 ${file.name}`)
     }
     event.target.value = ""
   }
@@ -1252,17 +1289,17 @@ export function App() {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
-      setToast("登录后可以保存训练记录")
+      sonnerToast.info("登录后可以保存训练记录")
       return
     }
 
     if (actions.length === 0) {
-      setToast("当前计划没有可记录的训练动作")
+      sonnerToast.info("当前计划没有可记录的训练动作")
       return
     }
 
     if (trainingSession) {
-      setToast("已有训练进行中，请先结束当前训练")
+      sonnerToast.info("已有训练进行中，请先结束当前训练")
       return
     }
 
@@ -1278,7 +1315,7 @@ export function App() {
     setTrainingElapsedSeconds(0)
     setTrainingPaused(false)
     setTrainingStarted(true)
-    setToast("训练计时已开始，逐个点击动作卡片标记完成")
+    sonnerToast.info("训练计时已开始，逐个点击动作卡片标记完成")
   }
 
   const handlePauseTraining = () => {
@@ -1297,7 +1334,7 @@ export function App() {
     })
     setTrainingElapsedSeconds(elapsedSeconds)
     setTrainingPaused(true)
-    setToast("训练已暂停")
+    sonnerToast.success("训练已暂停")
   }
 
   const handleResumeTraining = () => {
@@ -1311,7 +1348,7 @@ export function App() {
       startedAt: Date.now(),
     })
     setTrainingPaused(false)
-    setToast("训练已继续")
+    sonnerToast.success("训练已继续")
   }
 
   const handleCompleteTrainingDay = (
@@ -1323,12 +1360,12 @@ export function App() {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
-      setToast("登录后可以保存训练记录")
+      sonnerToast.info("登录后可以保存训练记录")
       return
     }
 
     if (!trainingSession || trainingSession.workoutDate !== workoutDate) {
-      setToast("请先开始当天训练")
+      sonnerToast.info("请先开始当天训练")
       return
     }
 
@@ -1397,7 +1434,7 @@ export function App() {
         setTrainingAdjustment(null)
         setTrainingFeedbackError(null)
         setTrainingFeedbackOpen(false)
-        setToast("每日训练记录已同步，未更新后续计划")
+        sonnerToast.success("每日训练记录已同步，未更新后续计划")
       } else {
         setLastCompletedWorkout({
           completed,
@@ -1408,10 +1445,10 @@ export function App() {
         setTrainingAdjustment(null)
         setTrainingFeedbackError(null)
         setTrainingFeedbackOpen(true)
-        setToast("训练完成记录已同步")
+        sonnerToast.success("训练完成记录已同步")
       }
     } catch (error) {
-      setToast(getErrorMessage(error))
+      sonnerToast.error(getErrorMessage(error))
     } finally {
       setDashboardLoading(false)
     }
@@ -1423,7 +1460,7 @@ export function App() {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
-      setToast("登录后可以保存训练计划")
+      sonnerToast.info("登录后可以保存训练计划")
       return
     }
 
@@ -1437,7 +1474,7 @@ export function App() {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
-      setToast("登录后可以修改训练计划")
+      sonnerToast.info("登录后可以修改训练计划")
       return
     }
 
@@ -1451,7 +1488,7 @@ export function App() {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
-      setToast("登录后可以保存训练计划")
+      sonnerToast.info("登录后可以保存训练计划")
       return
     }
 
@@ -1483,7 +1520,7 @@ export function App() {
         setTrainingPlanDraft(null)
         setEditingTrainingPlanId(null)
         setActiveNav("训练计划")
-        setToast("训练计划已更新，已完成训练仍显示历史快照")
+        sonnerToast.success("训练计划已更新，已完成训练仍显示历史快照")
         return
       }
 
@@ -1499,7 +1536,7 @@ export function App() {
       setTrainingPlanDraft(null)
       setEditingTrainingPlanId(null)
       setActiveNav("训练计划")
-      setToast("训练计划已保存")
+      sonnerToast.success("训练计划已保存")
     } catch (error) {
       setTrainingPlanError(getErrorMessage(error))
     } finally {
@@ -1514,13 +1551,13 @@ export function App() {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
-      setToast("登录后可以保存训练计划")
+      sonnerToast.info("登录后可以保存训练计划")
       return
     }
 
     if (!payload.title.trim() || !payload.weekly_schedule?.trim()) {
       openTrainingPlanComposer(payload)
-      setToast("计划草稿还需要补充后再保存")
+      sonnerToast.info("计划草稿还需要补充后再保存")
       return
     }
 
@@ -1536,7 +1573,7 @@ export function App() {
             : message
         )
       )
-      setToast("这份聊天计划已经生成过了")
+      sonnerToast.info("这份聊天计划已经生成过了")
       return
     }
 
@@ -1561,9 +1598,9 @@ export function App() {
       )
       await refreshDashboard(token, { preserveMessages: true })
       setActiveNav("训练计划")
-      setToast("已根据聊天内容生成训练计划")
+      sonnerToast.success("已根据聊天内容生成训练计划")
     } catch (error) {
-      setToast(getErrorMessage(error))
+      sonnerToast.error(getErrorMessage(error))
     } finally {
       setChatTrainingPlanSavingId(null)
     }
@@ -1573,7 +1610,7 @@ export function App() {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
-      setToast("登录后可以切换当前计划")
+      sonnerToast.info("登录后可以切换当前计划")
       return
     }
 
@@ -1617,9 +1654,9 @@ export function App() {
       setCompletedExercises([])
       setTrainingStarted(false)
       await refreshDashboard(token, { preserveMessages: true })
-      setToast(`已切换到：${updated.title}`)
+      sonnerToast.success(`已切换到：${updated.title}`)
     } catch (error) {
-      setToast(getErrorMessage(error))
+      sonnerToast.error(getErrorMessage(error))
     } finally {
       setDashboardLoading(false)
     }
@@ -1629,7 +1666,7 @@ export function App() {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
-      setToast("登录后可以删除训练计划")
+      sonnerToast.info("登录后可以删除训练计划")
       return
     }
 
@@ -1648,9 +1685,9 @@ export function App() {
         current.filter((item) => item.id !== plan.id)
       )
       await refreshDashboard(token, { preserveMessages: true })
-      setToast("训练计划已删除")
+      sonnerToast.success("训练计划已删除")
     } catch (error) {
-      setToast(getErrorMessage(error))
+      sonnerToast.error(getErrorMessage(error))
     } finally {
       setDashboardLoading(false)
     }
@@ -1721,7 +1758,7 @@ export function App() {
       setTrainingFeedback("")
       setTrainingAdjustment(null)
       setLastCompletedWorkout(null)
-      setToast("已根据反馈更新原训练计划")
+      sonnerToast.success("已根据反馈更新原训练计划")
     } catch (error) {
       setTrainingFeedbackError(getErrorMessage(error))
     } finally {
@@ -1736,7 +1773,7 @@ export function App() {
         read: true,
       }))
     )
-    setToast("通知已全部标记为已读")
+    sonnerToast.success("通知已全部标记为已读")
   }
 
   const renderWorkspace = () => {
@@ -1808,7 +1845,7 @@ export function App() {
         onToggleTheme={() => {
           const nextTheme = theme === "dark" ? "light" : "dark"
           setTheme(nextTheme)
-          setToast(`已切换到${nextTheme === "dark" ? "深色" : "浅色"}模式`)
+          sonnerToast.success(`已切换到${nextTheme === "dark" ? "深色" : "浅色"}模式`)
         }}
         onToggleThinking={() => setThinkingExpanded((current) => !current)}
         thinkingExpanded={thinkingExpanded}
@@ -1936,7 +1973,7 @@ export function App() {
         open={trainingFeedbackOpen}
       />
       <DetailModal panel={detailPanel} onClose={() => setDetailPanel(null)} />
-      <Toast message={toast} />
+      <Toaster position="bottom-right" />
     </div>
   )
 }
@@ -2101,6 +2138,83 @@ function readChatSessionMeta(): Record<string, Partial<ChatSession>> {
   } catch {
     return {}
   }
+}
+
+function readCachedUser(): UserProfile | null {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_CACHE_KEY)
+    if (!raw) {
+      return null
+    }
+
+    const parsed = JSON.parse(raw) as unknown
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      !("id" in parsed) ||
+      !("username" in parsed) ||
+      !("created_at" in parsed)
+    ) {
+      return null
+    }
+
+    const user = parsed as Partial<UserProfile>
+    return typeof user.id === "number" &&
+      typeof user.username === "string" &&
+      typeof user.created_at === "string"
+      ? {
+        created_at: user.created_at,
+        id: user.id,
+        username: user.username,
+      }
+      : null
+  } catch {
+    return null
+  }
+}
+
+function writeCachedUser(user: UserProfile) {
+  localStorage.setItem(AUTH_USER_CACHE_KEY, JSON.stringify(user))
+}
+
+function clearCachedUser() {
+  localStorage.removeItem(AUTH_USER_CACHE_KEY)
+  initialAuthSnapshot = null
+}
+
+async function loadDashboardSnapshot(token: string): Promise<DashboardSnapshot> {
+  const [context, plans, runs] = await Promise.all([
+    getFitnessContext(token),
+    listTrainingPlans(token),
+    listAgentRuns(token, 200),
+  ])
+
+  return {
+    context,
+    plans,
+    runs,
+  }
+}
+
+function loadInitialAuthSnapshot(token: string): Promise<InitialAuthSnapshot> {
+  if (initialAuthSnapshot?.token === token) {
+    return initialAuthSnapshot.promise
+  }
+
+  const promise = Promise.all([
+    getCurrentUser(token),
+    loadDashboardSnapshot(token),
+  ]).then(([user, snapshot]) => ({
+    ...snapshot,
+    user,
+  }))
+
+  initialAuthSnapshot = {
+    promise,
+    token,
+  }
+
+  return promise
 }
 
 function readGeneratedTrainingPlanKeys() {

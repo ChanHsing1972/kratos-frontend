@@ -1296,18 +1296,6 @@ export function DetailModal({
   )
 }
 
-export function Toast({ message }: { message: string | null }) {
-  if (!message) {
-    return null
-  }
-
-  return (
-    <div className="fixed right-5 bottom-5 z-[60] rounded-full border border-[#e2e2e2] bg-white px-4 py-3 text-[12px] font-semibold text-[#222222] shadow-[0_12px_35px_rgba(0,0,0,0.18)]">
-      {message}
-    </div>
-  )
-}
-
 function bodyMetricFormFromMetric(metric: BodyMetric | null): BodyMetricForm {
   return {
     bmi: metric?.bmi?.toString() ?? "",

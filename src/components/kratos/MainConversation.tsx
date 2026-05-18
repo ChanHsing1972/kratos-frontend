@@ -186,10 +186,6 @@ export function MainConversation({
                 }
                 onQuickAction={onQuickAction}
               />
-              <p className="mt-5 text-center text-[10px] text-[#9a9a9a]">
-                Kratos
-                提供的建议仅供健身参考，不构成医疗或诊断建议。如有严重不适，请及时就医。
-              </p>
             </div>
           </div>
         ) : (
@@ -237,7 +233,7 @@ export function MainConversation({
               {/* <div className="mt-3">
                 <QuickActions onQuickAction={onQuickAction} />
               </div> */}
-              <p className="mt-2 text-center text-[10px] text-[#9a9a9a]">
+              <p className="mt-2 text-center text-xs text-muted-foreground">
                 Kratos
                 提供的建议仅供健身参考，不构成医疗或诊断建议。如有严重不适，请及时就医。
               </p>
@@ -754,7 +750,7 @@ function EmptyConversation({
 }) {
   const starters: QuickAction[] = [
     {
-      description: "按你的档案生成今天可以直接执行的训练",
+      description: "按你的档案生成今日训练",
       icon: Sparkles,
       prompt: "请读取我的档案和最近状态，生成一份今天可执行的训练计划，包含热身、主训练、冷身和注意事项。",
       title: "生成今日训练",
@@ -776,25 +772,26 @@ function EmptyConversation({
   return (
     <section className="mx-auto flex w-full flex-col justify-center px-0">
       <div className="mb-6">
-        <h3 className="text-[32px] leading-tight font-black tracking-[-0.04em]">
+        <h3 className="text-4xl font-semibold tracking-tight text-foreground">
           你今天想完成什么？
         </h3>
-        <p className="mt-1 max-w-[560px] text-[13px] leading-6 text-[#6d6d6d]">
+        <p className="mt-1 max-w-[560px] text-sm leading-6 text-[#6d6d6d]">
           Kratos 会根据你的训练目标、身体状况和恢复情况，提供个性化的训练建议和计划。
         </p>
       </div>
       <div className="mb-8">{composer}</div>
+
       <div className="grid gap-3 sm:grid-cols-3">
         {starters.map((action) => (
           <button
-            className="min-h-[100px] rounded-[10px] border border-[#e8e8e8] bg-white p-4 text-left transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            className="min-h-[100px] rounded-xl border border-[#e8e8e8] bg-white p-4 text-left transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
             key={action.title}
             onClick={() => onQuickAction(action)}
             type="button"
           >
-            <action.icon className="size-4 text-[#111111]" strokeWidth={1.8} />
+            <action.icon className="size-4 text-[#111111]" strokeWidth={1.5} />
             <h4 className="mt-3 text-[13px] font-bold">{action.title}</h4>
-            <p className="mt-0.5 text-[11px] leading-4 text-[#777777]">
+            <p className="text-[13px] leading-4 text-[#777777]">
               {action.description}
             </p>
           </button>

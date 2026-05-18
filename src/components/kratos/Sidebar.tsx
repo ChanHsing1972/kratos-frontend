@@ -175,7 +175,7 @@ export function Sidebar({
         </SidebarGroup>
 
         <SidebarGroup className=" overflow-hidden transition-all duration-200 ease-out group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:max-h-0 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:translate-y-1 max-h-150 opacity-100 visible translate-y-0">
-          <SidebarGroupLabel>对话历史</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-muted-foreground">对话历史</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {chatSessions.length > 0 ? (
