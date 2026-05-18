@@ -18,6 +18,7 @@ import {
   LogOut,
   MessageCirclePlus,
   MoreHorizontal,
+  PanelLeft,
   Pin,
   PinOff,
   Trash2,
@@ -59,7 +60,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  useSidebar,
 } from "@/components/ui/sidebar"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -89,6 +89,7 @@ type SidebarProps = {
   onRegister: () => void
   onTogglePinConversation: (sessionId: string) => void
   onToggleCollapse: () => void
+  onDrawerOpenChange: (open: boolean) => void
   onToggleMenu: (open: boolean) => void
 }
 
@@ -121,28 +122,45 @@ export function Sidebar({
   onRefreshProfile,
   onRegister,
   onTogglePinConversation,
+  onToggleCollapse,
+  onDrawerOpenChange,
   onToggleMenu,
 }: SidebarProps) {
   return (
-    <ShadSidebar collapsible="icon">
-      <SidebarMobileStateBridge drawerOpen={drawerOpen} />
+    <ShadSidebar
+      collapsible="icon"
+      openMobile={drawerOpen}
+      onOpenMobileChange={onDrawerOpenChange}
+    >
       <SidebarHeader className="mt-1">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip="Kratos">
+            <SidebarMenuButton className="pr-2" size="lg" tooltip="Kratos">
               <div className="hidden aspect-square font-black size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground group-data-[collapsible=icon]:flex transition-all duration-300">
                 K
               </div>
-              <div className="grid flex-1 text-left text-lg leading-tight">
-                <span className="text-[24px] truncate font-black tracking-[-0.06em]">Kratos</span>
+              <div className="grid flex-1 text-left text-lg leading-tight opacity-100 transition-[opacity,transform] duration-200 ease-out group-data-[collapsible=icon]:opacity-0">
+                <span className="truncate text-[24px] font-black tracking-[-0.06em]">Kratos</span>
                 <span className="truncate text-xs text-muted-foreground">AI Fitness Coach</span>
               </div>
+              <SidebarMenuAction
+                aria-label="收起侧边栏"
+                className="cursor-w-resize"
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onToggleCollapse()
+                }}
+                type="button"
+              >
+                <PanelLeft />
+              </SidebarMenuAction>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="min-h-0 overflow-hidden">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -161,7 +179,9 @@ export function Sidebar({
                     type="button"
                   >
                     <item.icon />
-                    {item.label}
+                    <span className="truncate opacity-100 transition-[opacity,transform] duration-200 ease-out group-data-[collapsible=icon]:opacity-0">
+                      {item.label}
+                    </span>
                   </SidebarMenuButton>
                   {item.external ? (
                     <SidebarMenuAction aria-label="打开评估平台" type="button">
@@ -174,9 +194,9 @@ export function Sidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className=" overflow-hidden transition-all duration-200 ease-out group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:max-h-0 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:translate-y-1 max-h-150 opacity-100 visible translate-y-0">
-          <SidebarGroupLabel className="text-muted-foreground">对话历史</SidebarGroupLabel>
-          <SidebarGroupContent>
+        <SidebarGroup className="min-h-0 flex-1 overflow-hidden opacity-100 transition-[opacity,transform] duration-200 ease-out group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0">
+          <SidebarGroupLabel>对话历史</SidebarGroupLabel>
+          <SidebarGroupContent className="min-h-0 overflow-y-auto">
             <SidebarMenu>
               {chatSessions.length > 0 ? (
                 chatSessions.map((session) => (
@@ -228,16 +248,6 @@ export function Sidebar({
       <SidebarRail />
     </ShadSidebar>
   )
-}
-
-function SidebarMobileStateBridge({ drawerOpen }: { drawerOpen: boolean }) {
-  const { setOpenMobile } = useSidebar()
-
-  useEffect(() => {
-    setOpenMobile(drawerOpen)
-  }, [drawerOpen, setOpenMobile])
-
-  return null
 }
 
 function ConversationRow({

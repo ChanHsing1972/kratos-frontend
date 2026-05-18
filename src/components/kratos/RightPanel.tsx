@@ -161,8 +161,8 @@ function AgentReadinessCard({
           </h2>
           <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
             {ready
-              ? "每次回复前都会读取你的目标、身体数据和近期记录。"
-              : "先补齐关键字段，训练和饮食建议会更像真的为你定制。"}
+              ? "每次回复前都会读取您的目标、身体数据和近期记录。"
+              : "先补齐关键字段，训练和饮食建议会更像真的为您定制。"}
           </p>
         </div>
         <span

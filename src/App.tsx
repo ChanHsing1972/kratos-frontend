@@ -6,7 +6,7 @@ import {
   type KeyboardEvent,
 } from "react"
 
-import { Menu } from "lucide-react"
+import { PanelLeft } from "lucide-react"
 import { toast as sonnerToast } from "sonner"
 
 import { initialMessages, initialNotifications } from "@/data/kratos"
@@ -83,6 +83,7 @@ import type {
   UserProfile,
   WorkoutLog,
 } from "@/types/kratos"
+import { Button } from "./components/ui/button"
 
 const CHAT_SESSION_META_KEY = "kratos-chat-session-meta"
 const GENERATED_TRAINING_PLAN_KEY = "kratos-generated-training-plan-keys"
@@ -1862,22 +1863,14 @@ export function App() {
         open={!sidebarCollapsed}
         onOpenChange={(open) => setSidebarCollapsed(!open)}
       >
-        <button
+        <Button
           aria-label="打开侧边栏"
-          className="fixed top-4 left-4 z-40 grid size-10 place-items-center rounded-[10px] border border-border bg-card shadow-[0_8px_24px_rgba(0,0,0,0.10)] md:hidden"
+          className="fixed top-4 left-4 z-40 size-10 place-items-center  md:hidden"
           onClick={() => setSidebarDrawerOpen(true)}
-          type="button"
+          variant="ghost"
         >
-          <Menu className="size-5" />
-        </button>
-        {sidebarDrawerOpen ? (
-          <button
-            aria-label="关闭侧边栏"
-            className="fixed inset-0 z-40 bg-black/28 md:hidden"
-            onClick={() => setSidebarDrawerOpen(false)}
-            type="button"
-          />
-        ) : null}
+          <PanelLeft className="size-5" />
+        </Button>
         <Sidebar
           activeNav={activeNav}
           authLoading={authLoading}
@@ -1902,6 +1895,7 @@ export function App() {
           onRegister={() => openAuth("register")}
           onTogglePinConversation={handleTogglePinConversation}
           onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
+          onDrawerOpenChange={setSidebarDrawerOpen}
           onToggleMenu={(open) => setProfileMenuOpen(open)}
         />
         {renderWorkspace()}

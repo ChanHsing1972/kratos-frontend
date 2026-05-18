@@ -58,7 +58,7 @@ export function buildAssistantReply(prompt: string) {
     "",
     "- 优先控制训练风险。",
     "- 保持训练在 **20 分钟内**可完成。",
-    "- 根据你的身体反馈动态调整动作选择。",
+    "- 根据您的身体反馈动态调整动作选择。",
   ].join("\n")
 }
 
@@ -130,7 +130,7 @@ export function buildPlanPanel(plan: TrainingPlan | null): DetailPanel {
   if (!plan) {
     return {
       title: "完整训练计划",
-      body: "登录后 Kratos 会自动为你创建一份可同步的智能训练计划。",
+      body: "登录后 Kratos 会自动为您创建一份可同步的智能训练计划。",
     }
   }
 
@@ -248,10 +248,10 @@ export function getLatestByDate<T>(
 export function getPlanExerciseLines(plan: TrainingPlan | null) {
   return (
     plan?.weekly_schedule
-    ?.split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 6) ?? []
+      ?.split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 6) ?? []
   )
 }
 
@@ -635,8 +635,8 @@ function asRecordArray(value: unknown) {
 function stringArray(value: unknown) {
   return Array.isArray(value)
     ? value
-        .map((item) => (typeof item === "string" ? item.trim() : ""))
-        .filter(Boolean)
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean)
     : []
 }
 

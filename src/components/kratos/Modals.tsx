@@ -93,7 +93,7 @@ export function AuthModal({
                     username: event.target.value,
                   }))
                 }
-                placeholder="至少 3 个字符"
+                placeholder={mode === "login" ? "输入您的用户名" : "至少 3 个字符"}
                 required
                 value={form.username}
               />
@@ -110,7 +110,7 @@ export function AuthModal({
                     password: event.target.value,
                   }))
                 }
-                placeholder="至少 6 个字符"
+                placeholder={mode === "login" ? "输入您的密码" : "至少 6 个字符"}
                 required
                 type="password"
                 value={form.password}
@@ -127,7 +127,7 @@ export function AuthModal({
             </Field>
             {error ? (
               <Field>
-                <DialogDescription role="alert">{error}</DialogDescription>
+                <DialogDescription role="alert" className="text-red-600">{error}</DialogDescription>
               </Field>
             ) : null}
           </FieldGroup>
@@ -204,7 +204,7 @@ export function OnboardingModal({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-[21px] font-black tracking-[-0.04em]">
-              建立你的 Kratos 档案
+              建立您的 Kratos 档案
             </h2>
             <p className="mt-2 max-w-[560px] text-[12px] leading-5 text-muted-foreground">
               先补齐 Agent 判断强度、动作风险和饮食建议所需的最小上下文。
@@ -1161,7 +1161,7 @@ export function TrainingFeedbackModal({
               训练反馈
             </h2>
             <p className="mt-2 text-[12px] leading-5 text-muted-foreground">
-              Kratos 会基于这次反馈生成原计划的调整建议，只有你同意后才会更新计划。
+              Kratos 会基于这次反馈生成原计划的调整建议，只有您同意后才会更新计划。
             </p>
           </div>
           <button

@@ -1,6 +1,6 @@
 import {
   BarChart3,
-  Calendar,
+  Calendar as CalendarIcon,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -18,7 +18,6 @@ import {
   Timer,
   Trophy,
   Trash2,
-  X,
   Utensils,
   WandSparkles,
 } from "lucide-react"
@@ -26,6 +25,36 @@ import type { LucideIcon } from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import { Badge } from "@/components/ui/badge"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog"
+
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+} from "@/components/ui/field"
 import {
   getPlanExerciseLines,
   trainingPlanTemplates,
@@ -40,6 +69,7 @@ import type {
   TrainingPlanPayload,
   WorkoutLog,
 } from "@/types/kratos"
+import { ButtonGroup } from "../ui/button-group"
 
 type TrainingPlanPageProps = {
   activePlan: TrainingPlan | null
@@ -88,8 +118,24 @@ export function TrainingPlanPage({
   workoutLogs,
 }: TrainingPlanPageProps) {
   const [calendarOpen, setCalendarOpen] = useState(false)
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
-  const [selectedDate, setSelectedDate] = useState(() => localDateValue(new Date()))
+  const activePlanKey = activePlan?.id ?? null
+  const initialTrainingDate = getInitialTrainingDate(activePlan)
+  const [trainingDateState, setTrainingDateState] = useState(() => ({
+    planId: activePlanKey,
+    selectedDate: localDateValue(initialTrainingDate),
+    weekStart: startOfWeek(initialTrainingDate),
+  }))
+
+  if (trainingDateState.planId !== activePlanKey) {
+    const nextInitialTrainingDate = getInitialTrainingDate(activePlan)
+    setTrainingDateState({
+      planId: activePlanKey,
+      selectedDate: localDateValue(nextInitialTrainingDate),
+      weekStart: startOfWeek(nextInitialTrainingDate),
+    })
+  }
+
+  const { selectedDate, weekStart } = trainingDateState
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const calendarMenuRef = useRef<HTMLDivElement | null>(null)
@@ -190,15 +236,14 @@ export function TrainingPlanPage({
     "从模板创建或自定义撰写一份计划后，这里会展示后端同步的真实训练安排。"
   const dailySuggestion = buildDailySuggestion(activePlan, workoutLogs)
   const trainingStreak = calculateTrainingStreak(workoutLogs, activePlan?.id ?? null)
+  const handleToggleCalendar = () => {
+    setCalendarVisibleDate(dateFromValue(selectedDate))
+    setCalendarOpen((current) => !current)
+  }
+  const handleToggleMoreMenu = () => {
+    setMoreMenuOpen((current) => !current)
+  }
 
-  useEffect(() => {
-    const baseDate =
-      isDailyTrainingPlan(activePlan) && activePlan?.start_date
-        ? dateFromValue(activePlan.start_date)
-        : new Date()
-    setWeekStart(startOfWeek(baseDate))
-    setSelectedDate(localDateValue(baseDate))
-  }, [activePlan?.id])
 
   useEffect(() => {
     if (!calendarOpen && !moreMenuOpen) {
@@ -348,32 +393,91 @@ return (
         completedExercises={completedExercises}
       />
 
-      <WeeklyTrainingTimeline
-        activePlanId={activePlan?.id ?? null}
-        completedDateSet={completedDateSet}
-        completedExercises={completedExercises}
-        onOpenDetails={() => setDetailsOpen(true)}
-        onOpenPlanComposer={onOpenPlanComposer}
-        onSelectDate={setSelectedDate}
-        selectedDate={selectedDate}
-        weekStart={weekStart}
-        workoutLogs={workoutLogs}
-        trainingDays={trainingDays}
-      />
+        <WeeklyTrainingTimeline
+          activePlan={activePlan}
+          activePlanId={activePlan?.id ?? null}
+          calendarMenuRef={calendarMenuRef}
+          calendarOpen={calendarOpen}
+          calendarVisibleDate={calendarVisibleDate}
+          completedDateSet={completedDateSet}
+          completedExercises={completedExercises}
+          moreMenuOpen={moreMenuOpen}
+          moreMenuRef={moreMenuRef}
+          onDeletePlan={onDeletePlan}
+          onEditPlan={onEditPlan}
+          onOpenPlanComposer={onOpenPlanComposer}
+          onOpenPlanDetails={() => setPlanDetailsOpen(true)}
+          onSelectPlan={onSelectPlan}
+          onCalendarSelectDate={(dateValue) => {
+            const date = dateFromValue(dateValue)
+            setTrainingDateState({
+              planId: activePlanKey,
+              selectedDate: dateValue,
+              weekStart: startOfWeek(date),
+            })
+            setCalendarVisibleDate(date)
+            setCalendarOpen(true)
+          }}
+          onCalendarVisibleDateChange={setCalendarVisibleDate}
+          onSelectDate={(dateValue) => {
+            setTrainingDateState((current) => ({
+              ...current,
+              selectedDate: dateValue,
+            }))
+          }}
+          onToggleCalendar={handleToggleCalendar}
+          onToggleMoreMenu={handleToggleMoreMenu}
+          onWeekBackward={() => {
+            setTrainingDateState((current) => {
+              const nextSelectedDate = localDateValue(addDays(dateFromValue(current.selectedDate), -7))
+              return {
+                ...current,
+                selectedDate: nextSelectedDate,
+                weekStart: addDays(current.weekStart, -7),
+              }
+            })
+          }}
+          onWeekForward={() => {
+            setTrainingDateState((current) => {
+              const nextSelectedDate = localDateValue(addDays(dateFromValue(current.selectedDate), 7))
+              return {
+                ...current,
+                selectedDate: nextSelectedDate,
+                weekStart: addDays(current.weekStart, 7),
+              }
+            })
+          }}
+          selectedDate={selectedDate}
+          trainingPlans={trainingPlans}
+          weekStart={weekStart}
+          weekRangeLabel={formatWeekRange(weekStart)}
+          workoutLogs={workoutLogs}
+          trainingDays={trainingDays}
+        />
 
-      {detailsOpen ? <PlanDetailsSection plan={activePlan} /> : null}
+        <TrainingPlanDetailDialog
+          onOpenChange={setPlanDetailsOpen}
+          open={planDetailsOpen}
+          plan={activePlan}
+        />
 
       <TrainingConsistencyGrid
         activePlanId={activePlan?.id ?? null}
         workoutLogs={workoutLogs}
       />
 
-      <p className="mt-6 text-center text-[12px] text-muted-foreground">
-        计划会根据你的训练反馈和身体状态自动优化。
-      </p>
-    </section>
-  </main>
-)
+        <p className="mt-6 text-center text-[12px] text-muted-foreground">
+          计划会根据您的训练反馈和身体状态自动优化。
+        </p>
+      </section>
+    </main>
+  )
+}
+function getInitialTrainingDate(plan: TrainingPlan | null) {
+  if (isDailyTrainingPlan(plan) && plan?.start_date) {
+    return dateFromValue(plan.start_date)
+  }
+  return new Date()
 }
 
 function buildTrainingDays(plan: TrainingPlan | null, weekStart: Date) {
@@ -485,18 +589,25 @@ function calculateExpectedPlanSessions(plan: TrainingPlan, weeklyTrainingDayCoun
 
 function DetailBlock({
   label,
-  large,
   value,
 }: {
   label: string
   large?: boolean
   value: string
 }) {
+  const displayValue = value.trim() || "未填写"
+
   return (
-    <div className={cn("rounded-[10px] border border-border bg-muted/40 p-4", large && "md:col-span-2")}>
-      <p className="text-[12px] font-black text-muted-foreground">{label}</p>
-      <p className="mt-2 whitespace-pre-wrap text-[13px] leading-6 text-muted-foreground">{value}</p>
-    </div>
+    <Field>
+      <FieldContent>
+        <FieldLabel>
+          {label}
+        </FieldLabel>
+        <FieldDescription className="whitespace-pre-wrap text-sm leading-6">
+          {displayValue}
+        </FieldDescription>
+      </FieldContent>
+    </Field>
   )
 }
 
@@ -674,20 +785,6 @@ function addDays(date: Date, days: number) {
   return next
 }
 
-function addMonths(date: Date, months: number) {
-  const next = new Date(date)
-  next.setDate(1)
-  next.setMonth(next.getMonth() + months)
-  return next
-}
-
-function addYears(date: Date, years: number) {
-  const next = new Date(date)
-  next.setDate(1)
-  next.setFullYear(next.getFullYear() + years)
-  return next
-}
-
 function localDateValue(date: Date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, "0")
@@ -717,28 +814,12 @@ function buildWeekDays(weekStart: Date) {
   })
 }
 
-function buildCalendarDays(visibleDate: Date) {
-  const monthStart = new Date(visibleDate.getFullYear(), visibleDate.getMonth(), 1)
-  const calendarStart = startOfWeek(monthStart)
-
-  return Array.from({ length: 42 }, (_, index) => {
-    const date = addDays(calendarStart, index)
-    return {
-      currentMonth: date.getMonth() === visibleDate.getMonth(),
-      date,
-      value: localDateValue(date),
-    }
-  })
-}
 
 function formatWeekRange(weekStart: Date) {
   const weekEnd = addDays(weekStart, 6)
   return `${weekStart.getMonth() + 1}.${weekStart.getDate()} - ${weekEnd.getMonth() + 1}.${weekEnd.getDate()}`
 }
 
-function formatMonthTitle(date: Date) {
-  return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月`
-}
 
 function formatDateLabel(date: Date) {
   return `${date.getMonth() + 1} 月 ${date.getDate()} 日`
@@ -901,7 +982,7 @@ export function BodyDataPage({
         <section className="min-w-0">
           <PageHeader
             title="身体数据"
-            subtitle="全面了解你的身体状态变化趋势"
+            subtitle="全面了解您的身体状态变化趋势"
             actions={
               <>
                 <button className="inline-flex h-9 items-center gap-2 rounded-[8px] border border-[#e5e5e5] px-4 text-[13px] font-semibold">
@@ -974,7 +1055,7 @@ export function BodyDataPage({
               </div>
             </section>
           </div>
-          <p className="mt-6 text-center text-[12px] text-muted-foreground">* 所有数据基于你的录入与设备监测量，如有误差请以实际情况为准。</p>
+          <p className="mt-6 text-center text-[12px] text-muted-foreground">* 所有数据基于您的录入与设备监测量，如有误差请以实际情况为准。</p>
         </section>
 
         <BodyRightRail
@@ -1077,7 +1158,7 @@ function TrainingStatsBar({
 }) {
   const stats = [
     {
-      icon: Calendar,
+      icon: CalendarIcon,
       label: "当前计划",
       sub: stageLabel,
       value: planTitle,
@@ -1189,7 +1270,7 @@ function TodayTrainingHero({
 
   return (
     <section className="mt-1 overflow-hidden rounded-[18px] bg-foreground text-primary-foreground ">
-      <div className="grid min-h-[330px] gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(420px,1.5fr)] lg:p-8">
+      <div className="grid min-h-[330px] gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(420px,1.5fr)] lg:p-6">
         <div className="flex min-w-0 flex-col justify-between">
           <div>
             <p className="text-[13px] text-primary-foreground/70">
@@ -1362,10 +1443,10 @@ function TodayTrainingHero({
             </div>
           ) : (
             <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[16px] border border-dashed border-primary-foreground/15 bg-card/[0.06] p-8 text-center">
-              <Calendar className="size-8 text-primary-foreground/70" />
+              <CalendarIcon className="size-8 text-primary-foreground/70" />
               <h3 className="mt-4 text-[22px] font-black">恢复、散步或记录身体反馈</h3>
               <p className="mt-3 max-w-[420px] text-[14px] leading-5 text-primary-foreground/62">
-                这一天没有匹配到当前计划里的训练日。你可以切换周安排，或让 Kratos 重新规划训练节奏。
+                这一天没有匹配到当前计划里的训练日。您可以切换周安排，或让 Kratos 重新规划训练节奏。
               </p>
             </div>
           )}
@@ -1411,57 +1492,90 @@ function WeeklyTrainingTimeline({
   const days = buildWeekDays(weekStart)
 
   return (
-    <section className="mt-5 rounded-[16px] border border-[#e6e6e6] bg-white p-5 shadow-[0_16px_38px_rgba(17,17,17,0.035)]">
+    <section className="mt-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-[24px] font-semibold tracking-[-0.03em]">本周训练安排</h2>
+          <h2 className="text-2xl font-semibold">本周训练安排</h2>
           {/* <p className="mt-0 text-[12px] text-muted-foreground">{weekRangeLabel}</p> */}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative" ref={calendarMenuRef}>
-            <button
-              className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-border bg-card px-4 text-[13px] font-semibold text-foreground transition hover:border-primary"
-              onClick={onToggleCalendar}
-              type="button"
+          <Popover open={calendarOpen} onOpenChange={onToggleCalendar}>
+            <PopoverTrigger asChild>
+              <Button
+                className="h-8"
+                type="button"
+                variant="outline"
+              >
+                <CalendarIcon className="size-4" />
+                {weekRangeLabel}
+                <ChevronRight className="size-4 rotate-90" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              className="w-auto p-0"
+              ref={calendarMenuRef}
+              sideOffset={12}
             >
-              <Calendar className="size-4" />
-              {weekRangeLabel}
-              <ChevronRight className="size-3.5 rotate-90" />
-            </button>
-            {calendarOpen ? (
-              <div className="absolute right-0 top-[calc(100%+12px)] z-50 w-[min(88vw,340px)]">
-                <TrainingCalendar
-                  completedDateSet={completedDateSet}
-                  onClose={onToggleCalendar}
-                  onSelectDate={onCalendarSelectDate}
-                  onVisibleDateChange={onCalendarVisibleDateChange}
-                  selectedDate={selectedDate}
-                  visibleDate={calendarVisibleDate}
-                />
-              </div>
-            ) : null}
-          </div>
-          <IconButton icon={ChevronLeft} label="上一周" onClick={onWeekBackward} />
-          <IconButton icon={ChevronRight} label="下一周" onClick={onWeekForward} />
+              <TrainingCalendar
+                completedDateSet={completedDateSet}
+                onClose={onToggleCalendar}
+                onSelectDate={onCalendarSelectDate}
+                onVisibleDateChange={onCalendarVisibleDateChange}
+                selectedDate={selectedDate}
+                visibleDate={calendarVisibleDate}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <ButtonGroup>
+            <Button
+              aria-label="上一周"
+              className="size-8"
+              onClick={onWeekBackward}
+              type="button"
+              variant="outline"
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button
+              aria-label="下一周"
+              className="size-8"
+              onClick={onWeekForward}
+              type="button"
+              variant="outline"
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </ButtonGroup>
+
           <Button
-            className="h-10 rounded-[10px] border border-border bg-card px-5 text-[13px] font-bold text-foreground hover:border-primary hover:bg-card"
+            className="h-8"
             onClick={onOpenPlanDetails}
             type="button"
+            variant="outline"
           >
-            查看完整计划
+            计划详情
             <ChevronRight className="size-3.5" />
           </Button>
-          <div className="relative" ref={moreMenuRef}>
-            <Button
-              className="h-10 rounded-[10px] bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:bg-primary/90"
-              onClick={onToggleMoreMenu}
-              type="button"
+
+          <Popover open={moreMenuOpen} onOpenChange={onToggleMoreMenu}>
+            <PopoverTrigger asChild>
+              <Button
+                className="h-8"
+                type="button"
+              >
+                <SlidersHorizontal className="size-3.5" />
+                计划管理
+                <ChevronRight className="size-4 rotate-90" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              className="max-h-xl w-xl overflow-y-auto rounded-[18px] p-4"
+              ref={moreMenuRef}
+              sideOffset={12}
             >
-              <SlidersHorizontal className="size-4" />
-              管理计划
-              <ChevronRight className="size-3.5 rotate-90" />
-            </Button>
-            {moreMenuOpen ? (
               <MoreTrainingMenu
                 onClose={onToggleMoreMenu}
                 onDeletePlan={onDeletePlan}
@@ -1471,8 +1585,8 @@ function WeeklyTrainingTimeline({
                 plan={activePlan}
                 plans={trainingPlans}
               />
-            ) : null}
-          </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -1492,9 +1606,7 @@ function WeeklyTrainingTimeline({
               ).length ?? 0
             const actionCount = trainingDay?.actions.length ?? 0
             const title = trainingDay
-              ? completed && dayLog?.title
-                ? dayLog.title
-                : trainingDay.title
+              ? trainingDay.title
               : "休息"
             const status = completed
               ? "已完成"
@@ -1507,9 +1619,8 @@ function WeeklyTrainingTimeline({
             return (
               <button
                 className={cn(
-                  "relative z-10 flex min-h-[150px] flex-col rounded-[14px] border bg-card p-4 text-left transition hover:border-primary hover:shadow-[0_14px_28px_rgba(17,17,17,0.06)]",
+                  "relative z-10 flex min-h-[150px] flex-col rounded-[14px] border bg-card p-3 text-left transition hover:border-primary hover:shadow-[0_14px_28px_rgba(17,17,17,0.06)]",
                   selected ? "border-primary shadow-[0_16px_32px_rgba(17,17,17,0.08)]" : "border-border",
-                  !trainingDay && "bg-muted/30"
                 )}
                 key={day.value}
                 onClick={() => onSelectDate(day.value)}
@@ -1531,7 +1642,7 @@ function WeeklyTrainingTimeline({
                     {completed ? <Check className="size-4" /> : index + 1}
                   </span>
                 </div>
-                <div className="mt-5 min-w-0 flex-1">
+                <div className="mt-2 min-w-0 flex-1">
                   <h3 className="line-clamp-2 text-[16px] font-semibold leading-5">{title}</h3>
                   <p className="mt-2 line-clamp-3 text-[12px] leading-4 text-muted-foreground">
                     {trainingDay
@@ -1541,17 +1652,18 @@ function WeeklyTrainingTimeline({
                       : "恢复、拉伸或轻活动"}
                   </p>
                 </div>
-                <span
-                  className={cn(
-                    "mt-4 w-fit rounded-[7px] px-2.5 py-1 text-[11px] font-black",
-                    completed && "bg-primary text-primary-foreground",
-                    active && !completed && "bg-primary text-primary-foreground",
-                    !active && !completed && trainingDay && "bg-muted text-muted-foreground",
-                    !trainingDay && "bg-muted text-muted-foreground"
-                  )}
+                <Badge
+                  className="mt-8 w-fit"
+                  variant={
+                    completed || active
+                      ? "default"
+                      : trainingDay
+                        ? "secondary"
+                        : "outline"
+                  }
                 >
                   {status}
-                </span>
+                </Badge>
               </button>
             )
           })}
@@ -1669,116 +1781,117 @@ function MoreTrainingMenu({
   const longTermPlans = plans.filter((item) => !isDailyTrainingPlan(item))
 
   return (
-    <div className="absolute right-0 top-12 z-40 max-h-[min(70vh,760px)] w-[min(40vw,760px)] overflow-y-auto rounded-[18px] border border-border bg-card p-4 text-foreground">
-      <div className="grid">
-        <section className="min-w-0">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-[15px] font-black">常见计划模板</h3>
-            <span className="text-[12px] font-semibold text-[#8a8a8a]">模板会打开编辑器继续调整</span>
-          </div>
-          <div className="mt-3 grid gap-3 md:grid-cols-3">
+    <div className="grid gap-5 text-foreground">
+      <Card className="border-border shadow-none">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-[15px]">常见计划模板</CardTitle>
+          <CardDescription>
+            从预设模板开始，或创建一份完全自定义的训练计划。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-2 md:grid-cols-2">
             {trainingPlanTemplates.map((template) => (
-              <button
-                className="rounded-[12px] border border-border bg-card p-3 text-left transition duration-300 hover:border-primary"
+              <Button
+                className="h-auto justify-start rounded-xl border-border bg-card p-3 text-left hover:border-primary hover:bg-muted/40"
                 key={template.id}
                 onClick={() => {
                   onClose()
                   onOpenPlanComposer(template)
                 }}
                 type="button"
+                variant="outline"
               >
-                <span className="rounded-[6px] bg-muted px-2 py-1 text-[11px] font-black text-muted-foreground">
-                  {template.level}
+                <span className="flex min-w-0 flex-col items-start gap-2">
+                  <Badge className="rounded-md" variant="secondary">
+                    {template.level}
+                  </Badge>
+                  <span className="line-clamp-2 text-[13px] font-semibold leading-5 text-foreground">
+                    {template.title}
+                  </span>
+                  <span className="line-clamp-2 text-[12px] leading-5 text-muted-foreground">
+                    {template.summary}
+                  </span>
                 </span>
-                <h4 className="mt-3 line-clamp-2 text-[13px] font-black leading-5">{template.title}</h4>
-                <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-muted-foreground">{template.summary}</p>
-              </button>
+              </Button>
             ))}
-            <button
-              className="group flex min-h-[148px] flex-col items-center justify-center rounded-[14px] border border-dashed border-border transition duration-300 hover:border-primary"
+
+            <Button
+              className="flex min-h-[148px] flex-col gap-2 rounded-xl border-dashed border-border bg-transparent text-muted-foreground hover:border-primary hover:bg-muted/40 hover:text-foreground"
               onClick={() => {
                 onClose()
                 onOpenPlanComposer(null)
               }}
               type="button"
+              variant="outline"
             >
-              <PlusCircle className="size-10 text-muted-foreground" strokeWidth={1} />
-            </button>
+              <PlusCircle className="size-8" strokeWidth={1.4} />
+              <span className="text-[13px] font-semibold">新建空白计划</span>
+            </Button>
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="mt-5">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-[15px] font-black">计划库</h3>
-              <span className="text-[12px] font-semibold text-muted-foreground">
-                {plans.length} 个已保存计划
-              </span>
+      <Card className="border-border shadow-none">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-[15px]">计划库</CardTitle>
+              <CardDescription>
+                管理已保存的长期计划与每日训练安排。
+              </CardDescription>
             </div>
-            {plans.length > 0 ? (
-              <div className="mt-3 grid gap-4 lg:grid-cols-2">
-                <SavedPlanGroup
-                  emptyText="暂无长期计划。适合保存周期训练、周计划和阶段目标。"
-                  onDeletePlan={onDeletePlan}
-                  onEditPlan={onEditPlan}
-                  onSelectPlan={(nextPlan) => {
-                    onClose()
-                    onSelectPlan(nextPlan)
-                  }}
-                  plans={longTermPlans}
-                  selectedPlanId={plan?.id ?? null}
-                  title="长期计划"
-                />
-                <SavedPlanGroup
-                  emptyText="暂无每日计划。聊天生成的当日训练会放在这里。"
-                  onDeletePlan={onDeletePlan}
-                  onEditPlan={onEditPlan}
-                  onSelectPlan={(nextPlan) => {
-                    onClose()
-                    onSelectPlan(nextPlan)
-                  }}
-                  plans={dailyPlans}
-                  selectedPlanId={plan?.id ?? null}
-                  title="每日计划"
-                />
-              </div>
-            ) : (
-              <p className="mt-3 rounded-[12px] border border-dashed border-border bg-muted/40 p-4 text-[12px] leading-5 text-muted-foreground">
-                从模板或空白计划保存后，这里会显示计划列表。
-              </p>
-            )}
+            <Badge variant="outline">{plans.length} 个计划</Badge>
           </div>
-        </section>
-      </div>
+        </CardHeader>
+        <CardContent>
+          {plans.length > 0 ? (
+            <div className="grid gap-4">
+              <SavedPlanGroup
+                emptyText="暂无长期计划。适合保存周期训练、周计划和阶段目标。"
+                onDeletePlan={onDeletePlan}
+                onEditPlan={onEditPlan}
+                onSelectPlan={(nextPlan) => {
+                  onClose()
+                  onSelectPlan(nextPlan)
+                }}
+                plans={longTermPlans}
+                selectedPlanId={plan?.id ?? null}
+                title="长期计划"
+              />
+              <SavedPlanGroup
+                emptyText="暂无每日计划。聊天生成的当日训练会放在这里。"
+                onDeletePlan={onDeletePlan}
+                onEditPlan={onEditPlan}
+                onSelectPlan={(nextPlan) => {
+                  onClose()
+                  onSelectPlan(nextPlan)
+                }}
+                plans={dailyPlans}
+                selectedPlanId={plan?.id ?? null}
+                title="每日计划"
+              />
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-[12px] leading-5 text-muted-foreground">
+              从模板或空白计划保存后，这里会显示计划列表。
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
-function TrainingPlanDetailModal({
-  onClose,
+function TrainingPlanDetailDialog({
+  onOpenChange,
+  open,
   plan,
 }: {
-  onClose: () => void
+  onOpenChange: (open: boolean) => void
+  open: boolean
   plan: TrainingPlan | null
 }) {
-  return (
-    <div className="fixed inset-0 z-40 bg-black/30 px-4 py-6 backdrop-blur-[2px]">
-      <section className="relative mx-auto flex h-full w-full max-w-[920px] flex-col overflow-hidden rounded-[22px] border border-border bg-card shadow-[0_28px_90px_rgba(0,0,0,0.28)]">
-        <button
-          className="absolute right-5 top-5 z-20 grid size-9 place-items-center rounded-full border border-border/80 bg-card/90 text-foreground backdrop-blur-md transition hover:border-primary hover:bg-muted"
-          onClick={onClose}
-          type="button"
-        >
-          <X className="size-4" />
-        </button>
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          <PlanDetailsContent plan={plan} />
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function PlanDetailsContent({ plan }: { plan: TrainingPlan | null }) {
   if (!plan) {
     return (
       <section className="grid min-h-[280px] place-items-center rounded-[16px] border border-dashed border-border bg-muted/40 p-8 text-center">
@@ -1792,32 +1905,42 @@ function PlanDetailsContent({ plan }: { plan: TrainingPlan | null }) {
       </section>
     )
   }
-
   return (
-    <section className="rounded-[16px] bg-card">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-[12px] font-semibold text-muted-foreground">计划详情</p>
-          <h2 className="mt-0 text-[24px] font-semibold tracking-[-0.04em]">{plan.title}</h2>
-          <p className="mt-2 max-w-[720px] text-[13px] leading-5 text-muted-foreground">
-            {plan.summary ?? "暂无摘要"}
-          </p>
+    <Dialog onOpenChange={onOpenChange} open={open} >
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>
+            {plan.title}
+          </DialogTitle>
+          <DialogDescription>
+            计划详情
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <DetailBlock label="目标" value={plan.goal ?? "未设置"} />
+          <DetailBlock label="周期" value={`${plan.start_date ?? "未设置"} - ${plan.end_date ?? "未设置"}`} />
         </div>
-      </div>
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
-        <DetailBlock label="目标" value={plan.goal ?? "未设置"} />
-        <DetailBlock label="周期" value={`${plan.start_date ?? "未设置"} - ${plan.end_date ?? "未设置"}`} />
-        <DetailBlock label="周训练安排" value={plan.weekly_schedule ?? "未填写"} large />
-        <DetailBlock label="恢复建议" value={plan.recovery_guidance ?? "未填写"} large />
-        <DetailBlock label="营养建议" value={plan.nutrition_guidance ?? "未填写"} large />
-      </div>
-    </section>
+        <div className="grid gap-3">
+          <DetailBlock label="摘要" value={plan.summary ?? "暂无摘要"} />
+          <DetailBlock label="周训练安排" value={plan.weekly_schedule ?? "未填写"} large />
+          <DetailBlock label="恢复建议" value={plan.recovery_guidance ?? "未填写"} large />
+          <DetailBlock label="营养建议" value={plan.nutrition_guidance ?? "未填写"} large />
+        </div>
+
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">关闭</Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
+
 function TrainingCalendar({
   completedDateSet,
-  onClose,
   onSelectDate,
   onVisibleDateChange,
   selectedDate,
@@ -1830,105 +1953,33 @@ function TrainingCalendar({
   selectedDate: string
   visibleDate: Date
 }) {
-  const days = buildCalendarDays(visibleDate)
+  const completedDates = useMemo(
+    () => Array.from(completedDateSet).map(dateFromValue),
+    [completedDateSet]
+  )
 
   return (
-    <section className="overflow-hidden rounded-[16px] border border-border bg-card shadow-[0_14px_34px_rgba(17,17,17,0.08)] ring-1 ring-black/5">
-      <div className="flex items-start justify-between gap-3 border-b border-border px-3.5 py-3.5">
-        <div>
-          <h2 className="mt-1 text-[20px] font-semibold tracking-[-0.04em] text-foreground">{formatMonthTitle(visibleDate)}</h2>
-        </div>
-        <button
-          className="grid size-8 place-items-center rounded-full border border-border bg-card text-foreground transition hover:border-primary hover:bg-muted"
-          onClick={onClose}
-          type="button"
-        >
-          <X className="size-4" />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-5 gap-1.5 px-3.5 pt-3.5">
-        <button
-          className="inline-flex h-8 items-center justify-center rounded-full border border-border bg-card px-2 text-[10px] font-medium text-foreground transition hover:border-primary"
-          onClick={() => onVisibleDateChange(addYears(visibleDate, -1))}
-          type="button"
-        >
-          上一年
-        </button>
-        <button
-          className="inline-flex h-8 items-center justify-center rounded-full border border-border bg-card px-2 text-[10px] font-medium text-foreground transition hover:border-primary"
-          onClick={() => onVisibleDateChange(addMonths(visibleDate, -1))}
-          type="button"
-        >
-          上一月
-        </button>
-        <button
-          className="inline-flex h-8 items-center justify-center rounded-full border border-primary bg-card px-2 text-[10px] font-medium text-foreground transition hover:bg-muted"
-          onClick={() => onVisibleDateChange(new Date())}
-          type="button"
-        >
-          今天
-        </button>
-        <button
-          className="inline-flex h-8 items-center justify-center rounded-full border border-border bg-card px-2 text-[10px] font-medium text-foreground transition hover:border-primary"
-          onClick={() => onVisibleDateChange(addMonths(visibleDate, 1))}
-          type="button"
-        >
-          下一月
-        </button>
-        <button
-          className="inline-flex h-8 items-center justify-center rounded-full border border-border bg-card px-2 text-[10px] font-medium text-foreground transition hover:border-primary"
-          onClick={() => onVisibleDateChange(addYears(visibleDate, 1))}
-          type="button"
-        >
-          下一年
-        </button>
-      </div>
-
-      <div className="mt-3.5 grid grid-cols-7 gap-0 px-3.5 text-center text-[11px] font-medium text-muted-foreground">
-        {["一", "二", "三", "四", "五", "六", "日"].map((day) => (
-          <span className="py-1.5 uppercase tracking-[0.14em]" key={day}>
-            {day}
-          </span>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-0 px-3.5 pb-3.5 pt-2">
-        {days.map(({ currentMonth, date, value }) => {
-          const selected = selectedDate === value
-          const completed = completedDateSet.has(value)
-          const today = date.toDateString() === new Date().toDateString()
-
-          return (
-            <button
-              className={cn(
-                "relative flex h-10 flex-col items-center justify-center rounded-[10px] text-[14px] font-medium transition-all duration-200 ease-out",
-                currentMonth ? "text-foreground" : "text-muted-foreground/45",
-                // selected && "border *:border-primary text-foreground ring-1 ring-[#111111]/70",
-                // today && !selected && "border border-primary",
-                // completed && !today && !selected && "border border-border text-foreground"
-              )}
-              key={value}
-              onClick={() => onSelectDate(value)}
-              type="button"
-            >
-              <span
-                className={cn(
-                  "relative grid size-9  rounded-[8px] place-items-center hover:bg-accent transition-colors duration-200",
-                  selected && " bg-card text-foreground border border-primary",
-                  completed && !selected && "  bg-card text-foreground border border-border ",
-                  today && "  bg-[#FE3A30] text-primary-foreground rounded-[20px] size-6 hover:bg-[#FE3A30]"
-                )}
-              >
-                {date.getDate()}
-                {completed ? (
-                  <Check className="absolute -top-1.5 -right-1.5 size-3.5 rounded-[5px] bg-card p-0.5 text-foreground ring-1 ring-border" />
-                ) : null}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-    </section>
+    <Calendar
+      className="rounded-lg border"
+      mode="single"
+      modifiers={{
+        completed: completedDates,
+      }}
+      modifiersClassNames={{
+        completed:
+          "after:absolute after:right-2.75 after:top-6 after:size-1 after:rounded-full after:bg-primary",
+      }}
+      month={visibleDate}
+      onMonthChange={onVisibleDateChange}
+      onSelect={(date) => {
+        if (!date) {
+          return
+        }
+        onSelectDate(localDateValue(date))
+      }}
+      selected={dateFromValue(selectedDate)}
+      captionLayout="dropdown"
+    />
   )
 }
 
@@ -1950,85 +2001,109 @@ function SavedPlanGroup({
   title: string
 }) {
   return (
-    <section>
-      <h3 className="mb-2 text-[12px] font-black tracking-[0.08em] text-muted-foreground uppercase">
-        {title}
-      </h3>
+    <section className="grid gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-[12px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+          {title}
+        </h3>
+        <Badge variant="secondary">{plans.length}</Badge>
+      </div>
+
       {plans.length > 0 ? (
-        <div className="space-y-3">
-          {plans.map((item) => (
-            <section
-              className={cn(
-                "w-full rounded-[12px] border bg-card p-4 text-left hover:bg-muted/30",
-                item.id === selectedPlanId ? "border-primary" : "border-border"
-              )}
-              key={item.id}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  className="min-w-0 flex-1 text-left"
-                  onClick={() => onSelectPlan(item)}
-                  type="button"
-                >
-                  <h3 className="truncate text-[14px] font-black">{item.title}</h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <span className="rounded-[5px] bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
-                      {planStatusLabel(item.status)}
-                    </span>
-                    {item.goal ? (
-                      <span className="rounded-[5px] bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
-                        {item.goal}
-                      </span>
-                    ) : null}
-                  </div>
-                </button>
-                <div className="flex shrink-0 items-center gap-2">
-                  {item.id === selectedPlanId ? (
-                    <Check className="size-4 text-foreground" />
-                  ) : (
-                    <ChevronRight className="size-4 text-muted-foreground" />
-                  )}
-                  <button
-                    aria-label={`编辑 ${item.title}`}
-                    className="grid size-8 place-items-center rounded-[8px] border border-border bg-card text-muted-foreground transition hover:border-primary hover:text-foreground"
-                    onClick={() => onEditPlan(item)}
-                    type="button"
-                  >
-                    <PencilLine className="size-3.5" />
-                  </button>
-                  <button
-                    aria-label={`删除 ${item.title}`}
-                    className="grid size-8 place-items-center rounded-[8px] border border-border bg-card text-muted-foreground transition hover:border-primary hover:text-foreground"
-                    onClick={() => onDeletePlan(item)}
-                    type="button"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </div>
-              </div>
-              <button
-                className="mt-2 block w-full text-left"
-                onClick={() => onSelectPlan(item)}
-                type="button"
+        <div className="grid gap-2">
+          {plans.map((item) => {
+            const selected = item.id === selectedPlanId
+
+            return (
+              <Card
+                className={cn(
+                  "border-border bg-card shadow-none transition-colors hover:bg-muted/30",
+                  selected && "border-primary"
+                )}
+                key={item.id}
               >
-                <p className="line-clamp-2 text-[12px] leading-5 text-muted-foreground">
-                  {item.summary ?? item.weekly_schedule ?? "这份计划已保存到后端 plans 表。"}
-                </p>
-                <p className="mt-2 text-[12px] text-muted-foreground">
-                  {item.id === selectedPlanId
-                    ? "当前计划"
-                    : item.start_date
-                      ? `点击设为当前 · 开始：${item.start_date}`
-                      : "点击设为当前 · 未设置开始日期"}
-                </p>
-              </button>
-            </section>
-          ))}
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <Button
+                      className="min-w-0 flex-1 justify-start p-0 text-left hover:bg-transparent"
+                      onClick={() => onSelectPlan(item)}
+                      type="button"
+                      variant="ghost"
+                    >
+                      <span className="flex min-w-0 flex-col items-start">
+                        <span className="flex w-full min-w-0 items-center gap-2">
+                          <span className="truncate text-[14px] font-semibold text-foreground">
+                            {item.title}
+                          </span>
+                          {selected ? (
+                            <Badge className="shrink-0" variant="default">
+                              当前
+                            </Badge>
+                          ) : null}
+                        </span>
+                        <span className="mt-2 flex flex-wrap gap-2">
+                          <Badge variant="secondary">{planStatusLabel(item.status)}</Badge>
+                          {item.goal ? <Badge variant="outline">{item.goal}</Badge> : null}
+                        </span>
+                        <span className="mt-3 line-clamp-2 text-[12px] leading-5 text-muted-foreground">
+                          {item.summary ?? item.weekly_schedule ?? "这份计划已保存到后端 plans 表。"}
+                        </span>
+                        <span className="mt-2 text-[12px] text-muted-foreground">
+                          {selected
+                            ? "当前计划"
+                            : item.start_date
+                              ? `点击设为当前 · 开始：${item.start_date}`
+                              : "点击设为当前 · 未设置开始日期"}
+                        </span>
+                      </span>
+                    </Button>
+
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <Button
+                        aria-label={`编辑 ${item.title}`}
+                        className="size-8"
+                        onClick={() => onEditPlan(item)}
+                        size="icon"
+                        type="button"
+                        variant="outline"
+                      >
+                        <PencilLine className="size-3.5" />
+                      </Button>
+                      <Button
+                        aria-label={`删除 ${item.title}`}
+                        className="size-8"
+                        onClick={() => onDeletePlan(item)}
+                        size="icon"
+                        type="button"
+                        variant="outline"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                      <Button
+                        aria-label={`选择 ${item.title}`}
+                        className="size-8"
+                        onClick={() => onSelectPlan(item)}
+                        size="icon"
+                        type="button"
+                        variant="ghost"
+                      >
+                        {selected ? (
+                          <Check className="size-4" />
+                        ) : (
+                          <ChevronRight className="size-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       ) : (
-        <p className="rounded-[10px] border border-dashed border-border bg-muted/40 p-3 text-[12px] leading-5 text-muted-foreground">
+        <div className="rounded-xl border border-dashed border-border bg-muted/40 p-3 text-[12px] leading-5 text-muted-foreground">
           {emptyText}
-        </p>
+        </div>
       )}
     </section>
   )

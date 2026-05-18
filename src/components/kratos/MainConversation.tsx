@@ -113,45 +113,43 @@ export function MainConversation({
 
   return (
     <main className="flex h-full min-w-0 flex-1 flex-col border-border bg-card xl:border-r">
-      <header className={cn("flex shrink-0 flex-col gap-2 px-0 pt-5 pb-0 sm:px-6 lg:flex-row lg:items-start lg:justify-between ",
-        isEmptyConversation && !conversationLoading ? "bg-muted/40" : "bg-card")}>
-        <div>
-          <h2 className="text-[25px] leading-[1.1] font-extrabold tracking-[-0.04em]">
-            {messages.length ? activeSessionTitle : ``}
-          </h2>
-          {/* <p className="mt-2 text-[13px] text-muted-foreground">
-            {messages.length
-              ? "Kratos 会把训练计划、工具调用和推理轨迹保存在这条会话里。"
-              : ""}
-          </p> */}
-        </div>
-        <div className="relative flex items-center gap-4">
-          <button
+      <header
+        className={cn(
+          "flex shrink-0 items-start justify-end px-0 pt-4 pb-0 sm:px-6",
+          isEmptyConversation && !conversationLoading ? "bg-muted/40" : "bg-card"
+        )}
+      >
+        <div className="relative ml-auto flex items-center gap-0">
+          <Button
             aria-label="Toggle theme"
-            className="grid size-6 place-items-center rounded-full text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="grid size-10 place-items-center"
             onClick={onToggleTheme}
             type="button"
+            variant="ghost"
           >
             {theme === "dark" ? (
               <Moon className="size-5" strokeWidth={1.7} />
             ) : (
               <Sun className="size-5" strokeWidth={1.7} />
             )}
-          </button>
-          <button
+          </Button>
+
+          <Button
             aria-label="Notifications"
             data-popover-root
-            className="relative grid size-6 place-items-center rounded-full text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="relative grid size-10"
             onClick={onToggleNotifications}
             type="button"
+            variant="ghost"
           >
             <Bell className="size-5" strokeWidth={1.7} />
             {unreadCount > 0 ? (
-              <span className="absolute -top-1 -right-1 grid size-4 place-items-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+              <span className="absolute top-0 right-0 grid size-4 place-items-center rounded-full bg-primary text-[9px] text-primary-foreground">
                 {unreadCount}
               </span>
             ) : null}
-          </button>
+          </Button>
+
           {notificationsOpen ? (
             <NotificationsPopover
               notifications={notifications}
@@ -170,7 +168,7 @@ export function MainConversation({
             </div>
           </div>
         ) : isEmptyConversation ? (
-          <div className="flex min-h-0 flex-1 items-center px-5 pb-8 pt-2 sm:px-6 bg-muted/40">
+          <div className="flex min-h-0 flex-1 items-center px-5 pb-20 sm:px-6 bg-muted/40">
             <div className="mx-auto w-full max-w-[820px]">
               <EmptyConversation
                 composer={
@@ -590,7 +588,7 @@ function ChatBubble({
     <section className="bg-card pt-0 pb-4">
       <div className="flex gap-4">
         <div className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
-          <span className="text-[18px] font-bold">K</span>
+          <span className="text-[18px] font-black">K</span>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-4">
@@ -750,7 +748,7 @@ function EmptyConversation({
 }) {
   const starters: QuickAction[] = [
     {
-      description: "按你的档案生成今日训练",
+      description: "按您的档案生成今日训练",
       icon: Sparkles,
       prompt: "请读取我的档案和最近状态，生成一份今天可执行的训练计划，包含热身、主训练、冷身和注意事项。",
       title: "生成今日训练",
@@ -771,12 +769,12 @@ function EmptyConversation({
 
   return (
     <section className="mx-auto flex w-full flex-col justify-center px-0">
-      <div className="mb-6">
-        <h3 className="text-4xl font-semibold tracking-tight text-foreground">
-          你今天想完成什么？
+      <div className="mb-8">
+        <h3 className="text-3xl font-semibold tracking-tight text-foreground">
+          您今天想完成什么？
         </h3>
-        <p className="mt-1 max-w-[560px] text-sm leading-6 text-muted-foreground">
-          Kratos 会根据你的训练目标、身体状况和恢复情况，提供个性化的训练建议和计划。
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Kratos 会根据您的训练目标、身体状况和恢复情况，提供个性化的训练建议和计划。
         </p>
       </div>
       <div className="mb-8">{composer}</div>

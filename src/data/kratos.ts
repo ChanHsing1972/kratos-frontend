@@ -78,13 +78,13 @@ export const completionMetricIcon = CircleCheck
 export const quickActions: QuickAction[] = [
   {
     title: "记录饮食",
-    description: "记录今天你饮食内容",
+    description: "记录今天您饮食内容",
     icon: Utensils,
     prompt: "我早餐吃了鸡蛋、燕麦和一杯拿铁，请帮我记录并估算营养。",
   },
   {
     title: "身体反馈",
-    description: "告诉我你的身体感受",
+    description: "告诉我您的身体感受",
     icon: Heart,
     prompt: "今天右膝还是有轻微酸痛，但精神不错，请调整今天训练强度。",
   },
@@ -96,7 +96,7 @@ export const quickActions: QuickAction[] = [
   },
   {
     title: "查看历史",
-    description: "回顾你的训练记录",
+    description: "回顾您的训练记录",
     icon: History,
     prompt: "帮我回顾最近 7 天训练记录，找出恢复不足的风险。",
   },
@@ -109,7 +109,7 @@ export const initialNotifications: NotificationItem[] = [
   {
     id: "knee",
     title: "上下文提醒",
-    body: "Agent 会在每次回答前读取你的档案和最新身体数据。",
+    body: "Agent 会在每次回答前读取您的档案和最新身体数据。",
     read: false,
   },
   {
