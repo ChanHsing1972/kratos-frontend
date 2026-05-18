@@ -198,7 +198,7 @@ export function OnboardingModal({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4 backdrop-blur-[2px]">
       <form
-        className="max-h-[92svh] w-full max-w-[760px] overflow-y-auto rounded-[20px] border border-white/80 bg-white p-5 shadow-[0_22px_70px_rgba(0,0,0,0.25)]"
+        className="max-h-[92svh] w-full max-w-[760px] overflow-y-auto rounded-[20px] border border-border bg-card p-5 shadow-[0_22px_70px_rgba(0,0,0,0.25)]"
         onSubmit={submit}
       >
         <div className="flex items-start justify-between gap-4">
@@ -206,12 +206,12 @@ export function OnboardingModal({
             <h2 className="text-[21px] font-black tracking-[-0.04em]">
               建立你的 Kratos 档案
             </h2>
-            <p className="mt-2 max-w-[560px] text-[12px] leading-5 text-[#666666]">
+            <p className="mt-2 max-w-[560px] text-[12px] leading-5 text-muted-foreground">
               先补齐 Agent 判断强度、动作风险和饮食建议所需的最小上下文。
             </p>
           </div>
           <button
-            className="grid size-8 place-items-center rounded-full hover:bg-[#f4f4f4] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            className="grid size-8 place-items-center rounded-full hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
             onClick={onClose}
             type="button"
           >
@@ -222,7 +222,7 @@ export function OnboardingModal({
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           {(status?.next_steps ?? ["完善个人信息", "记录身体数据"]).map((item) => (
             <div
-              className="rounded-[10px] border border-[#eeeeee] bg-[#fbfbfa] px-3 py-2 text-[12px] font-semibold text-[#333333]"
+              className="rounded-[10px] border border-border bg-muted/40 px-3 py-2 text-[12px] font-semibold text-foreground"
               key={item}
             >
               {item}
@@ -348,7 +348,7 @@ export function OnboardingModal({
           />
         </section>
 
-        <section className="mt-5 border-t border-[#eeeeee] pt-5">
+        <section className="mt-5 border-t border-border pt-5">
           <h3 className="text-[14px] font-black">身体数据</h3>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             <FormInput
@@ -432,7 +432,7 @@ export function OnboardingModal({
 
         <div className="mt-5 flex items-center justify-end gap-3">
           <Button
-            className="h-10 rounded-[10px] border-[#dedede] px-4 text-[13px]"
+            className="h-10 rounded-[10px] border-border px-4 text-[13px]"
             onClick={onClose}
             type="button"
             variant="outline"
@@ -440,7 +440,7 @@ export function OnboardingModal({
             稍后再说
           </Button>
           <Button
-            className="h-10 rounded-[10px] bg-[#111111] px-5 text-[13px] font-bold text-white hover:bg-[#111111]/90"
+            className="h-10 rounded-[10px] bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:bg-primary/90"
             disabled={loading}
             type="submit"
           >
@@ -504,7 +504,7 @@ export function ProfileEditModal({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4 backdrop-blur-[2px]">
       <form
-        className="max-h-[90svh] w-full max-w-[560px] overflow-y-auto rounded-[20px] border border-white/80 bg-white p-5 shadow-[0_22px_70px_rgba(0,0,0,0.25)]"
+        className="max-h-[90svh] w-full max-w-[560px] overflow-y-auto rounded-[20px] border border-border bg-card p-5 shadow-[0_22px_70px_rgba(0,0,0,0.25)]"
         onSubmit={submit}
       >
         <div className="flex items-start justify-between gap-4">
@@ -512,12 +512,12 @@ export function ProfileEditModal({
             <h2 className="text-[20px] font-black tracking-[-0.04em]">
               编辑个人资料
             </h2>
-            {/* <p className="mt-2 text-[12px] leading-5 text-[#777777]">
+            {/* <p className="mt-2 text-[12px] leading-5 text-muted-foreground">
               这些内容只写入 user_profiles；体重、睡眠等动态指标请到身体数据里更新。
             </p> */}
           </div>
           <button
-            className="grid size-8 place-items-center rounded-full hover:bg-[#f4f4f4] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            className="grid size-8 place-items-center rounded-full hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
             onClick={onClose}
             type="button"
           >
@@ -663,7 +663,7 @@ export function ProfileEditModal({
 
         <div className="mt-5 flex items-center justify-end gap-3">
           <Button
-            className="h-10 rounded-[10px] border-[#dedede] px-4 text-[13px]"
+            className="h-10 rounded-[10px] border-border px-4 text-[13px]"
             onClick={onClose}
             type="button"
             variant="outline"
@@ -671,7 +671,7 @@ export function ProfileEditModal({
             取消
           </Button>
           <Button
-            className="h-10 rounded-[10px] bg-[#111111] px-5 text-[13px] font-bold text-white hover:bg-[#111111]/90"
+            className="h-10 rounded-[10px] bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:bg-primary/90"
             disabled={loading}
             type="submit"
           >
@@ -724,7 +724,7 @@ export function BodyMetricModal({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4 backdrop-blur-[2px]">
       <form
-        className="max-h-[90svh] w-full max-w-[560px] overflow-y-auto rounded-[20px] border border-white/80 bg-white p-5 shadow-[0_22px_70px_rgba(0,0,0,0.25)]"
+        className="max-h-[90svh] w-full max-w-[560px] overflow-y-auto rounded-[20px] border border-border bg-card p-5 shadow-[0_22px_70px_rgba(0,0,0,0.25)]"
         onSubmit={submit}
       >
         <div className="flex items-start justify-between gap-4">
@@ -732,12 +732,12 @@ export function BodyMetricModal({
             <h2 className="text-[20px] font-black tracking-[-0.04em]">
               更新身体数据
             </h2>
-            <p className="mt-2 text-[12px] leading-5 text-[#777777]">
+            <p className="mt-2 text-[12px] leading-5 text-muted-foreground">
               体测和睡眠时长写入 body_metrics；精力、睡眠质量和酸痛写入 agent_checkins。
             </p>
           </div>
           <button
-            className="grid size-8 place-items-center rounded-full hover:bg-[#f4f4f4] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            className="grid size-8 place-items-center rounded-full hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
             onClick={onClose}
             type="button"
           >
@@ -886,7 +886,7 @@ export function BodyMetricModal({
 
         <div className="mt-5 flex items-center justify-end gap-3">
           <Button
-            className="h-10 rounded-[10px] border-[#dedede] px-4 text-[13px]"
+            className="h-10 rounded-[10px] border-border px-4 text-[13px]"
             onClick={onClose}
             type="button"
             variant="outline"
@@ -894,7 +894,7 @@ export function BodyMetricModal({
             取消
           </Button>
           <Button
-            className="h-10 rounded-[10px] bg-[#111111] px-5 text-[13px] font-bold text-white hover:bg-[#111111]/90"
+            className="h-10 rounded-[10px] bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:bg-primary/90"
             disabled={loading}
             type="submit"
           >
@@ -938,7 +938,7 @@ export function TrainingPlanModal({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4 backdrop-blur-[2px]">
       <form
-        className="max-h-[92svh] w-full max-w-[760px] overflow-y-auto rounded-[20px] border border-white/80 bg-white p-5 shadow-[0_22px_70px_rgba(0,0,0,0.25)]"
+        className="max-h-[92svh] w-full max-w-[760px] overflow-y-auto rounded-[20px] border border-border bg-card p-5 shadow-[0_22px_70px_rgba(0,0,0,0.25)]"
         onSubmit={submit}
       >
         <div className="flex items-start justify-between gap-4">
@@ -946,12 +946,12 @@ export function TrainingPlanModal({
             <h2 className="text-[20px] font-black tracking-[-0.04em]">
               撰写训练计划
             </h2>
-            <p className="mt-2 text-[12px] leading-5 text-[#777777]">
+            <p className="mt-2 text-[12px] leading-5 text-muted-foreground">
               保存后会写入后端 /plans，训练页和打卡记录都会读取这份真实计划。
             </p>
           </div>
           <button
-            className="grid size-8 place-items-center rounded-full hover:bg-[#f4f4f4] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            className="grid size-8 place-items-center rounded-full hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
             onClick={onClose}
             type="button"
           >
@@ -987,9 +987,9 @@ export function TrainingPlanModal({
             options={["减脂塑形", "增肌增力", "体态改善", "心肺耐力", "康复恢复"]}
           />
           <label className="block">
-            <span className="text-[12px] font-bold text-[#333333]">状态</span>
+            <span className="text-[12px] font-bold text-foreground">状态</span>
             <select
-              className="mt-1 h-10 w-full rounded-[10px] border border-[#dedede] bg-white px-3 text-[13px] outline-none focus:border-[#111111]"
+              className="mt-1 h-10 w-full rounded-[10px] border border-border bg-card px-3 text-[13px] outline-none focus:border-primary"
               onChange={(event) =>
                 setForm((current) => ({ ...current, status: event.target.value }))
               }
@@ -1106,7 +1106,7 @@ export function TrainingPlanModal({
 
         <div className="mt-5 flex items-center justify-end gap-3">
           <Button
-            className="h-10 rounded-[10px] border-[#dedede] px-4 text-[13px]"
+            className="h-10 rounded-[10px] border-border px-4 text-[13px]"
             onClick={onClose}
             type="button"
             variant="outline"
@@ -1114,7 +1114,7 @@ export function TrainingPlanModal({
             取消
           </Button>
           <Button
-            className="h-10 rounded-[10px] bg-[#111111] px-5 text-[13px] font-bold text-white hover:bg-[#111111]/90"
+            className="h-10 rounded-[10px] bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:bg-primary/90"
             disabled={loading}
             type="submit"
           >
@@ -1154,18 +1154,18 @@ export function TrainingFeedbackModal({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 px-4 backdrop-blur-[2px]">
-      <section className="max-h-[90svh] w-full max-w-[640px] overflow-y-auto rounded-[20px] border border-white/80 bg-white p-5 shadow-[0_22px_70px_rgba(0,0,0,0.25)]">
+      <section className="max-h-[90svh] w-full max-w-[640px] overflow-y-auto rounded-[20px] border border-border bg-card p-5 shadow-[0_22px_70px_rgba(0,0,0,0.25)]">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-[20px] font-black tracking-[-0.04em]">
               训练反馈
             </h2>
-            <p className="mt-2 text-[12px] leading-5 text-[#777777]">
+            <p className="mt-2 text-[12px] leading-5 text-muted-foreground">
               Kratos 会基于这次反馈生成原计划的调整建议，只有你同意后才会更新计划。
             </p>
           </div>
           <button
-            className="grid size-8 place-items-center rounded-full hover:bg-[#f4f4f4] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            className="grid size-8 place-items-center rounded-full hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
             onClick={onClose}
             type="button"
           >
@@ -1195,17 +1195,17 @@ export function TrainingFeedbackModal({
         {error ? <ErrorMessage message={error} /> : null}
 
         {adjustment ? (
-          <div className="mt-4 rounded-[12px] border border-[#e8e8e8] bg-[#fafafa] p-4">
+          <div className="mt-4 rounded-[12px] border border-border bg-muted/40 p-4">
             <h3 className="text-[14px] font-black">调整建议</h3>
             <div className="mt-3 flex flex-col gap-2">
               {adjustment.rationale.map((item) => (
-                <div className="flex gap-2 text-[12px] leading-5 text-[#555555]" key={item}>
+                <div className="flex gap-2 text-[12px] leading-5 text-muted-foreground" key={item}>
                   <Check className="mt-0.5 size-3.5 shrink-0" />
                   <span>{item}</span>
                 </div>
               ))}
             </div>
-            <div className="mt-4 rounded-[10px] bg-white p-3 text-[12px] leading-5 text-[#555555]">
+            <div className="mt-4 rounded-[10px] bg-card p-3 text-[12px] leading-5 text-muted-foreground">
               将更新原计划的摘要、周安排、营养或恢复建议；不会创建新计划。
             </div>
           </div>
@@ -1213,7 +1213,7 @@ export function TrainingFeedbackModal({
 
         <div className="mt-5 flex items-center justify-end gap-3">
           <Button
-            className="h-10 rounded-[10px] border-[#dedede] px-4 text-[13px]"
+            className="h-10 rounded-[10px] border-border px-4 text-[13px]"
             onClick={onClose}
             type="button"
             variant="outline"
@@ -1222,7 +1222,7 @@ export function TrainingFeedbackModal({
           </Button>
           {adjustment ? (
             <Button
-              className="h-10 rounded-[10px] bg-[#111111] px-5 text-[13px] font-bold text-white hover:bg-[#111111]/90"
+              className="h-10 rounded-[10px] bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:bg-primary/90"
               disabled={loading}
               onClick={onApply}
               type="button"
@@ -1232,7 +1232,7 @@ export function TrainingFeedbackModal({
             </Button>
           ) : (
             <Button
-              className="h-10 rounded-[10px] bg-[#111111] px-5 text-[13px] font-bold text-white hover:bg-[#111111]/90"
+              className="h-10 rounded-[10px] bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:bg-primary/90"
               disabled={loading}
               onClick={onPreview}
               type="button"
@@ -1260,18 +1260,18 @@ export function DetailModal({
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 px-4 backdrop-blur-[2px]">
-      <section className="w-full max-w-[430px] rounded-[18px] border border-white/80 bg-white p-5 shadow-[0_22px_70px_rgba(0,0,0,0.22)]">
+      <section className="w-full max-w-[430px] rounded-[18px] border border-border bg-card p-5 shadow-[0_22px_70px_rgba(0,0,0,0.22)]">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-[18px] font-black tracking-[-0.04em]">
               {panel.title}
             </h2>
-            <p className="mt-3 text-[13px] leading-6 text-[#555555]">
+            <p className="mt-3 text-[13px] leading-6 text-muted-foreground">
               {panel.body}
             </p>
           </div>
           <button
-            className="grid size-8 place-items-center rounded-full hover:bg-[#f4f4f4] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            className="grid size-8 place-items-center rounded-full hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
             onClick={onClose}
             type="button"
           >
@@ -1282,10 +1282,10 @@ export function DetailModal({
           <div className="mt-4 flex flex-col gap-2">
             {panel.items.map((item) => (
               <div
-                className="flex items-start gap-3 rounded-[10px] bg-[#f6f6f5] p-3 text-[12px] leading-5 text-[#444444]"
+                className="flex items-start gap-3 rounded-[10px] bg-muted p-3 text-[12px] leading-5 text-muted-foreground"
                 key={item}
               >
-                <Check className="mt-0.5 size-4 shrink-0 text-[#111111]" />
+                <Check className="mt-0.5 size-4 shrink-0 text-foreground" />
                 <span>{item}</span>
               </div>
             ))}
@@ -1372,11 +1372,11 @@ function SuggestionChips({
 }) {
   return (
     <div className="mt-2">
-      <p className="text-[11px] font-bold text-[#8a8a8a]">{label}</p>
+      <p className="text-[11px] font-bold text-muted-foreground">{label}</p>
       <div className="mt-2 flex flex-wrap gap-2">
         {options.map((option) => (
           <button
-            className="rounded-[8px] border border-[#e6e6e6] bg-white px-3 py-1.5 text-left text-[11px] font-bold text-[#555555] shadow-[0_6px_14px_rgba(0,0,0,0.06)] hover:border-[#bfc7b7] hover:bg-[#f8faf6]"
+            className="rounded-[8px] border border-border bg-card px-3 py-1.5 text-left text-[11px] font-bold text-muted-foreground shadow-[0_6px_14px_rgba(0,0,0,0.06)] hover:border-primary hover:bg-muted"
             key={option}
             onClick={() => onSelect(option)}
             type="button"
@@ -1401,9 +1401,9 @@ function FormInput({
 } & Omit<ComponentProps<"input">, "onChange" | "value">) {
   return (
     <label className="block">
-      <span className="text-[12px] font-bold text-[#333333]">{label}</span>
+      <span className="text-[12px] font-bold text-foreground">{label}</span>
       <input
-        className="mt-2 h-10 w-full rounded-[10px] border border-[#e4e4e4] bg-white px-3 text-[13px] outline-none transition-colors placeholder:text-[#aaaaaa] focus:border-[#111111] focus:shadow-[0_0_0_3px_rgba(17,17,17,0.08)]"
+        className="mt-2 h-10 w-full rounded-[10px] border border-border bg-card px-3 text-[13px] outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-3 focus:ring-ring/20"
         onChange={(event) => onChange(event.target.value)}
         value={value}
         {...props}
@@ -1424,9 +1424,9 @@ function FormTextarea({
 } & Omit<ComponentProps<"textarea">, "onChange" | "value">) {
   return (
     <label className="mt-3 block">
-      <span className="text-[12px] font-bold text-[#333333]">{label}</span>
+      <span className="text-[12px] font-bold text-foreground">{label}</span>
       <textarea
-        className="mt-2 min-h-20 w-full resize-none rounded-[10px] border border-[#e4e4e4] bg-white px-3 py-2 text-[13px] leading-5 outline-none transition-colors placeholder:text-[#aaaaaa] focus:border-[#111111] focus:shadow-[0_0_0_3px_rgba(17,17,17,0.08)]"
+        className="mt-2 min-h-20 w-full resize-none rounded-[10px] border border-border bg-card px-3 py-2 text-[13px] leading-5 outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-3 focus:ring-ring/20"
         onChange={(event) => onChange(event.target.value)}
         value={value}
         {...props}
@@ -1437,7 +1437,7 @@ function FormTextarea({
 
 function ErrorMessage({ message }: { message: string }) {
   return (
-    <div className="mt-4 flex items-start gap-2 rounded-[10px] bg-[#fff4f2] p-3 text-[12px] leading-5 text-[#a13b2b]">
+    <div className="mt-4 flex items-start gap-2 rounded-[10px] bg-destructive/10 p-3 text-[12px] leading-5 text-destructive">
       <CircleAlert className="mt-0.5 size-4 shrink-0" />
       <span>{message}</span>
     </div>

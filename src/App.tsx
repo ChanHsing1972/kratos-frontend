@@ -1856,15 +1856,15 @@ export function App() {
   }
 
   return (
-    <div className="min-h-svh bg-white text-[#111111]">
+    <div className="min-h-svh bg-background text-foreground">
       <SidebarProvider
-        className="flex h-[100svh] w-full overflow-hidden bg-white"
+        className="flex h-[100svh] w-full overflow-hidden bg-background"
         open={!sidebarCollapsed}
         onOpenChange={(open) => setSidebarCollapsed(!open)}
       >
         <button
           aria-label="打开侧边栏"
-          className="fixed top-4 left-4 z-40 grid size-10 place-items-center rounded-[10px] border border-[#e4e4e4] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] md:hidden"
+          className="fixed top-4 left-4 z-40 grid size-10 place-items-center rounded-[10px] border border-border bg-card shadow-[0_8px_24px_rgba(0,0,0,0.10)] md:hidden"
           onClick={() => setSidebarDrawerOpen(true)}
           type="button"
         >

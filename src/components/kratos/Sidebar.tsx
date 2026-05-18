@@ -135,7 +135,7 @@ export function Sidebar({
               </div>
               <div className="grid flex-1 text-left text-lg leading-tight">
                 <span className="text-[24px] truncate font-black tracking-[-0.06em]">Kratos</span>
-                <span className="truncate text-xs text-[#8b8b8b]">AI Fitness Coach</span>
+                <span className="truncate text-xs text-muted-foreground">AI Fitness Coach</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

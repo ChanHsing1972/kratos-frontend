@@ -20,7 +20,7 @@ const markdownComponents: Components = {
   a: ({ className, ...props }) => (
     <a
       className={cn(
-        "font-medium text-[#111111] underline decoration-[#111111]/30 underline-offset-3 transition-colors hover:decoration-[#111111]",
+        "font-medium text-foreground underline decoration-foreground/30 underline-offset-3 transition-colors hover:decoration-foreground",
         className
       )}
       rel="noreferrer"
@@ -31,7 +31,7 @@ const markdownComponents: Components = {
   blockquote: ({ className, ...props }) => (
     <blockquote
       className={cn(
-        "border-l-2 border-[#d9d9d9] pl-3 text-[#555555]",
+        "border-l-2 border-border pl-3 text-muted-foreground",
         className
       )}
       {...cleanMarkdownProps(props)}
@@ -40,7 +40,7 @@ const markdownComponents: Components = {
   code: ({ className, ...props }) => (
     <code
       className={cn(
-        "rounded-[6px] bg-[#f1f1f1] px-1.5 py-0.5 font-mono text-[0.92em] text-[#151515]",
+        "rounded-[6px] bg-muted px-1.5 py-0.5 font-mono text-[0.92em] text-foreground",
         className
       )}
       {...cleanMarkdownProps(props)}
@@ -66,13 +66,13 @@ const markdownComponents: Components = {
   ),
   hr: ({ className, ...props }) => (
     <hr
-      className={cn("border-[#e5e5e5]", className)}
+      className={cn("border-border", className)}
       {...cleanMarkdownProps(props)}
     />
   ),
   input: ({ className, ...props }) => (
     <input
-      className={cn("mr-2 align-[-1px] accent-[#111111]", className)}
+      className={cn("mr-2 align-[-1px] accent-primary", className)}
       {...cleanMarkdownProps(props)}
     />
   ),
@@ -94,7 +94,7 @@ const markdownComponents: Components = {
   pre: ({ className, ...props }) => (
     <pre
       className={cn(
-        "overflow-x-auto rounded-[10px] bg-[#f5f5f5] px-3 py-2 text-[12px] leading-5",
+        "overflow-x-auto rounded-[10px] bg-muted px-3 py-2 text-[12px] leading-5",
         className
       )}
       {...cleanMarkdownProps(props)}
@@ -113,20 +113,20 @@ const markdownComponents: Components = {
   ),
   tbody: ({ className, ...props }) => (
     <tbody
-      className={cn("divide-y divide-[#eeeeee]", className)}
+      className={cn("divide-y divide-border", className)}
       {...cleanMarkdownProps(props)}
     />
   ),
   td: ({ className, ...props }) => (
     <td
-      className={cn("border border-[#eeeeee] px-2.5 py-1.5", className)}
+      className={cn("border border-border px-2.5 py-1.5", className)}
       {...cleanMarkdownProps(props)}
     />
   ),
   th: ({ className, ...props }) => (
     <th
       className={cn(
-        "border border-[#dddddd] px-2.5 py-1.5 font-semibold",
+        "border border-border px-2.5 py-1.5 font-semibold",
         className
       )}
       {...cleanMarkdownProps(props)}

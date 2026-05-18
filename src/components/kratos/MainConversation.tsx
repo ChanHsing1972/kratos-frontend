@@ -112,14 +112,14 @@ export function MainConversation({
   }, [liveMessageKey])
 
   return (
-    <main className="flex h-full min-w-0 flex-1 flex-col border-[#e8e8e8] bg-white xl:border-r">
+    <main className="flex h-full min-w-0 flex-1 flex-col border-border bg-card xl:border-r">
       <header className={cn("flex shrink-0 flex-col gap-2 px-0 pt-5 pb-0 sm:px-6 lg:flex-row lg:items-start lg:justify-between ",
-        isEmptyConversation && !conversationLoading ? "bg-gray-50" : "bg-white")}>
+        isEmptyConversation && !conversationLoading ? "bg-muted/40" : "bg-card")}>
         <div>
           <h2 className="text-[25px] leading-[1.1] font-extrabold tracking-[-0.04em]">
             {messages.length ? activeSessionTitle : ``}
           </h2>
-          {/* <p className="mt-2 text-[13px] text-[#6d6d6d]">
+          {/* <p className="mt-2 text-[13px] text-muted-foreground">
             {messages.length
               ? "Kratos 会把训练计划、工具调用和推理轨迹保存在这条会话里。"
               : ""}
@@ -128,7 +128,7 @@ export function MainConversation({
         <div className="relative flex items-center gap-4">
           <button
             aria-label="Toggle theme"
-            className="grid size-6 place-items-center rounded-full text-[#161616] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            className="grid size-6 place-items-center rounded-full text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
             onClick={onToggleTheme}
             type="button"
           >
@@ -141,13 +141,13 @@ export function MainConversation({
           <button
             aria-label="Notifications"
             data-popover-root
-            className="relative grid size-6 place-items-center rounded-full text-[#161616] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            className="relative grid size-6 place-items-center rounded-full text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
             onClick={onToggleNotifications}
             type="button"
           >
             <Bell className="size-5" strokeWidth={1.7} />
             {unreadCount > 0 ? (
-              <span className="absolute -top-1 -right-1 grid size-4 place-items-center rounded-full bg-[#111111] text-[9px] font-bold text-white">
+              <span className="absolute -top-1 -right-1 grid size-4 place-items-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
                 {unreadCount}
               </span>
             ) : null}
@@ -163,14 +163,14 @@ export function MainConversation({
 
       <div className="flex min-h-0 flex-1 flex-col">
         {conversationLoading ? (
-          <div className="flex min-h-0 flex-1 items-center justify-center bg-white px-5">
-            <div className="flex items-center gap-3 rounded-[12px] border border-[#eeeeee] bg-[#fbfbfa] px-4 py-3 text-[13px] font-semibold text-[#555555]">
+          <div className="flex min-h-0 flex-1 items-center justify-center bg-card px-5">
+            <div className="flex items-center gap-3 rounded-[12px] border border-border bg-muted/40 px-4 py-3 text-[13px] font-semibold text-muted-foreground">
               <LoaderCircle className="size-4 animate-spin" />
               正在加载对话内容
             </div>
           </div>
         ) : isEmptyConversation ? (
-          <div className="flex min-h-0 flex-1 items-center px-5 pb-8 pt-2 sm:px-6 bg-gray-50">
+          <div className="flex min-h-0 flex-1 items-center px-5 pb-8 pt-2 sm:px-6 bg-muted/40">
             <div className="mx-auto w-full max-w-[820px]">
               <EmptyConversation
                 composer={
@@ -191,9 +191,9 @@ export function MainConversation({
         ) : (
           <>
             <div className="relative min-h-0 flex-1">
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-white via-white/88 to-transparent" />
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 bg-gradient-to-b from-transparent via-white/72 to-white" />
-              <div className="h-full min-h-0 overflow-y-auto bg-white" ref={scrollViewportRef}>
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-background via-background/88 to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 bg-gradient-to-b from-transparent via-background/72 to-background" />
+              <div className="h-full min-h-0 overflow-y-auto bg-card" ref={scrollViewportRef}>
                 <div className="mx-auto flex w-full max-w-[820px] flex-col gap-[17px] px-5 pb-0 sm:px-6">
                   {messages.map((message) => (
                     <ChatBubble
@@ -217,8 +217,8 @@ export function MainConversation({
               </div>
             </div>
 
-            <div className="relative shrink-0 bg-white px-5 pt-1 pb-3 sm:px-6">
-              <div className="pointer-events-none absolute inset-x-0 -top-10 h-10 bg-gradient-to-b from-transparent via-white/72 to-white" />
+            <div className="relative shrink-0 bg-card px-5 pt-1 pb-3 sm:px-6">
+              <div className="pointer-events-none absolute inset-x-0 -top-10 h-10 bg-gradient-to-b from-transparent via-background/72 to-background" />
               <div className="mx-auto w-full max-w-[820px]">
                 <Composer
                   onAttachment={onAttachment}
@@ -253,11 +253,11 @@ function NotificationsPopover({
   onMarkAllRead: () => void
 }) {
   return (
-    <div data-popover-root className="absolute top-9 right-0 z-40 w-[280px] rounded-[14px] border border-[#e6e6e6] bg-white p-3 shadow-[0_16px_40px_rgba(0,0,0,0.16)]">
+    <div data-popover-root className="absolute top-9 right-0 z-40 w-[280px] rounded-[14px] border border-border bg-card p-3 shadow-[0_16px_40px_rgba(0,0,0,0.16)]">
       <div className="flex items-center justify-between">
         <h3 className="text-[13px] font-bold">通知中心</h3>
         <button
-          className="text-[11px] font-medium text-[#777777] hover:text-[#111111] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+          className="text-[11px] font-medium text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
           onClick={onMarkAllRead}
           type="button"
         >
@@ -267,19 +267,19 @@ function NotificationsPopover({
       <div className="mt-3 flex flex-col gap-2">
         {notifications.map((item) => (
           <div
-            className="rounded-[10px] border border-[#eeeeee] p-3"
+            className="rounded-[10px] border border-border p-3"
             key={item.id}
           >
             <div className="flex items-center gap-2">
               <span
                 className={cn(
                   "size-1.5 rounded-full",
-                  item.read ? "bg-[#d4d4d4]" : "bg-[#111111]"
+                  item.read ? "bg-muted-foreground/35" : "bg-primary"
                 )}
               />
               <h4 className="text-[12px] font-bold">{item.title}</h4>
             </div>
-            <p className="mt-1.5 text-[11px] leading-4 text-[#777777]">
+            <p className="mt-1.5 text-[11px] leading-4 text-muted-foreground">
               {item.body}
             </p>
           </div>
@@ -310,7 +310,7 @@ function ThinkingCard({
   const elapsedSeconds = useElapsedSeconds(startedAt, completedAt, streaming)
 
   return (
-    <section className="animate-fade-slide-in rounded-[12px] border border-[#eeeeee] bg-[#fbfbfa] px-4 py-4">
+    <section className="animate-fade-slide-in rounded-[12px] border border-border bg-muted/40 px-4 py-4">
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-4">
@@ -318,14 +318,14 @@ function ThinkingCard({
               <h3 className="text-[13px] leading-5 font-bold">
                 思考过程 · {elapsedSeconds}s
               </h3>
-              <p className="thinking-status-sweep mt-1 text-[12px] text-[#8a8a8a]">
+              <p className="thinking-status-sweep mt-1 text-[12px] text-muted-foreground">
                 {streaming
                   ? "正在读取资料、规划工具和组织回答"
                   : `${visibleSteps.length} 条推理事件`}
               </p>
             </div>
             <button
-              className="inline-flex items-center gap-1 rounded-[8px] text-[12px] font-medium text-[#777777] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+              className="inline-flex items-center gap-1 rounded-[8px] text-[12px] font-medium text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
               onClick={onToggle}
               type="button"
             >
@@ -341,7 +341,7 @@ function ThinkingCard({
 
           {expanded ? (
             <div className="relative mt-5 pl-8">
-              <div className="absolute top-2 bottom-3 left-[7px] w-px bg-[#e4e4e4]" />
+              <div className="absolute top-2 bottom-3 left-[7px] w-px bg-border" />
               <div className="flex flex-col gap-3.5">
                 {visibleSteps.length > 0 ? (
                   visibleSteps.map((step, index) => (
@@ -352,7 +352,7 @@ function ThinkingCard({
                     />
                   ))
                 ) : (
-                  <div className="relative text-[12px] leading-5 text-[#666666]">
+                  <div className="relative text-[12px] leading-5 text-muted-foreground">
                     <ThinkingDots />
                   </div>
                 )}
@@ -376,30 +376,30 @@ function TimelineRow({
 
   return (
     <div className="animate-fade-slide-in relative">
-      <div className="absolute top-0.5 -left-[31px] grid size-3.5 place-items-center rounded-full border border-[#111111] bg-white">
+      <div className="absolute top-0.5 -left-[31px] grid size-3.5 place-items-center rounded-full border border-primary bg-card">
         {item.type === "thought" || item.type === "status" ? (
-          <span className="size-1.5 rounded-full bg-[#111111]" />
+          <span className="size-1.5 rounded-full bg-primary" />
         ) : item.type === "error" ? (
-          <span className="size-1.5 rounded-full bg-[#d64040]" />
+          <span className="size-1.5 rounded-full bg-destructive" />
         ) : item.type === "reflection" ? (
-          <Check className="size-2.5 text-[#111111]" strokeWidth={2.5} />
+          <Check className="size-2.5 text-foreground" strokeWidth={2.5} />
         ) : (
-          <Sparkles className="size-2.5 text-[#111111]" strokeWidth={2.2} />
+          <Sparkles className="size-2.5 text-foreground" strokeWidth={2.2} />
         )}
       </div>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h4 className="text-[12px] leading-4 font-bold text-[#141414]">
+          <h4 className="text-[12px] leading-4 font-bold text-foreground">
             {meta}
           </h4>
           <TypewriterText
             active={animate}
-            className="mt-1 text-[12px] leading-[1.58] text-[#333333]"
+            className="mt-1 text-[12px] leading-[1.58] text-foreground"
             text={formatTraceContent(item)}
           />
         </div>
         {item.timestamp ? (
-          <time className="shrink-0 text-[11px] leading-4 text-[#999999]">
+          <time className="shrink-0 text-[11px] leading-4 text-muted-foreground">
             {formatTraceTime(item.timestamp)}
           </time>
         ) : null}
@@ -468,9 +468,9 @@ function ThinkingDots() {
     <span className="inline-flex items-center gap-1">
       等待 Agent 事件
       <span className="inline-flex gap-0.5">
-        <span className="size-1 animate-bounce rounded-full bg-[#777777]" />
-        <span className="size-1 animate-bounce rounded-full bg-[#777777] [animation-delay:120ms]" />
-        <span className="size-1 animate-bounce rounded-full bg-[#777777] [animation-delay:240ms]" />
+        <span className="size-1 animate-bounce rounded-full bg-muted-foreground" />
+        <span className="size-1 animate-bounce rounded-full bg-muted-foreground [animation-delay:120ms]" />
+        <span className="size-1 animate-bounce rounded-full bg-muted-foreground [animation-delay:240ms]" />
       </span>
     </span>
   )
@@ -563,20 +563,20 @@ function ChatBubble({
   if (!isAssistant) {
     return (
       <section className="flex flex-col items-end pb-5 pt-5">
-        <div className="max-w-[72%] rounded-2xl bg-[#f2f2f2] px-4 py-3">
-          <MarkdownMessage className="text-[#2f2f2f]">
+        <div className="max-w-[72%] rounded-2xl bg-muted px-4 py-3">
+          <MarkdownMessage className="text-foreground">
             {message.body}
           </MarkdownMessage>
         </div>
-        <div className="mt-1 flex items-center gap-3 text-[12px] text-[#8b8b8b]">
+        <div className="mt-1 flex items-center gap-3 text-[12px] text-muted-foreground">
           <span>{message.time}</span>
           <button
             onClick={handleCopy}
-            className="hover:text-black focus:outline-none"
+            className="hover:text-foreground focus:outline-none"
             aria-label="复制消息"
           >
             {copied ? (
-              <Check className="size-3.5 text-black" />
+              <Check className="size-3.5 text-foreground" />
             ) : (
               <Copy className="size-3.5" />
             )}
@@ -587,9 +587,9 @@ function ChatBubble({
   }
 
   return (
-    <section className="bg-white pt-0 pb-4">
+    <section className="bg-card pt-0 pb-4">
       <div className="flex gap-4">
-        <div className="grid size-9 shrink-0 place-items-center rounded-full bg-[#111111] text-white">
+        <div className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
           <span className="text-[18px] font-bold">K</span>
         </div>
         <div className="min-w-0 flex-1">
@@ -610,7 +610,7 @@ function ChatBubble({
           ) : null}
           <div className="mt-3 min-h-7">
             {message.body ? (
-              <MarkdownMessage className="text-[#333333]">
+              <MarkdownMessage className="text-foreground">
                 {message.body}
               </MarkdownMessage>
             ) : (
@@ -618,7 +618,7 @@ function ChatBubble({
             )}
           </div>
           {message.error ? (
-            <p className="mt-2 text-[12px] leading-5 text-[#b42318]">
+            <p className="mt-2 text-[12px] leading-5 text-destructive">
               {message.error}
             </p>
           ) : null}
@@ -636,7 +636,7 @@ function ChatBubble({
           ) : null}
 
           {/* 操作栏：重新生成、版本切换、时间戳、复制 (全部靠左) */}
-          <div className="mt-2 flex items-center gap-3 text-[12px] text-[#8b8b8b]">
+          <div className="mt-2 flex items-center gap-3 text-[12px] text-muted-foreground">
             {/* 时间戳 */}
             <span>{message.time}</span>
 
@@ -644,11 +644,11 @@ function ChatBubble({
             <button
               onClick={handleCopy}
               disabled={!message.body}
-              className="hover:text-black focus:outline-none"
+              className="hover:text-foreground focus:outline-none"
               aria-label="复制消息"
             >
               {copied ? (
-                <Check className="size-3.5 text-black" />
+                <Check className="size-3.5 text-foreground" />
               ) : (
                 <Copy className="size-3.5" />
               )}
@@ -681,23 +681,23 @@ function TrainingPlanSuggestionCard({
       .slice(0, 3) ?? []
 
   return (
-    <section className="mt-4 rounded-[12px] border border-[#e5e5e5] bg-[#fbfbfa] p-4 shadow-[0_10px_24px_rgba(17,17,17,0.04)]">
+    <section className="mt-4 rounded-[12px] border border-border bg-muted/40 p-4 shadow-[0_10px_24px_rgba(17,17,17,0.04)]">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold tracking-[0.12em] text-[#8a8a8a] uppercase">
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
             AI 训练计划草稿
           </p>
-          <h4 className="mt-1 text-[15px] font-black tracking-[-0.03em] text-[#111111]">
+          <h4 className="mt-1 text-[15px] font-black tracking-[-0.03em] text-foreground">
             {plan.title}
           </h4>
           {plan.goal ? (
-            <p className="mt-1 text-[12px] leading-5 text-[#666666]">
+            <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
               {plan.goal}
             </p>
           ) : null}
         </div>
         {created ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-[8px] border border-[#111111] bg-white px-2.5 py-1 text-[11px] font-bold text-[#111111]">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-[8px] border border-primary bg-card px-2.5 py-1 text-[11px] font-bold text-foreground">
             <Check className="size-3.5" />
             已生成
           </span>
@@ -708,7 +708,7 @@ function TrainingPlanSuggestionCard({
         <div className="mt-3 space-y-2">
           {scheduleLines.map((line) => (
             <p
-              className="rounded-[8px] border border-[#eeeeee] bg-white px-3 py-2 text-[12px] leading-5 text-[#444444]"
+              className="rounded-[8px] border border-border bg-card px-3 py-2 text-[12px] leading-5 text-muted-foreground"
               key={line}
             >
               {line}
@@ -719,7 +719,7 @@ function TrainingPlanSuggestionCard({
 
       <div className="mt-4 flex flex-wrap gap-2">
         <button
-          className="inline-flex h-9 items-center gap-2 rounded-[8px] bg-[#111111] px-3 text-[12px] font-bold text-white transition hover:bg-[#222222] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-2 rounded-[8px] bg-primary px-3 text-[12px] font-bold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={created || loading}
           onClick={onCreate}
           type="button"
@@ -728,7 +728,7 @@ function TrainingPlanSuggestionCard({
           <ChevronRight className="size-3.5" />
         </button>
         <button
-          className="inline-flex h-9 items-center gap-2 rounded-[8px] border border-[#d9d9d9] bg-white px-3 text-[12px] font-bold text-[#111111] transition hover:border-[#111111] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-2 rounded-[8px] border border-border bg-card px-3 text-[12px] font-bold text-foreground transition hover:border-primary disabled:cursor-not-allowed disabled:opacity-50"
           disabled={created || loading}
           onClick={onEdit}
           type="button"
@@ -775,7 +775,7 @@ function EmptyConversation({
         <h3 className="text-4xl font-semibold tracking-tight text-foreground">
           你今天想完成什么？
         </h3>
-        <p className="mt-1 max-w-[560px] text-sm leading-6 text-[#6d6d6d]">
+        <p className="mt-1 max-w-[560px] text-sm leading-6 text-muted-foreground">
           Kratos 会根据你的训练目标、身体状况和恢复情况，提供个性化的训练建议和计划。
         </p>
       </div>
@@ -784,14 +784,14 @@ function EmptyConversation({
       <div className="grid gap-3 sm:grid-cols-3">
         {starters.map((action) => (
           <button
-            className="min-h-[100px] rounded-xl border border-[#e8e8e8] bg-white p-4 text-left transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+            className="min-h-[100px] rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
             key={action.title}
             onClick={() => onQuickAction(action)}
             type="button"
           >
-            <action.icon className="size-4 text-[#111111]" strokeWidth={1.5} />
+            <action.icon className="size-4 text-foreground" strokeWidth={1.5} />
             <h4 className="mt-3 text-[13px] font-bold">{action.title}</h4>
-            <p className="text-[13px] leading-4 text-[#777777]">
+            <p className="text-[13px] leading-4 text-muted-foreground">
               {action.description}
             </p>
           </button>
@@ -912,7 +912,11 @@ function Composer({
           aria-label={sending ? "停止生成" : "发送"}
           onClick={() => {
             if (!sending && !value.trim()) return
-            sending ? onStop() : onSend()
+            if (sending) {
+              onStop()
+              return
+            }
+            onSend()
           }}
           size="icon"
           type="button"

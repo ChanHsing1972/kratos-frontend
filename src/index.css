@@ -164,11 +164,11 @@
 .thinking-status-sweep {
   background:
     linear-gradient(100deg,
-      #8a8a8a 0%,
-      #8a8a8a 35%,
-      #111111 50%,
-      #8a8a8a 65%,
-      #8a8a8a 100%);
+      var(--muted-foreground) 0%,
+      var(--muted-foreground) 35%,
+      var(--foreground) 50%,
+      var(--muted-foreground) 65%,
+      var(--muted-foreground) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   background-size: 220% 100%;

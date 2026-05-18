@@ -58,7 +58,7 @@ export function RightPanel({
   trainingStarted,
 }: RightPanelProps) {
   return (
-    <aside className="h-full w-full shrink-0 overflow-y-auto border-l border-[#ededed] bg-[#fbfbfa] px-5 py-6 xl:w-[410px]">
+    <aside className="h-full w-full shrink-0 overflow-y-auto border-l border-border bg-muted/40 px-5 py-6 xl:w-[410px]">
       <AgentReadinessCard
         latestMetric={latestMetric}
         onboarding={onboarding}
@@ -108,29 +108,29 @@ export function RightPanel({
       <StatusCard metrics={metrics} />
 
       <button
-        className="mt-3 w-full rounded-[10px] border border-[#e0e0e0] bg-white px-4 py-3 text-left transition-colors hover:bg-[#f6f6f5] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        className="mt-3 w-full rounded-[10px] border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
         onClick={onEditBodyData}
         type="button"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Activity className="size-4 text-[#111111]" strokeWidth={1.8} />
+            <Activity className="size-4 text-foreground" strokeWidth={1.8} />
             <span className="text-[13px] font-bold">更新今日身体反馈</span>
           </div>
-          <ChevronRight className="size-4 text-[#777777]" />
+          <ChevronRight className="size-4 text-muted-foreground" />
         </div>
       </button>
 
       <button
-        className="mt-3 w-full rounded-[10px] border border-[#e0e0e0] bg-white px-4 py-4 text-left transition-colors hover:bg-[#f6f6f5] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        className="mt-3 w-full rounded-[10px] border border-border bg-card px-4 py-4 text-left transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
         onClick={() => onOpenPanel(buildReminderPanel(activePlan))}
         type="button"
       >
         <div className="flex items-center gap-2">
-          <Sparkles className="size-4 fill-[#111111]" strokeWidth={2} />
+          <Sparkles className="size-4 fill-foreground" strokeWidth={2} />
           <h3 className="text-[14px] font-bold">Kratos 下一步</h3>
         </div>
-        <p className="mt-2 text-[12px] leading-5 text-[#777777]">
+        <p className="mt-2 text-[12px] leading-5 text-muted-foreground">
           {onboarding?.next_steps?.[0] ??
             "让 Agent 生成今日训练、饮食补给或恢复建议。"}
         </p>
@@ -153,13 +153,13 @@ function AgentReadinessCard({
   const ready = onboarding?.ready_for_agent ?? false
 
   return (
-    <section className="mb-7 rounded-[12px] border border-[#e8e8e8] bg-[#fbfbfa] p-4">
+    <section className="mb-7 rounded-[12px] border border-border bg-muted/40 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-[16px] font-black tracking-[-0.02em]">
             Agent 上下文
           </h2>
-          <p className="mt-1 text-[12px] leading-5 text-[#666666]">
+          <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
             {ready
               ? "每次回复前都会读取你的目标、身体数据和近期记录。"
               : "先补齐关键字段，训练和饮食建议会更像真的为你定制。"}
@@ -168,7 +168,7 @@ function AgentReadinessCard({
         <span
           className={cn(
             "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold",
-            ready ? "bg-[#111111] text-white" : "bg-[#fff3d6] text-[#8a6100]"
+            ready ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
           )}
         >
           {ready ? "已就绪" : "待完善"}
@@ -189,12 +189,12 @@ function AgentReadinessCard({
       </div>
 
       <button
-        className="mt-3 flex w-full items-center justify-between gap-3 rounded-[10px] border border-[#e3e3e3] bg-white px-3 py-2.5 text-left text-[12px] font-bold text-[#222222] transition-colors hover:bg-[#f6f6f5] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        className="mt-3 flex w-full items-center justify-between gap-3 rounded-[10px] border border-border bg-card px-3 py-2.5 text-left text-[12px] font-bold text-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
         onClick={onOpenOnboarding}
         type="button"
       >
         {ready ? "查看或更新建档信息" : onboarding?.next_steps?.[0] ?? "开始 2 分钟建档"}
-        <ChevronRight className="size-3.5 text-[#777777]" />
+        <ChevronRight className="size-3.5 text-muted-foreground" />
       </button>
     </section>
   )
@@ -210,12 +210,12 @@ function ContextPill({
   value: string
 }) {
   return (
-    <div className="rounded-[10px] border border-[#eeeeee] bg-white px-3 py-2">
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#777777]">
+    <div className="rounded-[10px] border border-border bg-card px-3 py-2">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
         <Icon className="size-3.5" strokeWidth={1.8} />
         {label}
       </div>
-      <p className="mt-1 truncate text-[13px] font-black text-[#111111]">
+      <p className="mt-1 truncate text-[13px] font-black text-foreground">
         {value}
       </p>
     </div>
@@ -235,7 +235,7 @@ function SectionHeader({
     <div className="flex items-center justify-between">
       <h2 className="text-[17px] font-bold tracking-[-0.02em]">{title}</h2>
       <button
-        className="inline-flex items-center gap-2 rounded-[8px] text-[11px] font-medium text-[#8a8a8a] hover:text-[#111111] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        className="inline-flex items-center gap-2 rounded-[8px] text-[11px] font-medium text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
         onClick={onAction}
         type="button"
       >
@@ -248,10 +248,10 @@ function SectionHeader({
 
 function StatusCard({ metrics }: { metrics: Metric[] }) {
   return (
-    <section className="mt-2 rounded-[12px] border border-[#e8e8e8] bg-white px-4 py-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
-      <div className="grid grid-cols-2 border-b border-[#efefef] pb-4 text-center text-[11px] text-[#8a8a8a]">
+    <section className="mt-2 rounded-[12px] border border-border bg-card px-4 py-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+      <div className="grid grid-cols-2 border-b border-border pb-4 text-center text-[11px] text-muted-foreground">
         <span>身体状态</span>
-        <span className="border-l border-[#efefef]">训练状态</span>
+        <span className="border-l border-border">训练状态</span>
       </div>
       <div className="grid grid-cols-2 gap-y-7 pt-6">
         {metrics.map((metric, index) => (
@@ -273,22 +273,22 @@ function MetricCell({
     <div
       className={cn(
         "flex items-center gap-4 px-1",
-        isRight && "border-l border-[#efefef] pl-6"
+        isRight && "border-l border-border pl-6"
       )}
     >
-      <Icon className="size-7 shrink-0 text-[#101010]" strokeWidth={1.7} />
+      <Icon className="size-7 shrink-0 text-foreground" strokeWidth={1.7} />
       <div>
         <div className="flex items-baseline gap-1">
           <span className="text-[20px] leading-none font-bold tracking-[-0.02em]">
             {value}
           </span>
           {unit ? (
-            <span className="text-[11px] font-medium text-[#777777]">
+            <span className="text-[11px] font-medium text-muted-foreground">
               {unit}
             </span>
           ) : null}
         </div>
-        <p className="mt-1.5 text-[11px] text-[#8a8a8a]">{label}</p>
+        <p className="mt-1.5 text-[11px] text-muted-foreground">{label}</p>
       </div>
     </div>
   )
@@ -321,7 +321,7 @@ function TrainingPlanCard({
       : "开始训练"
 
   return (
-    <section className="mt-2 rounded-[12px] border border-[#e8e8e8] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+    <section className="mt-2 rounded-[12px] border border-border bg-card p-4 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-[13px] leading-5 font-bold">
@@ -332,8 +332,8 @@ function TrainingPlanCard({
           className={cn(
             "rounded-full px-2.5 py-1 text-[10px] font-semibold",
             allDone
-              ? "bg-[#111111] text-white"
-              : "bg-[#e9f5e6] text-[#5d9a5c]"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground"
           )}
         >
           {allDone ? "已完成" : activePlan ? "已同步" : "未录入"}
@@ -341,7 +341,7 @@ function TrainingPlanCard({
       </div>
 
       {exercises.length > 0 ? (
-        <div className="mt-3 overflow-hidden rounded-[8px] border border-[#eeeeee]">
+        <div className="mt-3 overflow-hidden rounded-[8px] border border-border">
           {exercises.slice(0, 2).map((exercise, index) => (
             <ExerciseRow
               completed={completedExercises.includes(exercise)}
@@ -353,14 +353,14 @@ function TrainingPlanCard({
           ))}
         </div>
       ) : (
-        <div className="mt-3 rounded-[8px] border border-dashed border-[#dedede] bg-[#fbfbfa] px-4 py-5 text-[12px] leading-5 text-[#777777]">
+        <div className="mt-3 rounded-[8px] border border-dashed border-border bg-muted/40 px-4 py-5 text-[12px] leading-5 text-muted-foreground">
           数据库中还没有训练动作。请先让 Agent 生成训练计划，或在后端写入
           weekly_schedule。
         </div>
       )}
 
       <button
-        className="mt-3 w-full rounded-[12px] border border-[#ededed] bg-white p-4 text-left transition-colors hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none"
+        className="mt-3 w-full rounded-[12px] border border-border bg-card p-4 text-left transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
         onClick={() =>
           onOpenPanel({
             title: "热身建议",
@@ -378,15 +378,15 @@ function TrainingPlanCard({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-[13px] font-bold">热身建议</h3>
-            <p className="mt-2 text-[11px] text-[#777777]">
+            <p className="mt-2 text-[11px] text-muted-foreground">
               4分钟动态热身（髋关节激活 + 轻度拉伸）
             </p>
           </div>
-          <ChevronRight className="mt-2 size-4 text-[#777777]" />
+          <ChevronRight className="mt-2 size-4 text-muted-foreground" />
         </div>
       </button>
       <Button
-        className="mt-3 h-12 w-full rounded-[8px] bg-[#101010] text-[15px] font-semibold text-white hover:bg-[#101010]/90"
+        className="mt-3 h-12 w-full rounded-[8px] bg-primary text-[15px] font-semibold text-primary-foreground hover:bg-primary/90"
         disabled={dashboardLoading || exercises.length === 0}
         onClick={onTrainingButton}
         type="button"
@@ -418,8 +418,8 @@ function ExerciseRow({
   return (
     <button
       className={cn(
-        "flex min-h-[100px] w-full items-center justify-between gap-3 border-b border-[#eeeeee] px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-[#fbfbfa] focus-visible:ring-2 focus-visible:ring-[#111111]/30 focus-visible:outline-none",
-        completed && "bg-[#f6f6f5]"
+        "flex min-h-[100px] w-full items-center justify-between gap-3 border-b border-border px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+        completed && "bg-muted"
       )}
       onClick={onToggle}
       type="button"
@@ -427,8 +427,8 @@ function ExerciseRow({
       <div className="flex min-w-0 gap-2">
         <span
           className={cn(
-            "grid size-5 place-items-center rounded-full pt-px text-[12px] font-bold text-[#111111]",
-            completed && "bg-[#111111] text-white"
+            "grid size-5 place-items-center rounded-full pt-px text-[12px] font-bold text-foreground",
+            completed && "bg-primary text-primary-foreground"
           )}
         >
           {completed ? (
@@ -441,7 +441,7 @@ function ExerciseRow({
         </span>
         <div>
           <h4 className="text-[12px] font-bold">{name}</h4>
-          <p className="mt-2 text-[12px] text-[#555555]">
+          <p className="mt-2 text-[12px] text-muted-foreground">
             {detail ?? "按计划完成"}
           </p>
         </div>
@@ -462,28 +462,28 @@ function ExerciseIllustration({ type }: { type: "hinge" | "bridge" }) {
         <path
           d="M20 50c18 0 28-4 39-13 7-6 16-10 28-3l12 7"
           fill="none"
-          stroke="#111"
+          stroke="currentColor"
           strokeLinecap="round"
           strokeWidth="7"
         />
         <path
           d="M52 36 73 17c7-6 17-3 21 6l9 20"
           fill="none"
-          stroke="#d9d9d9"
+          stroke="var(--border)"
           strokeLinecap="round"
           strokeWidth="10"
         />
         <path
           d="M75 18c12 4 22 14 31 29"
           fill="none"
-          stroke="#111"
+          stroke="currentColor"
           strokeLinecap="round"
           strokeWidth="2.2"
         />
-        <circle cx="18" cy="48" fill="#111" r="8" />
-        <rect fill="#111" height="7" rx="2" width="34" x="9" y="46" />
-        <circle cx="105" cy="45" fill="#111" r="4" />
-        <circle cx="115" cy="47" fill="#111" r="4" />
+        <circle cx="18" cy="48" fill="currentColor" r="8" />
+        <rect fill="currentColor" height="7" rx="2" width="34" x="9" y="46" />
+        <circle cx="105" cy="45" fill="currentColor" r="4" />
+        <circle cx="115" cy="47" fill="currentColor" r="4" />
       </svg>
     )
   }
@@ -511,44 +511,44 @@ function PoseFigure({
 
   return (
     <g transform={transform}>
-      <circle cx="13" cy="8" fill="#d8d8d8" r="6" stroke="#111" strokeWidth="1" />
+      <circle cx="13" cy="8" fill="var(--muted)" r="6" stroke="currentColor" strokeWidth="1" />
       <path
         d={bent ? "M13 15 22 35" : "M13 15 14 37"}
         fill="none"
-        stroke="#111"
+        stroke="currentColor"
         strokeLinecap="round"
         strokeWidth="2"
       />
       <path
         d={bent ? "M21 35 37 39" : "M14 37 19 57"}
         fill="none"
-        stroke="#111"
+        stroke="currentColor"
         strokeLinecap="round"
         strokeWidth="2"
       />
       <path
         d={bent ? "M22 35 15 57" : "M14 37 10 58"}
         fill="none"
-        stroke="#111"
+        stroke="currentColor"
         strokeLinecap="round"
         strokeWidth="2"
       />
       <path
         d={bent ? "M17 25 11 43" : "M13 24 8 43"}
         fill="none"
-        stroke="#111"
+        stroke="currentColor"
         strokeLinecap="round"
         strokeWidth="2"
       />
       <path
         d={bent ? "M18 25 25 43" : "M15 24 20 43"}
         fill="none"
-        stroke="#111"
+        stroke="currentColor"
         strokeLinecap="round"
         strokeWidth="2"
       />
-      <circle cx={bent ? "10" : "7"} cy="44" fill="#111" r="4.5" />
-      <circle cx={bent ? "26" : "21"} cy="44" fill="#111" r="4.5" />
+      <circle cx={bent ? "10" : "7"} cy="44" fill="currentColor" r="4.5" />
+      <circle cx={bent ? "26" : "21"} cy="44" fill="currentColor" r="4.5" />
     </g>
   )
 }
