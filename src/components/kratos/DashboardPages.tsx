@@ -1075,7 +1075,7 @@ function PageHeader({ title }: { actions?: ReactNode; subtitle?: string; title: 
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <h1 className="text-[28px] leading-tight font-black tracking-[-0.05em]">{title}</h1>
+        <h1 className="text-[28px] font-medium">{title}</h1>
       </div>
     </header>
   )
@@ -1151,11 +1151,11 @@ function TrainingStatsBar({
             key={label}
           >
             <span className="grid size-10 shrink-0 place-items-center rounded-[12px] text-foreground">
-              <Icon className="size-8" />
+              <Icon className="size-8"  strokeWidth={1.5}/>
             </span>
             <div className="min-w-0">
               <p className="text-[12px]  text-muted-foreground">{label}</p>
-              <p className="truncate text-[16px] font-semibold text-foreground">{value}</p>
+              <p className="truncate text-[16px] font-medium">{value}</p>
               {/* <p className="mt-1 truncate text-[12px] font-medium text-muted-foreground">{sub}</p> */}
             </div>
           </div>
@@ -1219,14 +1219,14 @@ function TodayTrainingHero({
     : formatDateLabel(dateFromValue(selectedDate))
 
   return (
-    <section className="mt-4 overflow-hidden rounded-3xl bg-foreground text-primary-foreground ">
-      <div className="grid min-h-82.5 gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(420px,1.5fr)] lg:p-6">
+    <section className="mt-6 overflow-hidden rounded-[36px] bg-foreground text-primary-foreground ">
+      <div className="grid min-h-82.5 gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(420px,1.5fr)] lg:p-7">
         <div className="flex min-w-0 flex-col justify-between">
           <div>
             <p className="text-[13px] text-primary-foreground/70">
               {hasTraining ? `${selectedDateLabel} · 今日训练` : `${selectedDateLabel} · 恢复日`}
             </p>
-            <h2 className="mt-0 max-w-160 text-[34px] leading-tight font-black tracking-[-0.05em] sm:text-[40px]">
+            <h2 className="mt-0 max-w-160 text-[34px] leading-tight font-medium tracking-[-0.05em] sm:text-[40px]">
               {hasTraining ? selectedDisplayTitle : "今天没有安排训练"}
             </h2>
             <div className="mt-1 flex flex-wrap items-center gap-4 text-[13px] text-primary-foreground/74">

@@ -769,7 +769,7 @@ function EmptyConversation({
   return (
     <section className="mx-auto flex w-full flex-col justify-center px-0">
       <div className="mb-8">
-        <h3 className="text-3xl font-semibold tracking-tight text-foreground">
+        <h3 className="text-3xl font-medium tracking-tight text-foreground">
           您今天想完成什么？
         </h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -787,7 +787,7 @@ function EmptyConversation({
             type="button"
           >
             <action.icon className="size-4 text-foreground" strokeWidth={1.5} />
-            <h4 className="mt-3 text-[13px] font-bold">{action.title}</h4>
+            <h4 className="mt-3 text-[13px]">{action.title}</h4>
             <p className="text-[13px] leading-4 text-muted-foreground">
               {action.description}
             </p>
