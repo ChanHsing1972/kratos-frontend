@@ -71,7 +71,6 @@ type MainConversationProps = {
 }
 
 export function MainConversation({
-  activeSessionTitle,
   agentStreaming,
   chatTrainingPlanSavingId,
   composerValue,

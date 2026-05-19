@@ -102,6 +102,37 @@ export type UserRegisterPayload = {
 
 export type UserUpdatePayload = Record<string, never>
 
+export type Skill = {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  applicable_scenarios: string | null
+  prompt_snippet: string | null
+  available_tools: string[]
+  output_format: string | null
+  forbidden_rules: string | null
+  definition: string | null
+  owner_user_id: number | null
+  is_builtin: boolean
+  is_public: boolean
+  enabled: boolean
+  source: "builtin" | "custom" | string
+  created_at: string
+  updated_at: string
+}
+
+export type SkillPayload = {
+  name: string
+  description?: string | null
+  applicable_scenarios?: string | null
+  prompt_snippet?: string | null
+  available_tools?: string[]
+  output_format?: string | null
+  forbidden_rules?: string | null
+  definition?: string | null
+}
+
 export type FitnessProfile = {
   id: number
   user_id: number

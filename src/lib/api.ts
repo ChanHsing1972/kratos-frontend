@@ -8,6 +8,8 @@ import type {
   FitnessContext,
   FitnessProfile,
   FitnessProfilePayload,
+  Skill,
+  SkillPayload,
   TokenResponse,
   TrainingPlanAdjustmentPayload,
   TrainingPlanAdjustmentResponse,
@@ -173,6 +175,34 @@ export async function listAgentRuns(token: string, limit = 50) {
     `/agent/runs?limit=${encodeURIComponent(limit)}`,
     token
   )
+}
+
+export async function listSkills(token: string) {
+  return authorizedJson<Skill[]>("/skills", token)
+}
+
+export async function createSkill(token: string, payload: SkillPayload) {
+  return authorizedJson<Skill>("/skills", token, {
+    body: JSON.stringify(payload),
+    method: "POST",
+  })
+}
+
+export async function updateSkillBinding(
+  token: string,
+  skillId: number,
+  enabled: boolean
+) {
+  return authorizedJson<Skill>(`/skills/${skillId}/binding`, token, {
+    body: JSON.stringify({ enabled }),
+    method: "PATCH",
+  })
+}
+
+export async function deleteSkill(token: string, skillId: number) {
+  return authorizedJson<null>(`/skills/${skillId}`, token, {
+    method: "DELETE",
+  })
 }
 
 export async function streamAgentChat({

@@ -15,18 +15,22 @@ import {
   createAgentCheckin,
   createBodyMetric,
   createMyFitnessProfile,
+  createSkill,
   createTrainingPlan,
   createWorkoutLog,
+  deleteSkill,
   deleteTrainingPlan,
   getCurrentUser,
   getFitnessContext,
   getErrorMessage,
   listAgentRuns,
+  listSkills,
   listTrainingPlans,
   loginUser,
   previewTrainingPlanAdjustment,
   registerUser,
   streamAgentChat,
+  updateSkillBinding,
   updateMyFitnessProfile,
   updateTrainingPlan,
 } from "@/lib/api"
@@ -57,6 +61,7 @@ import {
   TrainingPlanPage,
 } from "@/components/kratos/DashboardPages"
 import { Sidebar } from "@/components/kratos/Sidebar"
+import { SkillPage } from "@/components/kratos/SkillPage"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { Toaster } from "@/components/ui/sonner"
 import { useTheme } from "@/components/theme-provider"
@@ -77,6 +82,8 @@ import type {
   NotificationItem,
   ProfileForm,
   QuickAction,
+  Skill,
+  SkillPayload,
   TrainingPlan,
   TrainingPlanAdjustmentResponse,
   TrainingPlanPayload,
@@ -94,6 +101,7 @@ type DashboardSnapshot = {
   context: FitnessContext
   plans: TrainingPlan[]
   runs: AgentRun[]
+  skills: Skill[]
 }
 
 type InitialAuthSnapshot = DashboardSnapshot & {
@@ -168,6 +176,9 @@ export function App() {
   const [agentStreaming, setAgentStreaming] = useState(false)
   const [dashboardLoading, setDashboardLoading] = useState(false)
   const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>([])
+  const [skills, setSkills] = useState<Skill[]>([])
+  const [skillSubmitting, setSkillSubmitting] = useState(false)
+  const [skillError, setSkillError] = useState<string | null>(null)
   const [fitnessContext, setFitnessContext] = useState<FitnessContext | null>(
     null
   )
@@ -251,13 +262,13 @@ export function App() {
     let ignore = false
 
     loadInitialAuthSnapshot(token)
-      .then(({ context, plans, runs, user }) => {
+      .then(({ context, plans, runs, skills: nextSkills, user }) => {
         if (ignore) {
           return
         }
         writeCachedUser(user)
         setCurrentUser(user)
-        applyDashboardSnapshot(context, plans, runs)
+        applyDashboardSnapshot(context, plans, runs, nextSkills)
         setOnboardingOpen(!context?.onboarding.ready_for_agent)
       })
       .catch(() => {
@@ -362,6 +373,8 @@ export function App() {
     setCurrentUser(null)
     setFitnessContext(null)
     setTrainingPlans([])
+    setSkills([])
+    setSkillError(null)
     setFitnessProfile(null)
     setBodyMetrics([])
     setWorkoutLogs([])
@@ -939,8 +952,8 @@ export function App() {
     setDashboardLoading(true)
 
     try {
-      const { context, plans, runs } = await loadDashboardSnapshot(token)
-      applyDashboardSnapshot(context, plans, runs, options)
+      const { context, plans, runs, skills: nextSkills } = await loadDashboardSnapshot(token)
+      applyDashboardSnapshot(context, plans, runs, nextSkills, options)
       return context
     } catch (error) {
       sonnerToast.error(getErrorMessage(error), { richColors: true })
@@ -954,10 +967,13 @@ export function App() {
     context: FitnessContext,
     plans: TrainingPlan[],
     runs: AgentRun[],
+    nextSkills: Skill[],
     options: { preserveMessages?: boolean } = {}
   ) {
     setFitnessContext(context)
     setTrainingPlans(plans)
+    setSkills(nextSkills)
+    setSkillError(null)
     setFitnessProfile(context.profile)
     setBodyMetrics(context.recent_body_metrics)
     setWorkoutLogs(context.recent_workout_logs)
@@ -1694,6 +1710,114 @@ export function App() {
     }
   }
 
+  const refreshSkills = async () => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      sonnerToast.info("登录后可以管理 Skill")
+      return
+    }
+
+    setDashboardLoading(true)
+    setSkillError(null)
+
+    try {
+      const nextSkills = await listSkills(token)
+      setSkills(nextSkills)
+    } catch (error) {
+      const message = getErrorMessage(error)
+      setSkillError(message)
+      sonnerToast.error(message)
+    } finally {
+      setDashboardLoading(false)
+    }
+  }
+
+  const handleCreateSkill = async (payload: SkillPayload) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      sonnerToast.info("登录后可以创建 Skill")
+      return
+    }
+
+    setSkillSubmitting(true)
+    setSkillError(null)
+
+    try {
+      const skill = await createSkill(token, payload)
+      setSkills((current) => [skill, ...current.filter((item) => item.id !== skill.id)])
+      sonnerToast.success("Skill 已创建并启用")
+    } catch (error) {
+      const message = getErrorMessage(error)
+      setSkillError(message)
+      sonnerToast.error(message)
+      throw error
+    } finally {
+      setSkillSubmitting(false)
+    }
+  }
+
+  const handleToggleSkill = async (skill: Skill, enabled: boolean) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      sonnerToast.info("登录后可以启用 Skill")
+      return
+    }
+
+    setSkillSubmitting(true)
+    setSkillError(null)
+
+    try {
+      const updated = await updateSkillBinding(token, skill.id, enabled)
+      setSkills((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item))
+      )
+      sonnerToast.success(enabled ? "Skill 已启用" : "Skill 已停用")
+    } catch (error) {
+      const message = getErrorMessage(error)
+      setSkillError(message)
+      sonnerToast.error(message)
+    } finally {
+      setSkillSubmitting(false)
+    }
+  }
+
+  const handleDeleteSkill = async (skill: Skill) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      sonnerToast.info("登录后可以删除自建 Skill")
+      return
+    }
+
+    if (skill.is_builtin) {
+      sonnerToast.info("内置 Skill 只能停用，不能删除")
+      return
+    }
+
+    const confirmed = window.confirm(`确定删除「${skill.name}」吗？`)
+    if (!confirmed) {
+      return
+    }
+
+    setSkillSubmitting(true)
+    setSkillError(null)
+
+    try {
+      await deleteSkill(token, skill.id)
+      setSkills((current) => current.filter((item) => item.id !== skill.id))
+      sonnerToast.success("Skill 已删除")
+    } catch (error) {
+      const message = getErrorMessage(error)
+      setSkillError(message)
+      sonnerToast.error(message)
+    } finally {
+      setSkillSubmitting(false)
+    }
+  }
+
   const handlePreviewTrainingAdjustment = async () => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token || !activePlan || !lastCompletedWorkout) {
@@ -1813,6 +1937,23 @@ export function App() {
           onboarding={onboardingStatus}
           profile={fitnessProfile}
           workoutLogs={workoutLogs}
+        />
+      )
+    }
+
+    if (activeNav === "Skill") {
+      return (
+        <SkillPage
+          currentUser={currentUser}
+          error={skillError}
+          loading={dashboardLoading}
+          onCreateSkill={handleCreateSkill}
+          onDeleteSkill={handleDeleteSkill}
+          onLogin={() => openAuth("login")}
+          onRefresh={refreshSkills}
+          onToggleSkill={handleToggleSkill}
+          skills={skills}
+          submitting={skillSubmitting}
         />
       )
     }
@@ -2177,16 +2318,18 @@ function clearCachedUser() {
 }
 
 async function loadDashboardSnapshot(token: string): Promise<DashboardSnapshot> {
-  const [context, plans, runs] = await Promise.all([
+  const [context, plans, runs, skills] = await Promise.all([
     getFitnessContext(token),
     listTrainingPlans(token),
     listAgentRuns(token, 200),
+    listSkills(token),
   ])
 
   return {
     context,
     plans,
     runs,
+    skills,
   }
 }
 

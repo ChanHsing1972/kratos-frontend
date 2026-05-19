@@ -8,6 +8,7 @@ import {
 import {
   Activity,
   BarChart3,
+  BrainCircuit,
   CalendarDays,
   ChevronDown,
   ChevronRight,
@@ -97,6 +98,7 @@ const primaryNavItems = [
   { id: "new", label: "新建对话", icon: MessageCirclePlus },
   { id: "训练计划", label: "训练计划", icon: CalendarDays },
   { id: "身体数据", label: "身体数据", icon: Activity },
+  { id: "Skill", label: "Skill", icon: BrainCircuit },
   { id: "评估平台", label: "评估平台", icon: BarChart3, external: true },
 ]
 

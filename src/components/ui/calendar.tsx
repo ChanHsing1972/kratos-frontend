@@ -1,10 +1,8 @@
 import * as React from "react"
-import { zhCN } from "date-fns/locale"
 import {
   DayPicker,
   getDefaultClassNames,
   type DayButton,
-  type Locale,
 } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
@@ -17,7 +15,7 @@ function Calendar({
   showOutsideDays = true,
   captionLayout = "label",
   buttonVariant = "ghost",
-  locale = zhCN,
+  locale,
   formatters,
   components,
   weekStartsOn = 1,
@@ -40,9 +38,9 @@ function Calendar({
       locale={locale}
       weekStartsOn={weekStartsOn}
       formatters={{
-        formatMonthDropdown: (date) => `${date.getMonth() + 1} 月`,
-        formatCaption: (date) => `${date.getFullYear()} 年 ${date.getMonth() + 1} 月`,
-        formatWeekdayName: (date) =>
+        formatMonthDropdown: (date: Date) => `${date.getMonth() + 1} 月`,
+        formatCaption: (date: Date) => `${date.getFullYear()} 年 ${date.getMonth() + 1} 月`,
+        formatWeekdayName: (date: Date) =>
           ["日", "一", "二", "三", "四", "五", "六"][date.getDay()],
         ...formatters,
       }}
@@ -86,11 +84,10 @@ function Calendar({
         caption_label: cn(
           "font-medium select-none",
           captionLayout === "label"
-            ? "text-sm"
+          ? "text-sm"
             : "flex items-center gap-1 rounded-(--cell-radius) text-sm [&>svg]:size-3.5 [&>svg]:text-muted-foreground",
           defaultClassNames.caption_label
         ),
-        table: "w-full border-collapse",
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
           "flex-1 rounded-(--cell-radius) text-[0.8rem] font-normal text-muted-foreground select-none",
@@ -165,7 +162,7 @@ function Calendar({
           )
         },
         DayButton: ({ ...props }) => (
-          <CalendarDayButton locale={locale} {...props} />
+          <CalendarDayButton {...props} />
         ),
         WeekNumber: ({ children, ...props }) => {
           return (
@@ -187,9 +184,8 @@ function CalendarDayButton({
   className,
   day,
   modifiers,
-  locale,
   ...props
-}: React.ComponentProps<typeof DayButton> & { locale?: Partial<Locale> }) {
+}: React.ComponentProps<typeof DayButton>) {
   const defaultClassNames = getDefaultClassNames()
 
   const ref = React.useRef<HTMLButtonElement>(null)
@@ -202,7 +198,7 @@ function CalendarDayButton({
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString(locale?.code)}
+      data-day={day.date.toLocaleDateString("zh-CN")}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

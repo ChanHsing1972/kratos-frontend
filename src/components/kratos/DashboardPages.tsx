@@ -21,7 +21,6 @@ import {
   Utensils,
   WandSparkles,
 } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -1107,27 +1106,6 @@ function PageHeader({ actions, subtitle, title }: { actions?: ReactNode; subtitl
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
     </header>
-  )
-}
-
-function IconButton({
-  icon: Icon,
-  label,
-  onClick,
-}: {
-  icon: LucideIcon
-  label: string
-  onClick?: () => void
-}) {
-  return (
-    <button
-      aria-label={label}
-      className="grid size-9 place-items-center rounded-[8px] border border-border"
-      onClick={onClick}
-      type="button"
-    >
-      <Icon className="size-4" />
-    </button>
   )
 }
 
