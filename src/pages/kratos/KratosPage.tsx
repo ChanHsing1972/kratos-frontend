@@ -69,6 +69,7 @@ import {
   writeChatSessionMeta,
   writeGeneratedTrainingPlanKeys,
 } from "@/features/kratos/lib/storage"
+import { ProfileMenu } from "@/features/kratos/profile/ProfileMenu"
 import {
   compactTrainingPlanProposal,
   formatDuration,
@@ -83,14 +84,12 @@ import { EvaluationPage } from "@/pages/kratos/EvaluationPage"
 import { NewConversationPage } from "@/pages/kratos/NewConversationPage"
 import { SkillPanelPage } from "@/pages/kratos/SkillPanelPage"
 import { TrainingPlanPage } from "@/pages/kratos/TrainingPlanPage"
-import {
-  AuthModal,
-  BodyMetricModal,
-  DetailModal,
-  OnboardingModal,
-  TrainingFeedbackModal,
-  TrainingPlanModal,
-} from "@/widgets/kratos/modals/Modals"
+import { AuthModal } from "@/widgets/kratos/modals/AuthModal"
+import { BodyMetricModal } from "@/widgets/kratos/modals/BodyMetricModal"
+import { DetailModal } from "@/widgets/kratos/modals/DetailModal"
+import { OnboardingModal } from "@/widgets/kratos/modals/OnboardingModal"
+import { TrainingFeedbackModal } from "@/widgets/kratos/modals/TrainingFeedbackModal"
+import { TrainingPlanModal } from "@/widgets/kratos/modals/TrainingPlanModal"
 import { Sidebar } from "@/widgets/kratos/sidebar/Sidebar"
 import { SidebarProvider } from "@/shared/ui/sidebar"
 import { Toaster } from "@/shared/ui/sonner"
@@ -393,28 +392,6 @@ export function KratosPage() {
     setOnboardingOpen(false)
     setBodyMetricModalOpen(false)
     sonnerToast.info("已退出登录")
-  }
-
-  const handleRefreshProfile = async () => {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY)
-    if (!token) {
-      openAuth("login")
-      return
-    }
-
-    try {
-      const user = await getCurrentUser(token)
-      writeCachedUser(user)
-      setCurrentUser(user)
-      const context = await refreshDashboard(token)
-      setOnboardingOpen(!context?.onboarding.ready_for_agent)
-      sonnerToast.success("个人资料已刷新")
-    } catch (error) {
-      localStorage.removeItem(AUTH_TOKEN_KEY)
-      clearCachedUser()
-      setCurrentUser(null)
-      sonnerToast.error(getErrorMessage(error), { richColors: true })
-    }
   }
 
   const openBodyMetricEditor = () => {
@@ -1701,30 +1678,32 @@ export function KratosPage() {
         </Button>
         <Sidebar
           activeNav={activeNav}
-          authLoading={authLoading}
           chatSessions={chatSessions}
-          collapsed={sidebarCollapsed}
-          currentUser={currentUser}
           drawerOpen={sidebarDrawerOpen}
-          menuOpen={profileMenuOpen}
-          profile={fitnessProfile}
-          profileError={profileError}
-          profileSubmitting={profileSubmitting}
+          footer={
+            <ProfileMenu
+              authLoading={authLoading}
+              menuOpen={profileMenuOpen}
+              onLogin={() => openAuth("login")}
+              onLogout={handleLogout}
+              onProfileSubmit={handleProfileSubmit}
+              onRegister={() => openAuth("register")}
+              onToggleMenu={setProfileMenuOpen}
+              profile={fitnessProfile}
+              profileError={profileError}
+              profileSubmitting={profileSubmitting}
+              user={currentUser}
+            />
+          }
           onCreateConversation={handleCreateConversation}
           onDeleteConversation={handleDeleteConversation}
           onExportConversation={handleExportConversation}
           onRenameConversation={handleRenameConversation}
-          onLogin={() => openAuth("login")}
-          onLogout={handleLogout}
           onNavSelect={handleNavSelect}
-          onProfileSubmit={handleProfileSubmit}
           onSelectConversation={handleSelectConversation}
-          onRefreshProfile={handleRefreshProfile}
-          onRegister={() => openAuth("register")}
           onTogglePinConversation={handleTogglePinConversation}
           onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
           onDrawerOpenChange={setSidebarDrawerOpen}
-          onToggleMenu={(open) => setProfileMenuOpen(open)}
         />
         {renderWorkspace()}
       </SidebarProvider>
