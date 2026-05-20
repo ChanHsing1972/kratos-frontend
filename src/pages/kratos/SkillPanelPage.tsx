@@ -29,7 +29,7 @@ import { Textarea } from "@/shared/ui/textarea"
 import { cn } from "@/shared/lib/utils"
 import type { Skill, SkillPayload, UserProfile } from "@/entities/kratos/model/types"
 
-type SkillPageProps = {
+type SkillPanelPageProps = {
   currentUser: UserProfile | null
   error: string | null
   loading: boolean
@@ -62,7 +62,7 @@ const defaultForm: SkillForm = {
   forbiddenRules: "不要安排跳跃噪音过大的动作；不要建议危险借力动作。",
 }
 
-export function SkillPage({
+export function SkillPanelPage({
   currentUser,
   error,
   loading,
@@ -73,7 +73,7 @@ export function SkillPage({
   onToggleSkill,
   skills,
   submitting,
-}: SkillPageProps) {
+}: SkillPanelPageProps) {
   const [activeTab, setActiveTab] = useState<"market" | "mine">("market")
   const [form, setForm] = useState<SkillForm>(defaultForm)
   const [formError, setFormError] = useState<string | null>(null)

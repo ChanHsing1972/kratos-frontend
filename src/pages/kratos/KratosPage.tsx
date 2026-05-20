@@ -77,7 +77,12 @@ import {
   trainingPlanPayloadFromPlan,
 } from "@/features/kratos/lib/trainingPlans"
 import { createId } from "@/shared/lib/id"
-import { MainConversation } from "@/widgets/kratos/MainConversation"
+import { BodyDataPage } from "@/pages/kratos/BodyDataPage"
+import { ConversationDetailPage } from "@/pages/kratos/ConversationDetailPage"
+import { EvaluationPage } from "@/pages/kratos/EvaluationPage"
+import { NewConversationPage } from "@/pages/kratos/NewConversationPage"
+import { SkillPanelPage } from "@/pages/kratos/SkillPanelPage"
+import { TrainingPlanPage } from "@/pages/kratos/TrainingPlanPage"
 import {
   AuthModal,
   BodyMetricModal,
@@ -85,14 +90,8 @@ import {
   OnboardingModal,
   TrainingFeedbackModal,
   TrainingPlanModal,
-} from "@/widgets/kratos/Modals"
-import {
-  BodyDataPage,
-  EvaluationPage,
-  TrainingPlanPage,
-} from "@/widgets/kratos/DashboardPages"
-import { Sidebar } from "@/widgets/kratos/Sidebar"
-import { SkillPage } from "@/widgets/kratos/SkillPage"
+} from "@/widgets/kratos/modals/Modals"
+import { Sidebar } from "@/widgets/kratos/sidebar/Sidebar"
 import { SidebarProvider } from "@/shared/ui/sidebar"
 import { Toaster } from "@/shared/ui/sonner"
 import { useTheme } from "@/app/providers/theme-provider"
@@ -1627,7 +1626,7 @@ export function KratosPage() {
 
     if (activeNav === "Skill") {
       return (
-        <SkillPage
+        <SkillPanelPage
           currentUser={currentUser}
           error={skillError}
           loading={dashboardLoading}
@@ -1646,8 +1645,12 @@ export function KratosPage() {
       return <EvaluationPage />
     }
 
+    const ConversationPage = agentSessionId
+      ? ConversationDetailPage
+      : NewConversationPage
+
     return (
-      <MainConversation
+      <ConversationPage
         activeSessionTitle={activeSessionTitle}
         agentStreaming={agentStreaming}
         chatTrainingPlanSavingId={chatTrainingPlanSavingId}

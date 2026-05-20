@@ -30,7 +30,7 @@ import type {
   QuickAction,
   TrainingPlanPayload,
 } from "@/entities/kratos/model/types"
-import { MarkdownMessage } from "@/widgets/kratos/MarkdownMessage"
+import { MarkdownMessage } from "@/widgets/kratos/conversation/MarkdownMessage"
 import { Button } from "@/shared/ui/button"
 import { copyText } from "@/shared/lib/clipboard"
 import { cn } from "@/shared/lib/utils"
@@ -41,7 +41,7 @@ import {
 import { InputGroup, InputGroupAddon, InputGroupTextarea, InputGroupButton, InputGroupText } from "@/shared/ui/input-group"
 import { Separator } from "@/shared/ui/separator"
 
-type MainConversationProps = {
+export type ConversationWorkspaceProps = {
   activeSessionTitle: string
   agentStreaming: boolean
   chatTrainingPlanSavingId: string | null
@@ -70,7 +70,7 @@ type MainConversationProps = {
   unreadCount: number
 }
 
-export function MainConversation({
+export function ConversationWorkspace({
   agentStreaming,
   chatTrainingPlanSavingId,
   composerValue,
@@ -93,7 +93,7 @@ export function MainConversation({
   thinkingExpanded,
   theme,
   unreadCount,
-}: MainConversationProps) {
+}: ConversationWorkspaceProps) {
   const scrollViewportRef = useRef<HTMLDivElement>(null)
   const bottomAnchorRef = useRef<HTMLDivElement>(null)
   const isEmptyConversation = messages.length === 0
