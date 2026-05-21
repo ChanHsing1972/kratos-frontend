@@ -271,7 +271,9 @@ export type BodyMetricForm = {
   bodyFatPercentage: string
   skeletalMuscleMassKg: string
   bmi: string
+  chestCm: string
   waistCm: string
+  hipCm: string
   sleepHours: string
   energyLevel: string
   sleepQuality: string

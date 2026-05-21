@@ -315,8 +315,10 @@ function bodyMetricFormFromMetric(metric: BodyMetric | null): BodyMetricForm {
   return {
     bmi: metric?.bmi?.toString() ?? "",
     bodyFatPercentage: metric?.body_fat_percentage?.toString() ?? "",
+    chestCm: metric?.chest_cm?.toString() ?? "",
     energyLevel: "",
     heightCm: metric?.height_cm?.toString() ?? "",
+    hipCm: metric?.hip_cm?.toString() ?? "",
     notes: "",
     skeletalMuscleMassKg: metric?.skeletal_muscle_mass_kg?.toString() ?? "",
     sleepHours: metric?.sleep_hours?.toString() ?? "",

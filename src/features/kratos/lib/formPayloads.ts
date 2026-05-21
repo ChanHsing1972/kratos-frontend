@@ -106,9 +106,19 @@ export function buildBodyPayload(
     setError(bmi)
     return null
   }
+  const chestCm = parseOptionalNumber(form.chestCm, "胸围")
+  if (typeof chestCm === "string") {
+    setError(chestCm)
+    return null
+  }
   const waistCm = parseOptionalNumber(form.waistCm, "腰围")
   if (typeof waistCm === "string") {
     setError(waistCm)
+    return null
+  }
+  const hipCm = parseOptionalNumber(form.hipCm, "臀围")
+  if (typeof hipCm === "string") {
+    setError(hipCm)
     return null
   }
   const sleepHours = parseOptionalNumber(form.sleepHours, "睡眠时长")
@@ -131,6 +141,7 @@ export function buildBodyPayload(
     setError(sorenessLevel)
     return null
   }
+  const notes = compactOptionalText(form.notes)
 
   for (const [label, value] of [
     ["精力", energyLevel],
@@ -144,11 +155,11 @@ export function buildBodyPayload(
   }
 
   return {
-    checkin: {
+    checkin: compactPayload({
       energy_level: energyLevel,
       sleep_quality: sleepQuality,
       soreness_level: sorenessLevel,
-    },
+    }),
     hasCheckinData:
       energyLevel !== null || sleepQuality !== null || sorenessLevel !== null,
     hasMetricData:
@@ -158,20 +169,31 @@ export function buildBodyPayload(
       bodyFatPercentage !== null ||
       skeletalMuscleMassKg !== null ||
       bmi !== null ||
+      chestCm !== null ||
       waistCm !== null ||
-      sleepHours !== null,
-    metric: {
+      hipCm !== null ||
+      sleepHours !== null ||
+      notes !== null,
+    metric: compactPayload({
       height_cm: heightCm,
       weight_kg: weightKg,
       target_weight_kg: targetWeightKg,
       body_fat_percentage: bodyFatPercentage,
       skeletal_muscle_mass_kg: skeletalMuscleMassKg,
       bmi,
+      chest_cm: chestCm,
       waist_cm: waistCm,
+      hip_cm: hipCm,
       sleep_hours: sleepHours,
-      notes: compactOptionalText(form.notes),
-    },
+      notes,
+    }),
   }
+}
+
+function compactPayload<T extends Record<string, unknown>>(payload: T) {
+  return Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== null)
+  ) as Partial<T>
 }
 
 function parseOptionalNumber(value: string, label: string) {

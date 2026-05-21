@@ -28,6 +28,8 @@ import {
   previewTrainingPlanAdjustment,
   registerUser,
   streamAgentChat,
+  updateAgentCheckin,
+  updateBodyMetric,
   updateSkillBinding,
   updateMyFitnessProfile,
   updateTrainingPlan,
@@ -582,17 +584,32 @@ export function KratosPage() {
 
     try {
       if (bodyPayload.hasMetricData) {
-        const metric = await createBodyMetric(token, bodyPayload.metric)
-        setBodyMetrics((current) => [metric, ...current])
+        const metric = latestMetric
+          ? await updateBodyMetric(token, latestMetric.id, bodyPayload.metric)
+          : await createBodyMetric(token, bodyPayload.metric)
+        setBodyMetrics((current) =>
+          latestMetric
+            ? current.map((item) => (item.id === metric.id ? metric : item))
+            : [metric, ...current]
+        )
       }
 
       if (bodyPayload.hasCheckinData) {
-        const checkin = await createAgentCheckin(token, {
-          ...bodyPayload.checkin,
-          summary: compactOptionalText(form.notes) ?? "手动更新身体数据",
-          training_plan_id: activePlan?.id ?? null,
-        })
-        setAgentCheckins((current) => [checkin, ...current])
+        const checkin = latestCheckin
+          ? await updateAgentCheckin(token, latestCheckin.id, {
+              ...bodyPayload.checkin,
+              summary: "手动更新恢复状态",
+            })
+          : await createAgentCheckin(token, {
+              ...bodyPayload.checkin,
+              summary: "手动更新恢复状态",
+              training_plan_id: activePlan?.id ?? null,
+            })
+        setAgentCheckins((current) =>
+          latestCheckin
+            ? current.map((item) => (item.id === checkin.id ? checkin : item))
+            : [checkin, ...current]
+        )
       }
 
       await refreshDashboard(token, { preserveMessages: true })
@@ -703,14 +720,21 @@ export function KratosPage() {
       setFitnessProfile(updatedProfile)
 
       if (bodyPayload.hasMetricData) {
-        await createBodyMetric(token, bodyPayload.metric)
+        await (latestMetric
+          ? updateBodyMetric(token, latestMetric.id, bodyPayload.metric)
+          : createBodyMetric(token, bodyPayload.metric))
       }
       if (bodyPayload.hasCheckinData) {
-        await createAgentCheckin(token, {
-          ...bodyPayload.checkin,
-          summary: compactOptionalText(bodyForm.notes) ?? "新用户引导记录",
-          training_plan_id: activePlan?.id ?? null,
-        })
+        await (latestCheckin
+          ? updateAgentCheckin(token, latestCheckin.id, {
+              ...bodyPayload.checkin,
+              summary: "新用户引导恢复状态记录",
+            })
+          : createAgentCheckin(token, {
+              ...bodyPayload.checkin,
+              summary: "新用户引导恢复状态记录",
+              training_plan_id: activePlan?.id ?? null,
+            }))
       }
 
       const context = await refreshDashboard(token, { preserveMessages: true })

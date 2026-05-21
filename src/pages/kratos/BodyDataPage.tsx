@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   Check,
   ChevronRight,
@@ -21,6 +22,9 @@ import type {
 } from "@/entities/kratos/model/types"
 import { KratosPageHeader } from "@/widgets/kratos/layout/KratosPageHeader"
 
+const BODY_DATA_TABS = ["概览", "体成分", "围度", "恢复状态", "力量表现", "心肺健康", "体能测试", "健康指标"] as const
+type BodyDataTab = (typeof BODY_DATA_TABS)[number]
+
 type BodyDataPageProps = {
   bodyMetrics: BodyMetric[]
   latestCheckin: AgentCheckin | null
@@ -40,13 +44,22 @@ export function BodyDataPage({
   profile,
   workoutLogs,
 }: BodyDataPageProps) {
+  const [activeTab, setActiveTab] = useState<BodyDataTab>("概览")
   const weightSeries = getMetricSeries(bodyMetrics, "weight_kg")
   const bodyFatSeries = getMetricSeries(bodyMetrics, "body_fat_percentage")
   const muscleSeries = getMetricSeries(bodyMetrics, "skeletal_muscle_mass_kg")
+  const chestSeries = getMetricSeries(bodyMetrics, "chest_cm")
+  const waistSeries = getMetricSeries(bodyMetrics, "waist_cm")
+  const hipSeries = getMetricSeries(bodyMetrics, "hip_cm")
+  const sleepSeries = getMetricSeries(bodyMetrics, "sleep_hours")
   const bodyCompositionSeries = getBodyCompositionSeries(bodyMetrics)
   const weight = latestMetric?.weight_kg ?? null
   const bodyFat = latestMetric?.body_fat_percentage ?? null
   const muscle = latestMetric?.skeletal_muscle_mass_kg ?? null
+  const chest = latestMetric?.chest_cm ?? null
+  const waist = latestMetric?.waist_cm ?? null
+  const hip = latestMetric?.hip_cm ?? null
+  const sleepHours = latestMetric?.sleep_hours ?? null
   const bmi = latestMetric?.bmi ?? calculateBmi(latestMetric)
   const age = profile?.age ?? null
   const targetWeight = latestMetric?.target_weight_kg ?? null
@@ -55,7 +68,15 @@ export function BodyDataPage({
   const weightChange = formatMetricChange(weightSeries, "kg")
   const bodyFatChange = formatMetricChange(bodyFatSeries, "%")
   const muscleChange = formatMetricChange(muscleSeries, "kg")
+  const sleepChange = formatMetricChange(sleepSeries, "h")
   const weightProgress = calculateTargetProgress(weightSeries[0]?.value ?? null, weight, targetWeight)
+  const trendInsight = buildTrendInsight({
+    bodyFatSeries,
+    latestCheckin,
+    muscleSeries,
+    sleepHours,
+    weightSeries,
+  })
 
   return (
     <main className="min-h-0 flex-1 overflow-y-auto bg-card">
@@ -83,59 +104,90 @@ export function BodyDataPage({
           />
 
           <div className="mt-7 flex gap-9 border-b border-border text-[14px]">
-            {["概览", "体成分", "围度", "力量表现", "心肺健康", "体能测试", "健康指标"].map((tab, index) => (
-              <button className={cn("pb-3 font-semibold", index === 0 ? "border-b-2 border-primary text-foreground" : "text-muted-foreground")} key={tab}>
+            {BODY_DATA_TABS.map((tab) => (
+              <button
+                className={cn("pb-3 font-semibold", activeTab === tab ? "border-b-2 border-primary text-foreground" : "text-muted-foreground")}
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                type="button"
+              >
                 {tab}
               </button>
             ))}
           </div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-3 2xl:grid-cols-5">
-            <MetricTrendCard title="体重" value={formatMetricValue(weight)} unit="kg" change={weightChange} chart={chartVariantFromChange(weightSeries, "down")} />
-            <MetricTrendCard title="体脂率" value={formatMetricValue(bodyFat)} unit="%" change={bodyFatChange} chart={chartVariantFromChange(bodyFatSeries, "down2")} />
-            <MetricTrendCard title="肌肉量" value={formatMetricValue(muscle)} unit="kg" change={muscleChange} chart={chartVariantFromChange(muscleSeries, "up")} />
-            <MetricTrendCard title="基础代谢率" value={bmr ? bmr.toString() : "待补充"} unit="kcal" change="由画像估算" chart="up2" />
-            <MetricTrendCard title="身体评分" value="待评估" unit="/100" change="需要评分规则" chart="up" />
-          </div>
-
-          <section className="mt-5 rounded-[12px] border border-border bg-card p-5">
-            <div className="grid gap-5 lg:grid-cols-[1fr_125px]">
-              <div>
-                <ChartHeader title="体重趋势" subtitle="最近 30 天 · 单位：kg" />
-                <LineChart height={230} series={weightSeries} unit="kg" />
+          {activeTab === "概览" ? (
+            <>
+              <div className="mt-5 grid gap-4 md:grid-cols-3 2xl:grid-cols-5">
+                <MetricTrendCard title="体重" value={formatMetricValue(weight)} unit="kg" change={weightChange} chart={chartVariantFromChange(weightSeries, "down")} />
+                <MetricTrendCard title="体脂率" value={formatMetricValue(bodyFat)} unit="%" change={bodyFatChange} chart={chartVariantFromChange(bodyFatSeries, "down2")} />
+                <MetricTrendCard title="肌肉量" value={formatMetricValue(muscle)} unit="kg" change={muscleChange} chart={chartVariantFromChange(muscleSeries, "up")} />
+                <MetricTrendCard title="基础代谢率" value={bmr ? bmr.toString() : "暂无"} unit="kcal" change={bmr ? "由画像估算" : "缺少身高/体重/年龄"} chart="up2" />
+                <MetricTrendCard title="睡眠时长" value={formatMetricValue(sleepHours)} unit="h" change={sleepChange} chart={chartVariantFromChange(sleepSeries, "up2")} />
               </div>
-              <ChartSideStat
-                value={formatMetricWithUnit(weight, "kg")}
-                label="当前体重"
-                delta={weightChange}
-                target={formatMetricWithUnit(targetWeight, "kg", "待设置")}
-                progress={weightProgress}
-                recordedAt={latestMetric?.recorded_at}
-              />
-            </div>
-          </section>
 
-          <div className="mt-5 grid gap-5 lg:grid-cols-2">
-            <section className="rounded-[12px] border border-border bg-card p-5">
-              <ChartHeader title="体成分变化" subtitle="最近 30 天" />
-              <AreaStackChart series={bodyCompositionSeries} />
-            </section>
-            <section className="rounded-[12px] border border-border bg-card p-5">
-              <div className="grid gap-5 lg:grid-cols-[1fr_125px]">
-                <div>
-                  <ChartHeader title="体脂率趋势" subtitle="最近 30 天 · 单位：%" />
-                  <LineChart height={180} series={bodyFatSeries} unit="%" />
+              <section className="mt-5 rounded-[12px] border border-border bg-card p-5">
+                <div className="grid gap-5 lg:grid-cols-[1fr_125px]">
+                  <div>
+                    <ChartHeader title="体重趋势" subtitle="最近 30 条记录 · 单位：kg" />
+                    <LineChart height={230} series={weightSeries} unit="kg" />
+                  </div>
+                  <ChartSideStat
+                    value={formatMetricWithUnit(weight, "kg")}
+                    label="当前体重"
+                    delta={weightChange}
+                    target={formatMetricWithUnit(targetWeight, "kg", "暂无目标")}
+                    progress={weightProgress}
+                    recordedAt={latestMetric?.recorded_at}
+                  />
                 </div>
-                <ChartSideStat
-                  value={formatMetricWithUnit(bodyFat, "%")}
-                  label="当前体脂率"
-                  delta={bodyFatChange}
-                  target="待设置"
-                  recordedAt={latestMetric?.recorded_at}
-                />
-              </div>
-            </section>
-          </div>
+              </section>
+            </>
+          ) : null}
+
+          {activeTab === "体成分" ? (
+            <div className="mt-5 grid gap-5 lg:grid-cols-2">
+              <section className="rounded-[12px] border border-border bg-card p-5">
+                <ChartHeader title="体成分变化" subtitle="最近 30 条记录" />
+                <AreaStackChart series={bodyCompositionSeries} />
+              </section>
+              <section className="rounded-[12px] border border-border bg-card p-5">
+                <div className="grid gap-5 lg:grid-cols-[1fr_125px]">
+                  <div>
+                    <ChartHeader title="体脂率趋势" subtitle="最近 30 条记录 · 单位：%" />
+                    <LineChart height={180} series={bodyFatSeries} unit="%" />
+                  </div>
+                  <ChartSideStat
+                    value={formatMetricWithUnit(bodyFat, "%")}
+                    label="当前体脂率"
+                    delta={bodyFatChange}
+                    target="暂无目标字段"
+                    recordedAt={latestMetric?.recorded_at}
+                  />
+                </div>
+              </section>
+              <section className="rounded-[12px] border border-border bg-card p-5 lg:col-span-2">
+                <ChartHeader title="骨骼肌趋势" subtitle="最近 30 条记录 · 单位：kg" />
+                <LineChart height={190} series={muscleSeries} unit="kg" />
+              </section>
+            </div>
+          ) : null}
+
+          {activeTab === "围度" ? (
+            <div className="mt-5 grid gap-5 lg:grid-cols-3">
+              <CircumferenceCard label="胸围" value={chest} series={chestSeries} />
+              <CircumferenceCard label="腰围" value={waist} series={waistSeries} />
+              <CircumferenceCard label="臀围" value={hip} series={hipSeries} />
+            </div>
+          ) : null}
+
+          {activeTab === "恢复状态" ? (
+            <RecoveryPanel latestCheckin={latestCheckin} sleepHours={sleepHours} />
+          ) : null}
+
+          {["力量表现", "心肺健康", "体能测试", "健康指标"].includes(activeTab) ? (
+            <EmptyDataPanel title={activeTab} description="当前后端还没有对应的数据表或字段，后续接入后再展示真实数据。" />
+          ) : null}
           <p className="mt-6 text-center text-[12px] text-muted-foreground">* 所有数据基于您的录入与设备监测量，如有误差请以实际情况为准。</p>
         </section>
 
@@ -143,12 +195,16 @@ export function BodyDataPage({
           age={age}
           bmi={bmi}
           bodyFat={bodyFat}
+          chest={chest}
+          hip={hip}
           latestCheckin={latestCheckin}
           latestMetric={latestMetric}
           muscle={muscle}
           onEditBodyData={onEditBodyData}
           onboarding={onboarding}
           workoutLogs={workoutLogs}
+          trendInsight={trendInsight}
+          waist={waist}
         />
       </div>
     </main>
@@ -156,32 +212,60 @@ export function BodyDataPage({
 }
 
 
-function BodyRightRail({ age, bmi, bodyFat, latestMetric, muscle, onEditBodyData, onboarding, workoutLogs }: { age: number | null; bmi: number | null; bodyFat: number | null; latestCheckin: AgentCheckin | null; latestMetric: BodyMetric | null; muscle: number | null; onEditBodyData: () => void; onboarding: OnboardingStatus | null; workoutLogs: WorkoutLog[] }) {
+function BodyRightRail({
+  age,
+  bmi,
+  bodyFat,
+  chest,
+  hip,
+  latestCheckin,
+  latestMetric,
+  muscle,
+  onEditBodyData,
+  onboarding,
+  trendInsight,
+  waist,
+  workoutLogs,
+}: {
+  age: number | null
+  bmi: number | null
+  bodyFat: number | null
+  chest: number | null
+  hip: number | null
+  latestCheckin: AgentCheckin | null
+  latestMetric: BodyMetric | null
+  muscle: number | null
+  onEditBodyData: () => void
+  onboarding: OnboardingStatus | null
+  trendInsight: string
+  waist: number | null
+  workoutLogs: WorkoutLog[]
+}) {
   return (
     <aside className="space-y-6">
-      <RailHeader title="身体概览" action="更多数据" />
+      <RailHeader title="身体概览" />
       <section className="rounded-[12px] border border-border bg-card p-5">
         <div className="grid grid-cols-2 gap-y-5">
           <BodyOverviewCell label="BMI" value={formatMetricValue(bmi)} sub={bmi ? getBmiLevel(bmi) : "暂无记录"} />
           <BodyOverviewCell label="体脂等级" value={bodyFat ? getBodyFatLevel(bodyFat) : "暂无记录"} sub={formatMetricWithUnit(bodyFat, "%")} bordered />
-          <BodyOverviewCell label="内脏脂肪等级" value="待补充" sub="后端暂无字段" />
+          <BodyOverviewCell label="腰围" value={formatMetricWithUnit(waist, "cm")} sub={waist ? "已记录" : "暂无记录"} />
           <BodyOverviewCell label="骨骼肌量" value={formatMetricWithUnit(muscle, "kg")} sub={muscle ? "已记录" : "暂无记录"} bordered />
         </div>
       </section>
       <section className="rounded-[12px] border border-border bg-card p-5">
         <div className="grid grid-cols-2">
           <BodyOverviewCell label="画像年龄" value={age ? `${age} 岁` : "暂无记录"} sub="" />
-          <BodyOverviewCell label="身体年龄" value="待评估" sub="需要评估规则" bordered small />
+          <BodyOverviewCell label="胸/臀围" value={formatChestHip(chest, hip)} sub={chest || hip ? "来自身体测量" : "暂无记录"} bordered small />
         </div>
       </section>
       <section className="rounded-[12px] border border-border bg-card p-5">
-        <RailHeader title="数据录入" action="查看记录" compact />
+        <RailHeader title="数据录入" compact />
         <div className="mt-3 divide-y divide-border">
           {[
-            [ClipboardList, "训练记录", workoutLogs[0]?.workout_date?.slice(5).replace("-", ".") ?? "05.14"],
-            [Utensils, "饮食记录", "05.14"],
-            [Scale, "身体测量", latestMetric?.recorded_at?.slice(5, 10).replace("-", ".") ?? "05.13"],
-            [Gauge, "体能测试", "05.10"],
+            [ClipboardList, "训练记录", formatShortDate(workoutLogs[0]?.workout_date) ?? "暂无数据"],
+            [Utensils, "饮食记录", "后续接入"],
+            [Scale, "身体测量", formatShortDate(latestMetric?.recorded_at) ?? "暂无数据"],
+            [Gauge, "恢复打卡", formatShortDate(latestCheckin?.created_at) ?? "暂无数据"],
           ].map(([Icon, label, date]) => (
             <button className="flex h-12 w-full items-center gap-3 text-left" key={label as string} onClick={label === "身体测量" ? onEditBodyData : undefined} type="button">
               <Icon className="size-4" />
@@ -194,16 +278,16 @@ function BodyRightRail({ age, bmi, bodyFat, latestMetric, muscle, onEditBodyData
       </section>
       <section className="rounded-[12px] border border-border bg-card p-5">
         <h3 className="text-[16px] font-black">健康趋势提示</h3>
-        <p className="mt-1 text-[12px] text-muted-foreground">基于近 30 天数据</p>
+        <p className="mt-1 text-[12px] text-muted-foreground">基于最近身体记录与恢复打卡</p>
         <div className="mt-5 rounded-[12px] border border-border p-4">
           <div className="flex items-center gap-3">
             <span className="grid size-6 place-items-center rounded-full border border-primary"><Check className="size-3.5" /></span>
-            <h4 className="text-[14px] font-black">身体状态良好</h4>
+            <h4 className="text-[14px] font-black">趋势摘要</h4>
           </div>
           <p className="mt-3 text-[12px] leading-6 text-muted-foreground">
-            {onboarding?.next_steps?.[0] ?? "体重、体脂率呈下降趋势，肌肉量稳步提升，继续保持当前的训练和饮食计划。"}
+            {onboarding?.next_steps?.[0] ?? trendInsight}
           </p>
-          <button className="mt-4 h-8 rounded-[8px] border border-border px-3 text-[12px] font-bold">查看建议</button>
+          <button className="mt-4 h-8 rounded-[8px] border border-border px-3 text-[12px] font-bold" type="button">后续接入建议</button>
         </div>
       </section>
     </aside>
@@ -231,6 +315,40 @@ function BodyOverviewCell({ bordered, label, small, sub, value }: { bordered?: b
       <p className={cn("mt-2 font-black", small ? "text-[13px]" : "text-[22px]")}>{value}</p>
       {sub ? <p className="mt-1 text-[12px] text-muted-foreground">{sub}</p> : null}
     </div>
+  )
+}
+
+function CircumferenceCard({ label, series, value }: { label: string; series: MetricPoint[]; value: number | null }) {
+  return (
+    <section className="rounded-[12px] border border-border bg-card p-5">
+      <ChartHeader title={`${label}趋势`} subtitle="最近 30 条记录 · 单位：cm" />
+      <p className="mt-4 text-[26px] font-black">{formatMetricWithUnit(value, "cm")}</p>
+      <p className="mt-1 text-[12px] text-muted-foreground">{formatMetricChange(series, "cm")}</p>
+      <LineChart height={150} series={series} unit="cm" />
+    </section>
+  )
+}
+
+function RecoveryPanel({ latestCheckin, sleepHours }: { latestCheckin: AgentCheckin | null; sleepHours: number | null }) {
+  return (
+    <section className="mt-5 rounded-[12px] border border-border bg-card p-5">
+      <ChartHeader title="恢复状态" subtitle="来自 body_metrics 睡眠时长与 agent_checkins 主观打卡" />
+      <div className="mt-5 grid gap-4 md:grid-cols-4">
+        <BodyOverviewCell label="睡眠时长" value={formatMetricWithUnit(sleepHours, "h")} sub="body_metrics.sleep_hours" />
+        <BodyOverviewCell label="精力" value={formatScore(latestCheckin?.energy_level)} sub="agent_checkins.energy_level" bordered />
+        <BodyOverviewCell label="睡眠质量" value={formatScore(latestCheckin?.sleep_quality)} sub="agent_checkins.sleep_quality" bordered />
+        <BodyOverviewCell label="酸痛" value={formatScore(latestCheckin?.soreness_level)} sub="agent_checkins.soreness_level" bordered />
+      </div>
+    </section>
+  )
+}
+
+function EmptyDataPanel({ description, title }: { description: string; title: string }) {
+  return (
+    <section className="mt-5 rounded-[12px] border border-dashed border-border bg-card p-8 text-center">
+      <h3 className="text-[18px] font-black">{title}</h3>
+      <p className="mx-auto mt-2 max-w-[460px] text-[13px] leading-6 text-muted-foreground">{description}</p>
+    </section>
   )
 }
 
@@ -382,7 +500,19 @@ function AreaStackChart({ series }: { series: BodyCompositionPoint[] }) {
   )
 }
 
-function getMetricSeries(metrics: BodyMetric[], key: keyof Pick<BodyMetric, "body_fat_percentage" | "skeletal_muscle_mass_kg" | "weight_kg">): MetricPoint[] {
+function getMetricSeries(
+  metrics: BodyMetric[],
+  key: keyof Pick<
+    BodyMetric,
+    | "body_fat_percentage"
+    | "chest_cm"
+    | "hip_cm"
+    | "skeletal_muscle_mass_kg"
+    | "sleep_hours"
+    | "waist_cm"
+    | "weight_kg"
+  >
+): MetricPoint[] {
   return metrics
     .filter((metric) => metric.recorded_at && metric[key] !== null && metric[key] !== undefined)
     .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime())
@@ -418,6 +548,10 @@ function formatMetricValue(value: number | null | undefined) {
 
 function formatMetricWithUnit(value: number | null | undefined, unit: string, fallback = "暂无记录") {
   return typeof value === "number" && Number.isFinite(value) ? `${value.toFixed(1)} ${unit}` : fallback
+}
+
+function formatScore(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? `${value}/10` : "暂无记录"
 }
 
 function formatMetricChange(series: MetricPoint[], unit: string) {
@@ -508,6 +642,60 @@ function formatFullDate(date: string) {
   }
 
   return `${parsed.getFullYear()}.${(parsed.getMonth() + 1).toString().padStart(2, "0")}.${parsed.getDate().toString().padStart(2, "0")}`
+}
+
+function formatChestHip(chest: number | null, hip: number | null) {
+  if (chest === null && hip === null) {
+    return "暂无记录"
+  }
+
+  return `${chest !== null ? chest.toFixed(1) : "-"} / ${hip !== null ? hip.toFixed(1) : "-"} cm`
+}
+
+function buildTrendInsight({
+  bodyFatSeries,
+  latestCheckin,
+  muscleSeries,
+  sleepHours,
+  weightSeries,
+}: {
+  bodyFatSeries: MetricPoint[]
+  latestCheckin: AgentCheckin | null
+  muscleSeries: MetricPoint[]
+  sleepHours: number | null
+  weightSeries: MetricPoint[]
+}) {
+  const messages: string[] = []
+  const weightTrend = describeTrend(weightSeries, "体重")
+  const bodyFatTrend = describeTrend(bodyFatSeries, "体脂率")
+  const muscleTrend = describeTrend(muscleSeries, "骨骼肌")
+
+  if (weightTrend) messages.push(weightTrend)
+  if (bodyFatTrend) messages.push(bodyFatTrend)
+  if (muscleTrend) messages.push(muscleTrend)
+  if (sleepHours !== null && sleepHours < 7) {
+    messages.push("最近睡眠时长偏少，训练强度建议保守调整。")
+  }
+  if (latestCheckin?.soreness_level && latestCheckin.soreness_level >= 7) {
+    messages.push("最近酸痛评分较高，优先安排恢复或低冲击训练。")
+  }
+
+  return messages.length
+    ? messages.join(" ")
+    : "暂无足够身体记录生成趋势，请至少录入两次身体数据。"
+}
+
+function describeTrend(series: MetricPoint[], label: string) {
+  if (series.length < 2) {
+    return null
+  }
+
+  const change = series[series.length - 1].value - series[0].value
+  if (Math.abs(change) < 0.05) {
+    return `${label}近期基本稳定。`
+  }
+
+  return `${label}近期${change > 0 ? "上升" : "下降"} ${Math.abs(change).toFixed(1)}。`
 }
 
 function getBmiLevel(bmi: number) {

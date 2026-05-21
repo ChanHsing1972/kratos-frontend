@@ -117,6 +117,17 @@ export async function createBodyMetric(token: string, payload: BodyMetricPayload
   })
 }
 
+export async function updateBodyMetric(
+  token: string,
+  metricId: number,
+  payload: BodyMetricPayload
+) {
+  return authorizedJson<BodyMetric>(`/body-metrics/${metricId}`, token, {
+    body: JSON.stringify(payload),
+    method: "PATCH",
+  })
+}
+
 export async function listWorkoutLogs(token: string) {
   return authorizedJson<WorkoutLog[]>("/workout-logs", token)
 }
@@ -139,6 +150,17 @@ export async function createAgentCheckin(
   return authorizedJson<AgentCheckin>("/agent-checkins", token, {
     body: JSON.stringify(payload),
     method: "POST",
+  })
+}
+
+export async function updateAgentCheckin(
+  token: string,
+  checkinId: number,
+  payload: AgentCheckinPayload
+) {
+  return authorizedJson<AgentCheckin>(`/agent-checkins/${checkinId}`, token, {
+    body: JSON.stringify(payload),
+    method: "PATCH",
   })
 }
 
