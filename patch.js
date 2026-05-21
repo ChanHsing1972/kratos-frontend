@@ -1,0 +1,6 @@
+const fs = require('fs')
+let content = fs.readFileSync('../agent-frontend/src/pages/kratos/TrainingPlanPage.tsx', 'utf8')
+content = content.replace(/  trainingSessionDate,\n  trainingStarted,\n/g, '')
+content = content.replace(/  trainingSessionDate={trainingSessionDate}\n  trainingStarted={trainingStarted}\n/g, '')
+content = content.replace(/  trainingSessionDate: string \| null\n  trainingStarted: boolean\n/g, '')
+fs.writeFileSync('../agent-frontend/src/pages/kratos/TrainingPlanPage.tsx', content)

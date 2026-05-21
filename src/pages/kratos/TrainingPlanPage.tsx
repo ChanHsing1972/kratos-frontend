@@ -59,6 +59,7 @@ import type {
   TrainingPlanPayload,
   WorkoutLog,
 } from "@/entities/kratos/model/types"
+import { ActionImage } from "@/shared/ui/ActionImage"
 import { ButtonGroup } from "@/shared/ui/button-group"
 import { KratosPageHeader } from "@/widgets/kratos/layout/KratosPageHeader"
 
@@ -631,6 +632,10 @@ function isTrainingDayLine(line: string) {
     return false
   }
 
+  if (/(休息|恢复日)/.test(normalized) && !/[；;].*(组|次|秒|轮)/.test(normalized)) {
+    return false
+  }
+
   return /(周[一二三四五六日天]|第\s*\d+\s*天)/.test(normalized)
 }
 
@@ -652,7 +657,20 @@ function splitTrainingActions(content: string) {
   return content
     .split(/[；;]\s*/)
     .map((item) => item.trim())
+    .filter(isRecordableTrainingAction)
     .filter(Boolean)
+}
+
+function isRecordableTrainingAction(action: string) {
+  if (!action) {
+    return false
+  }
+
+  if (/(休息|恢复|步行|快走|拉伸|活动度|记录体重|睡眠|疲劳)/.test(action)) {
+    return false
+  }
+
+  return true
 }
 
 function buildCompletedDateSet(logs: WorkoutLog[], planId: number | null) {
@@ -1183,9 +1201,7 @@ function TodayTrainingHero({
                     type="button"
                   >
                     <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-linear-to-br from-background/12 via-primary-foreground/6 to-transparent">
-                      <div className="px-4 py-2 text-[13px] font-semibold text-primary-foreground/45">
-                        动作预览图片
-                      </div>
+                      <ActionImage actionName={action.title} className="absolute inset-0" />
 
                       {!completed && (
                         <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent" />

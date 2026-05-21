@@ -38,7 +38,6 @@ import {
   buildPlanPanel,
   chatMessagesFromAgentRuns,
   chatSessionsFromAgentRuns,
-  compactOptionalText,
   formatTime,
   getLatestByDate,
   titleFromPrompt,
