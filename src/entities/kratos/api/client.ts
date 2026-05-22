@@ -24,6 +24,8 @@ import type {
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1"
+  // import.meta.env.VITE_API_BASE_URL ?? "http://192.0.2.1/api/v1"
+
 
 export const AUTH_TOKEN_KEY = "kratos-auth-token"
 
@@ -386,17 +388,17 @@ export type ExerciseMediaResponse = {
 export async function getExerciseMedia(actionName: string, token?: string | null) {
   const url = new URL(`${API_BASE_URL}/plans/media`)
   url.searchParams.set("action_name", actionName)
-  
+
   const response = await fetch(url.toString(), {
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       "Content-Type": "application/json",
     },
   })
-  
+
   if (!response.ok) {
     throw new Error(`Request failed with status ${response.status}`)
   }
-  
+
   return response.json() as Promise<ExerciseMediaResponse>
 }

@@ -17,19 +17,15 @@ import {
   Trash2,
   WandSparkles,
   Pause,
+  MoreHorizontal,
+  List,
 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 
 import { Button } from "@/shared/ui/button"
 import { Calendar } from "@/shared/ui/calendar"
 import { Badge } from "@/shared/ui/badge"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card"
+import { CardContent } from "@/shared/ui/card"
 import {
   Carousel,
   CarouselContent,
@@ -48,6 +44,12 @@ import {
 } from "@/shared/ui/dialog"
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu"
 import {
   Field,
   FieldContent,
@@ -381,9 +383,7 @@ export function TrainingPlanPage({
           workoutLogs={workoutLogs}
         /> */}
 
-        <p className="mt-6 text-center text-[12px] text-muted-foreground">
-          计划会根据您的训练反馈和身体状态自动优化。
-        </p>
+
       </section>
     </main>
   )
@@ -1062,7 +1062,7 @@ function TodayTrainingHero({
                 variant="outline"
               >
                 <PlusCircle className="size-4" />
-                调整训练计划
+                训练计划
               </Button>
             )}
 
@@ -1106,8 +1106,8 @@ function TodayTrainingHero({
                         className={cn(
                           "group flex h-full min-h-65 w-full snap-start flex-col justify-between overflow-hidden rounded-[16px] border p-0 text-left transition",
                           completed
-                            ? "border-primary bg-primary/5 text-foreground"
-                            : "border-border bg-card text-foreground hover:border-primary/25 hover:bg-muted/70",
+                            ? "border-primary bg-muted text-foreground"
+                            : "border-border bg-card text-foreground hover:border-primary/25 hover:bg-muted",
                           (!selectedTrainingActive || trainingPaused) && "cursor-default"
                         )}
                         disabled={!selectedTrainingActive || trainingPaused}
@@ -1244,69 +1244,69 @@ function WeeklyTrainingTimeline({
   const days = buildWeekDays(weekStart)
 
   return (
-    <section className="mt-6">
+    <section className="mt-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-medium">本周训练安排</h2>
-          {/* <p className="mt-0 text-[12px] text-muted-foreground">{weekRangeLabel}</p> */}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Popover open={calendarOpen} onOpenChange={onToggleCalendar}>
-            <PopoverTrigger asChild>
-              <Button className="font-medium" type="button" variant="outline">
-                <CalendarIcon className="size-4" />
-                {weekRangeLabel}
-                <ChevronRight className="size-4 rotate-90" />
+        {activePlan &&
+          <div className="flex flex-wrap items-center gap-2">
+            <Popover open={calendarOpen} onOpenChange={onToggleCalendar}>
+              <PopoverTrigger asChild>
+                <Button className="font-medium" type="button" variant="outline">
+                  <CalendarIcon className="size-4" />
+                  {weekRangeLabel}
+                  <ChevronRight className="size-4 rotate-90" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                className="w-auto p-0"
+                ref={calendarMenuRef}
+                sideOffset={5}
+              >
+                <TrainingCalendar
+                  completedDateSet={completedDateSet}
+                  onClose={onToggleCalendar}
+                  onSelectDate={onCalendarSelectDate}
+                  onVisibleDateChange={onCalendarVisibleDateChange}
+                  selectedDate={selectedDate}
+                  visibleDate={calendarVisibleDate}
+                />
+              </PopoverContent>
+            </Popover>
+
+            <ButtonGroup>
+              <Button
+                aria-label="上一周"
+                className="size-8"
+                onClick={onWeekBackward}
+                type="button"
+                variant="outline"
+              >
+                <ChevronLeft className="size-4" />
               </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              className="w-auto p-0"
-              ref={calendarMenuRef}
-              sideOffset={5}
-            >
-              <TrainingCalendar
-                completedDateSet={completedDateSet}
-                onClose={onToggleCalendar}
-                onSelectDate={onCalendarSelectDate}
-                onVisibleDateChange={onCalendarVisibleDateChange}
-                selectedDate={selectedDate}
-                visibleDate={calendarVisibleDate}
-              />
-            </PopoverContent>
-          </Popover>
+              <Button
+                aria-label="下一周"
+                className="size-8"
+                onClick={onWeekForward}
+                type="button"
+                variant="outline"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </ButtonGroup>
 
-          <ButtonGroup>
             <Button
-              aria-label="上一周"
-              className="size-8"
-              onClick={onWeekBackward}
+              className="h-8"
+              onClick={onOpenPlanDetails}
               type="button"
               variant="outline"
             >
-              <ChevronLeft className="size-4" />
+              计划详情
+              <ChevronRight className="size-3.5" />
             </Button>
-            <Button
-              aria-label="下一周"
-              className="size-8"
-              onClick={onWeekForward}
-              type="button"
-              variant="outline"
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </ButtonGroup>
-
-          <Button
-            className="h-8"
-            onClick={onOpenPlanDetails}
-            type="button"
-            variant="outline"
-          >
-            计划详情
-            <ChevronRight className="size-3.5" />
-          </Button>
-        </div>
+          </div>}
       </div>
 
       {/* <TrainingStatsBar
@@ -1324,7 +1324,7 @@ function WeeklyTrainingTimeline({
       /> */}
 
       {trainingDays.length > 0 ? (
-        <div className="relative mt-4 grid overflow-hidden lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr]">
+        <div className="relative mt-4 grid overflow-visible -mx-3 lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr]">
           {days.map((day) => {
             const trainingDay =
               trainingDays.find((item) => item.dateValue === day.value) ?? null
@@ -1359,8 +1359,8 @@ function WeeklyTrainingTimeline({
                   className={cn(
                     "relative z-10 flex min-h-37.5 flex-col rounded-[14px] border p-3 text-left transition-colors",
                     selected
-                      ? "border-primary bg-muted/50"
-                      : "border-transparent bg-primary-foreground hover:border-primary/40"
+                      ? "border-primary bg-muted"
+                      : "border-transparent bg-primary-foreground hover:bg-muted"
                   )}
                   key={day.value}
                   onClick={() => onSelectDate(day.value)}
@@ -1369,20 +1369,20 @@ function WeeklyTrainingTimeline({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-[12px] text-muted-foreground">{`周${day.day}`}</p>
-                      <p className="mt-0 text-[20px] font-semibold">
+                      <p className="-mt-1 text-[16px]">
                         {day.label}
                       </p>
                     </div>
                   </div>
                   <div className="mt-2 min-w-0 flex-1">
-                    <h3 className="line-clamp-2 text-[16px] leading-5 font-semibold">
+                    <h3 className="line-clamp-2 text-[16px] leading-5 font-medium">
                       {title}
                     </h3>
                     <p className="mt-2 line-clamp-3 text-[12px] leading-4 text-muted-foreground">
                       {trainingDay
                         ? completed && loggedActions.length > 0
                           ? loggedActions.join("；")
-                          : `${completedCount}/${actionCount} 动作 · ${trainingDay.goal}`
+                          : `${actionCount} 个动作 · ${trainingDay.goal}`
                         : "恢复、拉伸或轻活动"}
                     </p>
                   </div>
@@ -1401,7 +1401,7 @@ function WeeklyTrainingTimeline({
                 </button>
                 {day.day !== "日" ? (
                   <div className="flex items-center justify-center">
-                    <div className="h-46 w-px bg-border" aria-hidden="true" />
+                    <div className="h-46 w-px bg-border/80" aria-hidden="true" />
                   </div>
                 ) : null}
               </>
@@ -1436,12 +1436,6 @@ function WeeklyTrainingTimeline({
               选择一个常见模板，或从空白计划开始撰写。
             </EmptyDescription>
           </EmptyHeader>
-          <EmptyContent>
-            <Button variant="outline" size="default" onClick={() => onOpenPlanComposer(null)}>
-              <PlusCircle />
-              自定义计划
-            </Button>
-          </EmptyContent>
         </Empty>
       )}
 
@@ -1473,15 +1467,20 @@ function PlanManagementSection({
   trainingPlans: TrainingPlan[]
 }) {
   return (
-    <section className="mt-6">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-medium">计划管理</h2>
-          <p className="mt-1 text-[12px] text-muted-foreground">
-            创建模板、切换计划，或管理已保存的训练安排。
-          </p>
-        </div>
-        <SlidersHorizontal className="size-4 text-muted-foreground" />
+    <section className="mt-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <h2 className="text-xl font-medium tracking-[-0.03em]">
+          计划管理
+        </h2>
+        {trainingPlans.length > 0 &&
+          <Button
+            onClick={() => onOpenPlanComposer(null)}
+            type="button"
+            variant="outline"
+          >
+            <PlusCircle className="size-4" />
+            新建计划
+          </Button>}
       </div>
 
       <MoreTrainingMenu
@@ -1590,106 +1589,100 @@ function MoreTrainingMenu({
 }) {
   const dailyPlans = plans.filter(isDailyTrainingPlan)
   const longTermPlans = plans.filter((item) => !isDailyTrainingPlan(item))
+  const shouldFillDailyEmpty = longTermPlans.length > 1
+  const shouldFillLongTermEmpty = dailyPlans.length > 1
 
   return (
-    <div className="grid gap-5 text-foreground">
-      <Card className="border-border shadow-none">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-[15px]">常见计划模板</CardTitle>
-          <CardDescription>
-            从预设模板开始，或创建一份完全自定义的训练计划。
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 md:grid-cols-2">
-            {trainingPlanTemplates.map((template) => (
-              <Button
-                className="h-auto justify-start rounded-xl border-border bg-card p-3 text-left hover:border-primary hover:bg-muted/40"
-                key={template.id}
-                onClick={() => {
-                  onClose()
-                  onOpenPlanComposer(template)
-                }}
-                type="button"
-                variant="outline"
-              >
-                <span className="flex min-w-0 flex-col items-start gap-2">
-                  <Badge className="rounded-md" variant="secondary">
-                    {template.level}
-                  </Badge>
-                  <span className="line-clamp-2 text-[13px] leading-5 font-semibold text-foreground">
-                    {template.title}
-                  </span>
-                  <span className="line-clamp-2 text-[12px] leading-5 text-muted-foreground">
-                    {template.summary}
-                  </span>
-                </span>
-              </Button>
-            ))}
+    <div className="mt-7 grid gap-6">
 
-            <Button
-              className="flex min-h-37 flex-col gap-2 rounded-xl border-dashed border-border bg-transparent text-muted-foreground hover:border-primary hover:bg-muted/40 hover:text-foreground"
+      <section className="grid items-start gap-3">
+        {plans.length > 0 ? (
+          <div className="grid items-start gap-6 lg:grid-cols-2 lg:items-stretch">
+            <SavedPlanGroup
+              shouldFillEmpty={shouldFillLongTermEmpty}
+              emptyText="暂无长期计划"
+              emptyDescription="长期计划会显示在这里。适合保存周期训练、周计划和阶段目标。"
+              onDeletePlan={onDeletePlan}
+              onEditPlan={onEditPlan}
+              onSelectPlan={(nextPlan) => {
+                onClose()
+                onSelectPlan(nextPlan)
+              }}
+              plans={longTermPlans}
+              selectedPlanId={plan?.id ?? null}
+              title="长期计划"
+            />
+            <SavedPlanGroup
+              shouldFillEmpty={shouldFillDailyEmpty}
+              emptyText="暂无每日计划"
+              emptyDescription="从聊天中生成的当日训练计划会显示在这里。"
+              onDeletePlan={onDeletePlan}
+              onEditPlan={onEditPlan}
+              onSelectPlan={(nextPlan) => {
+                onClose()
+                onSelectPlan(nextPlan)
+              }}
+              plans={dailyPlans}
+              selectedPlanId={plan?.id ?? null}
+              title="每日计划"
+            />
+          </div>
+        ) : (
+          <Empty className="border border-dashed">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <List />
+              </EmptyMedia>
+              <EmptyTitle>暂无训练计划</EmptyTitle>
+              <EmptyDescription>
+                从模板或空白计划保存后，这里会显示计划列表。
+              </EmptyDescription>
+            </EmptyHeader>
+            {/* <EmptyContent>
+              <Button variant="outline" size="sm">
+                Upload Files
+              </Button>
+            </EmptyContent> */}
+          </Empty>
+        )}
+      </section>
+
+      <section className="grid gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between">
+          <h3 className="font-medium">从模板开始</h3>
+        </div>
+
+        <div className="grid gap-10 md:grid-cols-3 overflow-visible">
+          {trainingPlanTemplates.map((template) => (
+            <button
+              className="-mx-4 group flex min-h-38 flex-col items-start justify-between rounded-2xl p-4 text-left transition hover:bg-muted"
+              key={template.id}
               onClick={() => {
                 onClose()
-                onOpenPlanComposer(null)
+                onOpenPlanComposer(template)
               }}
               type="button"
-              variant="outline"
             >
-              <PlusCircle className="size-8" strokeWidth={1.4} />
-              <span className="text-[13px] font-semibold">新建空白计划</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
-      <Card className="border-border shadow-none">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-[15px]">计划库</CardTitle>
-              <CardDescription>
-                管理已保存的长期计划与每日训练安排。
-              </CardDescription>
-            </div>
-            <Badge variant="outline">{plans.length} 个计划</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {plans.length > 0 ? (
-            <div className="grid gap-4">
-              <SavedPlanGroup
-                emptyText="暂无长期计划。适合保存周期训练、周计划和阶段目标。"
-                onDeletePlan={onDeletePlan}
-                onEditPlan={onEditPlan}
-                onSelectPlan={(nextPlan) => {
-                  onClose()
-                  onSelectPlan(nextPlan)
-                }}
-                plans={longTermPlans}
-                selectedPlanId={plan?.id ?? null}
-                title="长期计划"
-              />
-              <SavedPlanGroup
-                emptyText="暂无每日计划。聊天生成的当日训练会放在这里。"
-                onDeletePlan={onDeletePlan}
-                onEditPlan={onEditPlan}
-                onSelectPlan={(nextPlan) => {
-                  onClose()
-                  onSelectPlan(nextPlan)
-                }}
-                plans={dailyPlans}
-                selectedPlanId={plan?.id ?? null}
-                title="每日计划"
-              />
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-[12px] leading-5 text-muted-foreground">
-              从模板或空白计划保存后，这里会显示计划列表。
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              <span className="min-w-0">
+                <span className="line-clamp-1 text-[15px]">
+                  {template.title}
+                </span>
+                <span className="mt-1 line-clamp-3 text-[12px] leading-5 text-muted-foreground">
+                  {template.summary}
+                </span>
+              </span>
+
+              <span className="mt-5 flex w-full items-center justify-between gap-3">
+                <Badge variant="secondary">
+                  {template.level}
+                </Badge>
+                <ChevronRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" />
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }
@@ -1795,131 +1788,132 @@ function TrainingCalendar({
 
 function SavedPlanGroup({
   emptyText,
+  emptyDescription,
   onDeletePlan,
   onEditPlan,
   onSelectPlan,
   plans,
   selectedPlanId,
+  shouldFillEmpty = false,
   title,
 }: {
   emptyText: string
+  emptyDescription: string
   onDeletePlan: (plan: TrainingPlan) => void
   onEditPlan: (plan: TrainingPlan) => void
   onSelectPlan: (plan: TrainingPlan) => void
   plans: TrainingPlan[]
   selectedPlanId: number | null
+  shouldFillEmpty?: boolean
   title: string
 }) {
+  const shouldStretchEmpty = plans.length === 0 && shouldFillEmpty
+
   return (
-    <section className="grid gap-2">
+    <section
+      className={cn(
+        "grid gap-3 content-start",
+        shouldStretchEmpty && "lg:grid-rows-[auto_1fr]"
+      )}
+    >
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-[12px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+        <h4 className="font-medium">
           {title}
-        </h3>
-        <Badge variant="secondary">{plans.length}</Badge>
+        </h4>
+        {/* <Badge variant="secondary">
+          {plans.length} 个计划
+        </Badge> */}
       </div>
 
       {plans.length > 0 ? (
-        <div className="grid gap-2">
+        <div className=" grid gap-0 overflow-visible">
           {plans.map((item) => {
             const selected = item.id === selectedPlanId
+            const description =
+              item.summary ??
+              item.weekly_schedule ??
+              "这份计划已保存到后端 plans 表。"
 
             return (
-              <Card
+              <div
                 className={cn(
-                  "border-border bg-card shadow-none transition-colors hover:bg-muted/30",
-                  selected && "border-primary"
+                  "-mx-4 -my-1 grid gap-6 rounded-2xl px-4 py-4 transition-all md:grid-cols-[minmax(0,1fr)_auto] md:items-center hover:bg-muted",
                 )}
                 key={item.id}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <Button
-                      className="min-w-0 flex-1 justify-start p-0 text-left hover:bg-transparent"
-                      onClick={() => onSelectPlan(item)}
-                      type="button"
-                      variant="ghost"
-                    >
-                      <span className="flex min-w-0 flex-col items-start">
-                        <span className="flex w-full min-w-0 items-center gap-2">
-                          <span className="truncate text-[14px] font-semibold text-foreground">
-                            {item.title}
-                          </span>
-                          {selected ? (
-                            <Badge className="shrink-0" variant="default">
-                              当前
-                            </Badge>
-                          ) : null}
-                        </span>
-                        <span className="mt-2 flex flex-wrap gap-2">
-                          <Badge variant="secondary">
-                            {planStatusLabel(item.status)}
-                          </Badge>
-                          {item.goal ? (
-                            <Badge variant="outline">{item.goal}</Badge>
-                          ) : null}
-                        </span>
-                        <span className="mt-3 line-clamp-2 text-[12px] leading-5 text-muted-foreground">
-                          {item.summary ??
-                            item.weekly_schedule ??
-                            "这份计划已保存到后端 plans 表。"}
-                        </span>
-                        <span className="mt-2 text-[12px] text-muted-foreground">
-                          {selected
-                            ? "当前计划"
-                            : item.start_date
-                              ? `点击设为当前 · 开始：${item.start_date}`
-                              : "点击设为当前 · 未设置开始日期"}
-                        </span>
-                      </span>
-                    </Button>
+                <div className="min-w-0">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <h5 className="truncate text-[15px] text-foreground">
+                      {item.title}
+                    </h5>
+                    {selected ? (
+                      <Badge variant="outline">
+                        当前
+                      </Badge>
+                    ) : null}
+                  </div>
 
-                    <div className="flex shrink-0 items-center gap-1.5">
+                  <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-muted-foreground">
+                    {description}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <Button
-                        aria-label={`编辑 ${item.title}`}
-                        className="size-8"
-                        onClick={() => onEditPlan(item)}
-                        size="icon"
-                        type="button"
-                        variant="outline"
-                      >
-                        <PencilLine className="size-3.5" />
-                      </Button>
-                      <Button
-                        aria-label={`删除 ${item.title}`}
-                        className="size-8"
-                        onClick={() => onDeletePlan(item)}
-                        size="icon"
-                        type="button"
-                        variant="outline"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                      <Button
-                        aria-label={`选择 ${item.title}`}
-                        className="size-8"
-                        onClick={() => onSelectPlan(item)}
+                        aria-label={`打开 ${item.title} 的操作菜单`}
                         size="icon"
                         type="button"
                         variant="ghost"
                       >
-                        {selected ? (
-                          <Check className="size-4" />
-                        ) : (
-                          <ChevronRight className="size-4 text-muted-foreground" />
-                        )}
+                        <MoreHorizontal className="size-4" />
                       </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-36">
+                      {selected ? (
+                        <DropdownMenuItem disabled>
+                          <Check className="size-4" />
+                          当前执行
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem onClick={() => onSelectPlan(item)}>
+                          <Check className="size-4" />
+                          设为当前
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={() => onEditPlan(item)}>
+                        <PencilLine className="size-4" />
+                        编辑计划
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => onDeletePlan(item)}
+                      >
+                        <Trash2 className="size-4" />
+                        删除计划
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
             )
           })}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-border bg-muted/40 p-3 text-[12px] leading-5 text-muted-foreground">
-          {emptyText}
-        </div>
+        <Empty
+          className={cn(
+            "min-h-40 border border-dashed",
+            shouldStretchEmpty && "lg:h-full"
+          )}
+        >
+          <EmptyHeader>
+            <EmptyTitle>{emptyText}</EmptyTitle>
+            <EmptyDescription>
+              {emptyDescription}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       )}
     </section>
   )
