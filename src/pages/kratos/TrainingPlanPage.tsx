@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   Calendar as CalendarIcon,
   Check,
   ChevronLeft,
@@ -10,7 +9,6 @@ import {
   PencilLine,
   PlusCircle,
   SlidersHorizontal,
-  Target,
   Timer,
   Trophy,
   Trash2,
@@ -29,6 +27,13 @@ import {
   CardTitle,
 } from "@/shared/ui/card"
 import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/shared/ui/carousel"
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -38,11 +43,7 @@ import {
   DialogClose,
 } from "@/shared/ui/dialog"
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/shared/ui/popover"
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover"
 import {
   Field,
   FieldContent,
@@ -61,7 +62,7 @@ import type {
 } from "@/entities/kratos/model/types"
 import { ActionImage } from "@/shared/ui/ActionImage"
 import { ButtonGroup } from "@/shared/ui/button-group"
-import { KratosPageHeader } from "@/widgets/kratos/layout/KratosPageHeader"
+import { Separator } from "@/shared/ui/separator"
 
 type TrainingPlanPageProps = {
   activePlan: TrainingPlan | null
@@ -72,7 +73,11 @@ type TrainingPlanPageProps = {
   onOpenPlanComposer: (draft?: TrainingPlanPayload | null) => void
   onSelectPlan: (plan: TrainingPlan) => void
   onToggleExercise: (title: string) => void
-  onStartTraining: (dayTitle: string, workoutDate: string, actions: string[]) => void
+  onStartTraining: (
+    dayTitle: string,
+    workoutDate: string,
+    actions: string[]
+  ) => void
   onCompleteTrainingDay: (
     dayTitle: string,
     workoutDate: string,
@@ -137,7 +142,8 @@ export function TrainingPlanPage({
     () => buildTrainingDays(activePlan, weekStart),
     [activePlan, weekStart]
   )
-  const selectedDay = trainingDays.find((day) => day.dateValue === selectedDate) ?? null
+  const selectedDay =
+    trainingDays.find((day) => day.dateValue === selectedDate) ?? null
   const completedDateSet = useMemo(
     () => buildCompletedDateSet(workoutLogs, activePlan?.id ?? null),
     [activePlan?.id, workoutLogs]
@@ -146,9 +152,13 @@ export function TrainingPlanPage({
     ? completedDateSet.has(selectedDay.dateValue)
     : false
   const selectedTrainingActive =
-    trainingStarted && selectedDay ? trainingSessionDate === selectedDay.dateValue : false
+    trainingStarted && selectedDay
+      ? trainingSessionDate === selectedDay.dateValue
+      : false
   const anotherTrainingActive =
-    trainingStarted && selectedDay ? trainingSessionDate !== selectedDay.dateValue : false
+    trainingStarted && selectedDay
+      ? trainingSessionDate !== selectedDay.dateValue
+      : false
   const selectedWorkoutLog = getLatestWorkoutForDate(
     workoutLogs,
     activePlan?.id ?? null,
@@ -157,43 +167,48 @@ export function TrainingPlanPage({
   const selectedWorkoutCompletedTitles = selectedWorkoutLog
     ? parseWorkoutActionsFromNotes(selectedWorkoutLog.notes)
     : []
-  const selectedDisplayActions = selectedDay?.actions.map((action) => {
-    const completed = selectedTrainingActive
-      ? completedExercises.includes(action.id)
-      : selectedDayCompleted || selectedWorkoutCompletedTitles.includes(action.title)
+  const selectedDisplayActions =
+    selectedDay?.actions.map((action) => {
+      const completed = selectedTrainingActive
+        ? completedExercises.includes(action.id)
+        : selectedDayCompleted ||
+        selectedWorkoutCompletedTitles.includes(action.title)
 
-    return {
-      ...action,
-      completed,
-    }
-  }) ?? []
-  const selectedCompletedCount = selectedDisplayActions.filter((action) => action.completed).length
-  const selectedSavedSeconds = sumWorkoutSecondsForDate(
-    workoutLogs,
-    activePlan?.id ?? null,
-    selectedDate
-  )
+      return {
+        ...action,
+        completed,
+      }
+    }) ?? []
+  const selectedCompletedCount = selectedDisplayActions.filter(
+    (action) => action.completed
+  ).length
   const selectedDisplayTitle =
     !selectedTrainingActive && selectedWorkoutLog?.title
       ? selectedWorkoutLog.title
       : selectedDay
         ? `${selectedDay.day} - ${selectedDay.title}`
         : ""
-  const selectedTotalSeconds =
-    selectedSavedSeconds + (selectedTrainingActive ? trainingElapsedSeconds : 0)
-  const [calendarVisibleDate, setCalendarVisibleDate] = useState(() => new Date())
+  const [calendarVisibleDate, setCalendarVisibleDate] = useState(
+    () => new Date()
+  )
   const completedPlanSessions = trainingDays.filter((day) =>
     completedDateSet.has(day.dateValue)
   ).length
   const weekProgress = trainingDays.length
-    ? Math.min(100, Math.round((completedPlanSessions / trainingDays.length) * 100))
+    ? Math.min(
+      100,
+      Math.round((completedPlanSessions / trainingDays.length) * 100)
+    )
     : 0
   const dailyProgress = selectedDay
     ? selectedDayCompleted
       ? 100
       : Math.min(
         100,
-        Math.round((selectedCompletedCount / Math.max(selectedDay.actions.length, 1)) * 100)
+        Math.round(
+          (selectedCompletedCount / Math.max(selectedDay.actions.length, 1)) *
+          100
+        )
       )
     : 0
   const weekSeconds = sumWorkoutSecondsForWeek(
@@ -226,7 +241,10 @@ export function TrainingPlanPage({
     activePlan?.goal ??
     "从模板创建或自定义撰写一份计划后，这里会展示后端同步的真实训练安排。"
   const dailySuggestion = buildDailySuggestion(activePlan, workoutLogs)
-  const trainingStreak = calculateTrainingStreak(workoutLogs, activePlan?.id ?? null)
+  const trainingStreak = calculateTrainingStreak(
+    workoutLogs,
+    activePlan?.id ?? null
+  )
   const handleToggleCalendar = () => {
     setCalendarVisibleDate(dateFromValue(selectedDate))
     setCalendarOpen((current) => !current)
@@ -260,129 +278,10 @@ export function TrainingPlanPage({
 
   return (
     <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
-      <section className="mx-auto flex min-h-full w-full max-w-385 flex-col px-6 py-7 sm:px-8 xl:px-12">
-        <KratosPageHeader
-          title="训练计划"
-          actions={
-            <>
-              <div className="relative" ref={calendarMenuRef}>
-                <button
-                  className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[#dfdfdf] bg-white px-4 text-[13px] font-bold text-[#111111] transition hover:border-[#111111]"
-                  onClick={() => {
-                    setCalendarVisibleDate(dateFromValue(selectedDate))
-                    setCalendarOpen((current) => !current)
-                  }}
-                  type="button"
-                >
-                  <Calendar className="size-4" />
-                  {formatWeekRange(weekStart)}
-                  <ChevronRight className="size-3.5 rotate-90" />
-                </button>
-                {calendarOpen ? (
-                  <div className="absolute right-0 top-[calc(100%+12px)] z-50 w-[min(88vw,340px)]">
-                    <TrainingCalendar
-                      completedDateSet={completedDateSet}
-                      onClose={() => setCalendarOpen(false)}
-                      onSelectDate={(dateValue) => {
-                        const date = dateFromValue(dateValue)
-                        setTrainingDateState({
-                          planId: activePlanKey,
-                          selectedDate: dateValue,
-                          weekStart: startOfWeek(date),
-                        })
-                        setCalendarVisibleDate(date)
-                        setCalendarOpen(false)
-                      }}
-                      onVisibleDateChange={setCalendarVisibleDate}
-                      selectedDate={selectedDate}
-                      visibleDate={calendarVisibleDate}
-                    />
-                  </div>
-                ) : null}
-              </div>
-              <Button
-                aria-label="上一周"
-                className="h-10 w-10 rounded-[10px] border border-[#dfdfdf] bg-white p-0 text-[#111111] hover:border-[#111111] hover:bg-white"
-                onClick={() => {
-                  setTrainingDateState((current) => {
-                    const nextSelectedDate = localDateValue(
-                      addDays(dateFromValue(current.selectedDate), -7)
-                    )
-                    return {
-                      ...current,
-                      selectedDate: nextSelectedDate,
-                      weekStart: addDays(current.weekStart, -7),
-                    }
-                  })
-                }}
-                type="button"
-                variant="outline"
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <Button
-                aria-label="下一周"
-                className="h-10 w-10 rounded-[10px] border border-[#dfdfdf] bg-white p-0 text-[#111111] hover:border-[#111111] hover:bg-white"
-                onClick={() => {
-                  setTrainingDateState((current) => {
-                    const nextSelectedDate = localDateValue(
-                      addDays(dateFromValue(current.selectedDate), 7)
-                    )
-                    return {
-                      ...current,
-                      selectedDate: nextSelectedDate,
-                      weekStart: addDays(current.weekStart, 7),
-                    }
-                  })
-                }}
-                type="button"
-                variant="outline"
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-              <div className="relative" ref={moreMenuRef}>
-                <Button
-                  className="h-10 rounded-[10px] bg-[#111111] px-5 text-[13px] font-bold text-white hover:bg-[#111111]/90"
-                  onClick={() => setMoreMenuOpen((current) => !current)}
-                  type="button"
-                >
-                  <SlidersHorizontal className="size-4" />
-                  更多功能
-                  <ChevronRight className="size-3.5 rotate-90" />
-                </Button>
-                {moreMenuOpen ? (
-                  <MoreTrainingMenu
-                    onClose={() => setMoreMenuOpen(false)}
-                    onDeletePlan={onDeletePlan}
-                    onEditPlan={onEditPlan}
-                    onOpenPlanComposer={onOpenPlanComposer}
-                    onSelectPlan={onSelectPlan}
-                    plan={activePlan}
-                    plans={trainingPlans}
-                  />
-                ) : null}
-              </div>
-            </>
-          }
-        />
-
-        <TrainingStatsBar
-          completedSessions={completedPlanSessions}
-          planTitle={planTitle}
-          planTotalProgress={planTotalProgress}
-          planTotalSeconds={planTotalSeconds}
-          stageLabel={buildPlanStageLabel(activePlan, weekStart)}
-          streakDays={trainingStreak}
-          totalSessions={planExpectedSessions}
-          weekCalories={weekCalories}
-          weekProgress={weekProgress}
-          weekSeconds={weekSeconds}
-        />
-
+      <section className="mx-auto mt-25 flex min-h-full w-full max-w-[900px] p-8 flex-col">
         <TodayTrainingHero
           anotherTrainingActive={anotherTrainingActive}
           dashboardLoading={dashboardLoading}
-          dailyProgress={dailyProgress}
           dailySuggestion={dailySuggestion}
           onCompleteTrainingDay={onCompleteTrainingDay}
           onOpenPlanComposer={onOpenPlanComposer}
@@ -391,13 +290,11 @@ export function TrainingPlanPage({
           onToggleExercise={onToggleExercise}
           onStartTraining={onStartTraining}
           planGoal={planGoal}
-          selectedCompletedCount={selectedCompletedCount}
           selectedDate={selectedDate}
           selectedDay={selectedDay}
           selectedDayCompleted={selectedDayCompleted}
           selectedDisplayActions={selectedDisplayActions}
           selectedDisplayTitle={selectedDisplayTitle}
-          selectedTotalSeconds={selectedTotalSeconds}
           selectedTrainingActive={selectedTrainingActive}
           trainingElapsedSeconds={trainingElapsedSeconds}
           trainingPaused={trainingPaused}
@@ -410,6 +307,7 @@ export function TrainingPlanPage({
           calendarMenuRef={calendarMenuRef}
           calendarOpen={calendarOpen}
           calendarVisibleDate={calendarVisibleDate}
+          completedSessions={completedPlanSessions}
           completedDateSet={completedDateSet}
           completedExercises={completedExercises}
           moreMenuOpen={moreMenuOpen}
@@ -438,9 +336,14 @@ export function TrainingPlanPage({
           }}
           onToggleCalendar={handleToggleCalendar}
           onToggleMoreMenu={handleToggleMoreMenu}
+          planTitle={planTitle}
+          planTotalProgress={planTotalProgress}
+          planTotalSeconds={planTotalSeconds}
           onWeekBackward={() => {
             setTrainingDateState((current) => {
-              const nextSelectedDate = localDateValue(addDays(dateFromValue(current.selectedDate), -7))
+              const nextSelectedDate = localDateValue(
+                addDays(dateFromValue(current.selectedDate), -7)
+              )
               return {
                 ...current,
                 selectedDate: nextSelectedDate,
@@ -450,7 +353,9 @@ export function TrainingPlanPage({
           }}
           onWeekForward={() => {
             setTrainingDateState((current) => {
-              const nextSelectedDate = localDateValue(addDays(dateFromValue(current.selectedDate), 7))
+              const nextSelectedDate = localDateValue(
+                addDays(dateFromValue(current.selectedDate), 7)
+              )
               return {
                 ...current,
                 selectedDate: nextSelectedDate,
@@ -459,9 +364,15 @@ export function TrainingPlanPage({
             })
           }}
           selectedDate={selectedDate}
+          stageLabel={buildPlanStageLabel(activePlan, weekStart)}
+          streakDays={trainingStreak}
           trainingPlans={trainingPlans}
+          totalSessions={planExpectedSessions}
+          weekCalories={weekCalories}
+          weekProgress={weekProgress}
           weekStart={weekStart}
           weekRangeLabel={formatWeekRange(weekStart)}
+          weekSeconds={weekSeconds}
           workoutLogs={workoutLogs}
           trainingDays={trainingDays}
         />
@@ -502,20 +413,29 @@ function buildTrainingDays(plan: TrainingPlan | null, weekStart: Date) {
     const [dayPart, contentPart] = line.includes("｜")
       ? line.split("｜", 2)
       : [`第 ${dayIndex + 1} 天`, line]
-    const weekdayIndex = dailyDate ? getMondayFirstDayIndex(dailyDate) : inferWeekdayIndex(dayPart, dayIndex)
+    const weekdayIndex = dailyDate
+      ? getMondayFirstDayIndex(dailyDate)
+      : inferWeekdayIndex(dayPart, dayIndex)
     const date = dailyDate ?? addDays(weekStart, weekdayIndex)
     const dateValue = localDateValue(date)
     const dayLabel = dailyDate ? weekdayLabel(date) : dayPart.trim()
     const [titlePart, actionPart] = splitTrainingDayContent(contentPart)
-    const actions = splitTrainingActions(actionPart || titlePart).map((title, actionIndex) => ({
-      id: `${dateValue}-${dayLabel}-${dayIndex}-${actionIndex}-${title}`,
-      title,
-    }))
+    const actions = splitTrainingActions(actionPart || titlePart).map(
+      (title, actionIndex) => ({
+        id: `${dateValue}-${dayLabel}-${dayIndex}-${actionIndex}-${title}`,
+        title,
+      })
+    )
 
     return {
       actions: actions.length
         ? actions
-        : [{ id: `${dateValue}-${dayLabel}-${dayIndex}-0-${contentPart.trim()}`, title: contentPart.trim() }],
+        : [
+          {
+            id: `${dateValue}-${dayLabel}-${dayIndex}-0-${contentPart.trim()}`,
+            title: contentPart.trim(),
+          },
+        ],
       date,
       dateValue,
       day: dayLabel,
@@ -536,8 +456,11 @@ function isDailyTrainingPlan(plan: TrainingPlan | null) {
     return false
   }
 
-  return !plan.end_date || /今日|当天|每日|单日|本次|今天|Kratos 生成/.test(
-    `${plan.title} ${plan.summary ?? ""} ${plan.goal ?? ""}`
+  return (
+    !plan.end_date ||
+    /今日|当天|每日|单日|本次|今天|Kratos 生成/.test(
+      `${plan.title} ${plan.summary ?? ""} ${plan.goal ?? ""}`
+    )
   )
 }
 
@@ -558,7 +481,10 @@ function calculatePlanTotalProgress(
   const completedLogs = logs.filter(
     (log) => log.training_plan_id === plan.id && log.completed
   ).length
-  const expectedSessions = calculateExpectedPlanSessions(plan, weeklyTrainingDayCount)
+  const expectedSessions = calculateExpectedPlanSessions(
+    plan,
+    weeklyTrainingDayCount
+  )
 
   if (expectedSessions <= 0) {
     return completedLogs > 0 ? 100 : 0
@@ -567,7 +493,10 @@ function calculatePlanTotalProgress(
   return Math.min(100, Math.round((completedLogs / expectedSessions) * 100))
 }
 
-function calculateExpectedPlanSessions(plan: TrainingPlan, weeklyTrainingDayCount: number) {
+function calculateExpectedPlanSessions(
+  plan: TrainingPlan,
+  weeklyTrainingDayCount: number
+) {
   const fallback = Math.max(weeklyTrainingDayCount, 1)
   if (!plan.start_date || !plan.end_date) {
     return fallback
@@ -579,7 +508,8 @@ function calculateExpectedPlanSessions(plan: TrainingPlan, weeklyTrainingDayCoun
     return fallback
   }
 
-  const totalDays = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1
+  const totalDays =
+    Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1
   const fullWeeks = Math.floor(totalDays / 7)
   const remainderDays = totalDays % 7
   const weeklyIndexes = getPlanExerciseLines(plan)
@@ -595,7 +525,10 @@ function calculateExpectedPlanSessions(plan: TrainingPlan, weeklyTrainingDayCoun
     getMondayFirstDayIndex(addDays(start, fullWeeks * 7 + index))
   ).filter((weekdayIndex) => weeklyIndexes.includes(weekdayIndex)).length
 
-  return Math.max(fullWeeks * weeklyTrainingDayCount + remainderSessions, fallback)
+  return Math.max(
+    fullWeeks * weeklyTrainingDayCount + remainderSessions,
+    fallback
+  )
 }
 
 function DetailBlock({
@@ -611,10 +544,8 @@ function DetailBlock({
   return (
     <Field>
       <FieldContent>
-        <FieldLabel>
-          {label}
-        </FieldLabel>
-        <FieldDescription className="whitespace-pre-wrap text-sm leading-6">
+        <FieldLabel>{label}</FieldLabel>
+        <FieldDescription className="text-sm leading-6 whitespace-pre-wrap">
           {displayValue}
         </FieldDescription>
       </FieldContent>
@@ -688,9 +619,7 @@ function sumWorkoutSecondsForDate(
 ) {
   return logs
     .filter(
-      (log) =>
-        log.training_plan_id === planId &&
-        log.workout_date === dateValue
+      (log) => log.training_plan_id === planId && log.workout_date === dateValue
     )
     .reduce((sum, log) => sum + getWorkoutSeconds(log), 0)
 }
@@ -746,16 +675,18 @@ function getLatestWorkoutForDate(
   planId: number | null,
   dateValue: string
 ) {
-  return logs
-    .filter(
-      (log) =>
-        log.training_plan_id === planId &&
-        log.workout_date === dateValue
-    )
-    .sort(
-      (left, right) =>
-        new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
-    )[0] ?? null
+  return (
+    logs
+      .filter(
+        (log) =>
+          log.training_plan_id === planId && log.workout_date === dateValue
+      )
+      .sort(
+        (left, right) =>
+          new Date(right.created_at).getTime() -
+          new Date(left.created_at).getTime()
+      )[0] ?? null
+  )
 }
 
 function parseWorkoutActionsFromNotes(notes: string | null) {
@@ -842,12 +773,10 @@ function buildWeekDays(weekStart: Date) {
   })
 }
 
-
 function formatWeekRange(weekStart: Date) {
   const weekEnd = addDays(weekStart, 6)
   return `${weekStart.getMonth() + 1}.${weekStart.getDate()} - ${weekEnd.getMonth() + 1}.${weekEnd.getDate()}`
 }
-
 
 function formatDateLabel(date: Date) {
   return `${date.getMonth() + 1} 月 ${date.getDate()} 日`
@@ -923,10 +852,10 @@ function calculateTrainingStreak(logs: WorkoutLog[], planId: number | null) {
   return streak
 }
 
-
 type TrainingDay = ReturnType<typeof buildTrainingDays>[number]
 
 function TrainingStatsBar({
+  className,
   completedSessions,
   planTitle,
   planTotalProgress,
@@ -938,6 +867,7 @@ function TrainingStatsBar({
   weekProgress,
   weekSeconds,
 }: {
+  className?: string
   completedSessions: number
   planTitle: string
   planTotalProgress: number
@@ -983,35 +913,31 @@ function TrainingStatsBar({
   ]
 
   return (
-    <section className="mt-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {stats.map(({ icon: Icon, label, value }, index) => (
-          <div
-            className={cn(
-              "flex min-w-0 items-center gap-3 xl:border-r xl:border-border xl:pr-4",
-              index === stats.length - 1 && "xl:border-r-0 xl:pr-0"
-            )}
-            key={label}
-          >
-            <span className="grid size-10 shrink-0 place-items-center rounded-[12px] text-foreground">
-              <Icon className="size-8"  strokeWidth={1.5}/>
-            </span>
-            <div className="min-w-0">
-              <p className="text-[12px]  text-muted-foreground">{label}</p>
-              <p className="truncate text-[16px] font-medium">{value}</p>
-              {/* <p className="mt-1 truncate text-[12px] font-medium text-muted-foreground">{sub}</p> */}
-            </div>
+    <div className={cn("grid gap-3 sm:grid-cols-2 xl:grid-cols-5", className)}>
+      {stats.map(({ icon: Icon, label, sub, value }) => (
+        <div
+          className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-3"
+          key={label}
+        >
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+            <Icon className="size-4" strokeWidth={1.8} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[12px] text-muted-foreground">{label}</p>
+            <p className="truncate text-[15px] font-semibold">{value}</p>
+            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+              {sub}
+            </p>
           </div>
-        ))}
-      </div>
-    </section>
+        </div>
+      ))}
+    </div>
   )
 }
 
 function TodayTrainingHero({
   anotherTrainingActive,
   completedExercises,
-  dailyProgress,
   dailySuggestion,
   dashboardLoading,
   onCompleteTrainingDay,
@@ -1021,20 +947,17 @@ function TodayTrainingHero({
   onStartTraining,
   onToggleExercise,
   planGoal,
-  selectedCompletedCount,
   selectedDate,
   selectedDay,
   selectedDayCompleted,
   selectedDisplayActions,
   selectedDisplayTitle,
-  selectedTotalSeconds,
   selectedTrainingActive,
   trainingElapsedSeconds,
   trainingPaused,
 }: {
   anotherTrainingActive: boolean
   completedExercises: string[]
-  dailyProgress: number
   dailySuggestion: string
   dashboardLoading: boolean
   onCompleteTrainingDay: TrainingPlanPageProps["onCompleteTrainingDay"]
@@ -1044,67 +967,58 @@ function TodayTrainingHero({
   onStartTraining: TrainingPlanPageProps["onStartTraining"]
   onToggleExercise: (title: string) => void
   planGoal: string
-  selectedCompletedCount: number
   selectedDate: string
   selectedDay: TrainingDay | null
   selectedDayCompleted: boolean
-  selectedDisplayActions: { id: string; title: string }[]
+  selectedDisplayActions: { completed?: boolean; id: string; title: string }[]
   selectedDisplayTitle: string
-  selectedTotalSeconds: number
   selectedTrainingActive: boolean
   trainingElapsedSeconds: number
   trainingPaused: boolean
 }) {
   const hasTraining = Boolean(selectedDay)
-  const actionTotal = selectedDay?.actions.length ?? selectedDisplayActions.length
+  const actionTotal =
+    selectedDay?.actions.length ?? selectedDisplayActions.length
   const selectedDateLabel = selectedDay
     ? formatDateLabel(selectedDay.date)
     : formatDateLabel(dateFromValue(selectedDate))
 
   return (
-    <section className="mt-6 overflow-hidden rounded-[36px] bg-foreground text-primary-foreground ">
-      <div className="grid min-h-82.5 gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(420px,1.5fr)] lg:p-7">
-        <div className="flex min-w-0 flex-col justify-between">
-          <div>
-            <p className="text-[13px] text-primary-foreground/70">
-              {hasTraining ? `${selectedDateLabel} · 今日训练` : `${selectedDateLabel} · 恢复日`}
+    <section>
+      <div className="flex min-h-82.5 flex-col gap-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] text-muted-foreground">
+              {hasTraining
+                ? `${selectedDateLabel} · 今日训练`
+                : `${selectedDateLabel} · 恢复日`}
             </p>
-            <h2 className="mt-0 max-w-160 text-[34px] leading-tight font-medium tracking-[-0.05em] sm:text-[40px]">
+            <h2 className="mt-0 max-w-160 text-xl leading-tight font-medium tracking-[-0.05em] sm:text-3xl">
               {hasTraining ? selectedDisplayTitle : "今天没有安排训练"}
             </h2>
-            <div className="mt-1 flex flex-wrap items-center gap-4 text-[13px] text-primary-foreground/74">
-              <span className="inline-flex items-center gap-1">
-                <Timer className="size-4" />
-                {formatDurationShort(selectedTotalSeconds)}
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <BarChart3 className="size-4" />
-                {hasTraining ? `${selectedCompletedCount}/${actionTotal} 动作` : "适合恢复和复盘"}
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <Target className="size-4" />
-                {hasTraining ? `${dailyProgress}% 完成` : "维持节奏"}
-              </span>
-            </div>
-            <div className="mt-6 max-w-162.5">
-              <div className="flex items-center gap-2 text-[13px] font-semibold text-primary-foreground">
-                <WandSparkles className="size-4" />
-                Kratos 建议
-              </div>
-              <p className="mt-1 text-[13px] leading-5 text-primary-foreground/76">
-                {hasTraining ? dailySuggestion : planGoal}
-              </p>
-            </div>
           </div>
 
-          <div className="mt-7 flex flex-wrap items-center gap-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-3 sm:justify-end pt-5">
+            {selectedTrainingActive ? (
+              <span className="rounded-full border border-border bg-card px-4 py-2 text-[13px]">
+                {trainingPaused ? "已暂停" : "计时中"}{" "}
+                {formatTimer(trainingElapsedSeconds)}
+              </span>
+            ) : null}
+            {selectedTrainingActive ? (
+              <Button
+                className="p-5"
+                onClick={trainingPaused ? onResumeTraining : onPauseTraining}
+                type="button"
+                variant="outline"
+              >
+                {trainingPaused ? "继续训练" : "暂停训练"}
+              </Button>
+            ) : null}
             {hasTraining ? (
               <Button
                 className={cn(
-                  "h-12 rounded-[12px] px-6 text-[14px] font-black",
-                  selectedTrainingActive
-                    ? "bg-card text-foreground hover:bg-card/90"
-                    : "bg-card text-foreground hover:bg-card/90"
+                  "p-5"
                 )}
                 disabled={dashboardLoading || anotherTrainingActive}
                 onClick={() => {
@@ -1129,6 +1043,7 @@ function TodayTrainingHero({
                   )
                 }}
                 type="button"
+                variant="default"
               >
                 <Play className="size-4 fill-current" />
                 {selectedTrainingActive
@@ -1141,113 +1056,116 @@ function TodayTrainingHero({
               </Button>
             ) : (
               <Button
-                className="h-12 rounded-[12px] bg-card px-6 text-[14px] font-black text-foreground hover:bg-card/90"
+                className="p-5"
                 onClick={() => onOpenPlanComposer(null)}
                 type="button"
+                variant="outline"
               >
                 <PlusCircle className="size-4" />
                 调整训练计划
               </Button>
             )}
-            {selectedTrainingActive ? (
-              <Button
-                className="h-12 rounded-[12px] border-primary-foreground/20 bg-transparent px-5 text-[14px] font-black text-primary-foreground hover:bg-card/10"
-                onClick={trainingPaused ? onResumeTraining : onPauseTraining}
-                type="button"
-                variant="outline"
-              >
-                {trainingPaused ? "继续训练" : "暂停训练"}
-              </Button>
-            ) : null}
-            {selectedTrainingActive ? (
-              <span className="rounded-full border border-primary-foreground/10 bg-card/6 px-4 py-2 text-[13px] text-primary-foreground/82">
-                {trainingPaused ? "已暂停" : "计时中"} {formatTimer(trainingElapsedSeconds)}
-              </span>
-            ) : null}
+
+
           </div>
         </div>
 
-        <div className="min-w-0 overflow-hidden">
-          {hasTraining ? (
-            <div className="scrollbar-none flex h-full min-h-65 gap-3 overflow-x-auto overflow-y-hidden pr-1 snap-x snap-mandatory">
-              {selectedDisplayActions.map((action) => {
-                const completed =
-                  selectedTrainingActive
-                    ? completedExercises.includes(action.id)
-                    : selectedDayCompleted || completedExercises.includes(action.id)
-                const actionPosition = selectedDisplayActions.findIndex(
-                  (item) => item.id === action.id
-                ) + 1
-                const statusLabel = completed
-                  ? "已完成"
-                  : selectedTrainingActive
-                    ? trainingPaused
-                      ? "已暂停"
-                      : "进行中"
-                    : "待开始"
-
-                return (
-                  <button
-                    className={cn(
-                      "group flex h-full min-h-65 w-[min(76vw,280px)] shrink-0 snap-start flex-col justify-between rounded-[16px] border p-0 text-left transition sm:w-70 xl:w-70 overflow-hidden",
-                      completed
-                        ? "border-primary-foreground/35 bg-card text-foreground"
-                        : "border-primary-foreground/10 bg-card/8 hover:bg-card/13",
-                      (!selectedTrainingActive || trainingPaused) && "cursor-default"
-                    )}
-                    disabled={!selectedTrainingActive || trainingPaused}
-                    key={action.id}
-                    onClick={() => onToggleExercise(action.id)}
-                    type="button"
-                  >
-                    <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-linear-to-br from-background/12 via-primary-foreground/6 to-transparent">
-                      <ActionImage actionName={action.title} className="absolute inset-0" />
-
-                      {!completed && (
-                        <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent" />
-                      )}
-
-                      <div className="absolute left-4 top-4 grid size-9 place-items-center rounded-full bg-black/45 text-[13px] font-black text-primary-foreground backdrop-blur-md">
-                        {completed ? <Check className="size-4" /> : actionPosition}
-                      </div>
-
-                      <span className="absolute right-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[12px] font-bold text-primary-foreground/72 backdrop-blur-md">
-                        {statusLabel}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-1 flex-col justify-between p-5">
-                      <div>
-                        <h3
-                          className={cn(
-                            "line-clamp-2 text-[17px] font-semibold leading-6",
-                            completed ? "text-foreground" : "text-primary-foreground"
-                          )}
-                        >
-                          {action.title}
-                        </h3>
-
-                        <p className={cn("mt-0 text-[13px]", completed ? "text-muted-foreground" : "text-primary-foreground/46")}>
-                          动作 {actionPosition} / {actionTotal}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="flex min-h-65 flex-col items-center justify-center rounded-[16px] border border-dashed border-primary-foreground/15 bg-card/6 p-8 text-center">
-              <CalendarIcon className="size-8 text-primary-foreground/70" />
-              <h3 className="mt-4 text-[22px] font-black">恢复、散步或记录身体反馈</h3>
-              <p className="mt-3 max-w-105 text-[14px] leading-5 text-primary-foreground/62">
-                这一天没有匹配到当前计划里的训练日。您可以切换周安排，或让 Kratos 重新规划训练节奏。
-              </p>
-            </div>
-          )}
+        <div className="max-w-150">
+          <div className="flex items-center gap-2 text-[15px] font-semibold">
+            <WandSparkles className="size-4" />
+            Kratos 建议
+          </div>
+          <p className="mt-1 text-[13px] leading-5">
+            {hasTraining ? dailySuggestion : planGoal}
+          </p>
         </div>
+
+        <div className="min-w-0">
+          {hasTraining ? (
+            <Carousel
+              className="w-full"
+              opts={{
+                align: "start",
+              }}
+            >
+              <CarouselContent className="p-1">
+                {selectedDisplayActions.map((action) => {
+                  const completed = selectedTrainingActive
+                    ? completedExercises.includes(action.id)
+                    : selectedDayCompleted ||
+                    action.completed ||
+                    completedExercises.includes(action.id)
+                  const actionPosition =
+                    selectedDisplayActions.findIndex(
+                      (item) => item.id === action.id
+                    ) + 1
+
+
+                  return (
+                    <button
+                      className={cn(
+                        "group flex h-full min-h-65 w-[min(76vw,280px)] shrink-0 snap-start flex-col justify-between rounded-[16px] border p-0 text-left transition sm:w-70 xl:w-70 overflow-hidden",
+                        completed
+                          ? "border-primary-foreground/35 bg-card text-foreground"
+                          : "border-primary-foreground/10 bg-card/8 hover:bg-card/13",
+                        (!selectedTrainingActive || trainingPaused) && "cursor-default"
+                      )}
+                      disabled={!selectedTrainingActive || trainingPaused}
+                      key={action.id}
+                      onClick={() => onToggleExercise(action.id)}
+                      type="button"
+                    >
+                      <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-linear-to-br from-background/12 via-primary-foreground/6 to-transparent">
+                        <div className="px-4 py-2 text-[13px] font-semibold text-primary-foreground/45">
+                          <ActionImage actionName={action.title} className="absolute inset-0" />
+                        </div>
+
+                        <div className="absolute top-4 left-4 grid size-9 place-items-center rounded-full bg-background/90 text-[13px] font-black text-foreground shadow-sm">
+                          {completed ? (
+                            <Check className="size-4" />
+                          ) : (
+                            actionPosition
+                          )}
+                        </div>
+                      </div>
+
+                      <CardContent className="flex flex-1 flex-col justify-between p-4">
+                        <div>
+                          <h3 className="line-clamp-2 text-[16px] leading-5 font-medium">
+                            {action.title}
+                          </h3>
+                          <p className="mt-1 text-[13px] text-muted-foreground">
+                            动作 {actionPosition} / {actionTotal}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </button>
+                    </CarouselItem>
+              )
+                })}
+            </CarouselContent>
+              {selectedDisplayActions.length > 1 ? (
+            <>
+              <CarouselPrevious />
+              <CarouselNext />
+            </>
+          ) : null}
+        </Carousel>
+        ) : (
+        <div className="flex min-h-65 flex-col items-center justify-center rounded-[16px] border border-dashed border-border bg-card/70 p-8 text-center">
+          <CalendarIcon className="size-8 text-muted-foreground" />
+          <h3 className="mt-4 text-[22px] font-black">
+            恢复、散步或记录身体反馈
+          </h3>
+          <p className="mt-3 max-w-105 text-[14px] leading-5 text-muted-foreground">
+            这一天没有匹配到当前计划里的训练日。您可以切换周安排，或让
+            Kratos 重新规划训练节奏。
+          </p>
+        </div>
+          )}
       </div>
-    </section>
+    </div>
+    </section >
   )
 }
 
@@ -1257,6 +1175,7 @@ function WeeklyTrainingTimeline({
   calendarMenuRef,
   calendarOpen,
   calendarVisibleDate,
+  completedSessions,
   completedDateSet,
   completedExercises,
   moreMenuOpen,
@@ -1271,13 +1190,22 @@ function WeeklyTrainingTimeline({
   onSelectPlan,
   onToggleCalendar,
   onToggleMoreMenu,
+  planTitle,
+  planTotalProgress,
+  planTotalSeconds,
   onWeekBackward,
   onWeekForward,
   selectedDate,
+  stageLabel,
+  streakDays,
   trainingDays,
   trainingPlans,
+  totalSessions,
+  weekCalories,
+  weekProgress,
   weekRangeLabel,
   weekStart,
+  weekSeconds,
   workoutLogs,
 }: {
   activePlan: TrainingPlan | null
@@ -1285,6 +1213,7 @@ function WeeklyTrainingTimeline({
   calendarMenuRef: { current: HTMLDivElement | null }
   calendarOpen: boolean
   calendarVisibleDate: Date
+  completedSessions: number
   completedDateSet: Set<string>
   completedExercises: string[]
   moreMenuOpen: boolean
@@ -1299,13 +1228,22 @@ function WeeklyTrainingTimeline({
   onSelectPlan: (plan: TrainingPlan) => void
   onToggleCalendar: () => void
   onToggleMoreMenu: () => void
+  planTitle: string
+  planTotalProgress: number
+  planTotalSeconds: number
   onWeekBackward: () => void
   onWeekForward: () => void
   selectedDate: string
+  stageLabel: string
+  streakDays: number
   trainingDays: TrainingDay[]
   trainingPlans: TrainingPlan[]
+  totalSessions: number
+  weekCalories: number
+  weekProgress: number
   weekRangeLabel: string
   weekStart: Date
+  weekSeconds: number
   workoutLogs: WorkoutLog[]
 }) {
   const days = buildWeekDays(weekStart)
@@ -1314,17 +1252,13 @@ function WeeklyTrainingTimeline({
     <section className="mt-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold">本周训练安排</h2>
+          <h2 className="text-xl font-medium">本周训练安排</h2>
           {/* <p className="mt-0 text-[12px] text-muted-foreground">{weekRangeLabel}</p> */}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Popover open={calendarOpen} onOpenChange={onToggleCalendar}>
             <PopoverTrigger asChild>
-              <Button
-                className="h-8"
-                type="button"
-                variant="outline"
-              >
+              <Button className="font-medium" type="button" variant="outline">
                 <CalendarIcon className="size-4" />
                 {weekRangeLabel}
                 <ChevronRight className="size-4 rotate-90" />
@@ -1334,7 +1268,7 @@ function WeeklyTrainingTimeline({
               align="end"
               className="w-auto p-0"
               ref={calendarMenuRef}
-              sideOffset={12}
+              sideOffset={5}
             >
               <TrainingCalendar
                 completedDateSet={completedDateSet}
@@ -1380,10 +1314,7 @@ function WeeklyTrainingTimeline({
 
           <Popover open={moreMenuOpen} onOpenChange={onToggleMoreMenu}>
             <PopoverTrigger asChild>
-              <Button
-                className="h-8"
-                type="button"
-              >
+              <Button className="h-8" type="button" variant="outline">
                 <SlidersHorizontal className="size-3.5" />
                 计划管理
                 <ChevronRight className="size-4 rotate-90" />
@@ -1393,7 +1324,7 @@ function WeeklyTrainingTimeline({
               align="end"
               className="max-h-xl w-xl overflow-y-auto rounded-[18px] p-4"
               ref={moreMenuRef}
-              sideOffset={12}
+              sideOffset={5}
             >
               <MoreTrainingMenu
                 onClose={onToggleMoreMenu}
@@ -1409,24 +1340,42 @@ function WeeklyTrainingTimeline({
         </div>
       </div>
 
+      {/* <TrainingStatsBar
+        className="mt-4"
+        completedSessions={completedSessions}
+        planTitle={planTitle}
+        planTotalProgress={planTotalProgress}
+        planTotalSeconds={planTotalSeconds}
+        stageLabel={stageLabel}
+        streakDays={streakDays}
+        totalSessions={totalSessions}
+        weekCalories={weekCalories}
+        weekProgress={weekProgress}
+        weekSeconds={weekSeconds}
+      /> */}
+
       {trainingDays.length > 0 ? (
-        <div className="relative mt-4 grid gap-3 lg:grid-cols-7">
-          <div className="absolute left-[7%] right-[7%] top-25 hidden border-t border-dashed border-border lg:block" />
+        <div className="relative mt-4 grid overflow-hidden lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr]">
           {days.map((day) => {
-            const trainingDay = trainingDays.find((item) => item.dateValue === day.value) ?? null
-            const dayLog = getLatestWorkoutForDate(workoutLogs, activePlanId, day.value)
-            const loggedActions = dayLog ? parseWorkoutActionsFromNotes(dayLog.notes) : []
+            const trainingDay =
+              trainingDays.find((item) => item.dateValue === day.value) ?? null
+            const dayLog = getLatestWorkoutForDate(
+              workoutLogs,
+              activePlanId,
+              day.value
+            )
+            const loggedActions = dayLog
+              ? parseWorkoutActionsFromNotes(dayLog.notes)
+              : []
             const completed = completedDateSet.has(day.value)
             const selected = selectedDate === day.value
             const active = trainingDay?.dateValue === selectedDate
             const completedCount =
-              trainingDay?.actions.filter((action) =>
-                completed || completedExercises.includes(action.id)
+              trainingDay?.actions.filter(
+                (action) => completed || completedExercises.includes(action.id)
               ).length ?? 0
             const actionCount = trainingDay?.actions.length ?? 0
-            const title = trainingDay
-              ? trainingDay.title
-              : "休息"
+            const title = trainingDay ? trainingDay.title : "休息"
             const status = completed
               ? "已完成"
               : active
@@ -1436,51 +1385,66 @@ function WeeklyTrainingTimeline({
                   : "休息日"
 
             return (
-              <button
-                className={cn(
-                  "relative z-10 flex min-h-37.5 flex-col rounded-[14px] border bg-card p-3 text-left transition hover:border-primary hover:shadow-[0_14px_28px_rgba(17,17,17,0.06)]",
-                  selected ? "border-primary shadow-[0_16px_32px_rgba(17,17,17,0.08)]" : "border-border",
-                )}
-                key={day.value}
-                onClick={() => onSelectDate(day.value)}
-                type="button"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[12px] text-muted-foreground">{`周${day.day}`}</p>
-                    <p className="mt-0 text-[20px] font-semibold">{day.label}</p>
-                  </div>
-                </div>
-                <div className="mt-2 min-w-0 flex-1">
-                  <h3 className="line-clamp-2 text-[16px] font-semibold leading-5">{title}</h3>
-                  <p className="mt-2 line-clamp-3 text-[12px] leading-4 text-muted-foreground">
-                    {trainingDay
-                      ? completed && loggedActions.length > 0
-                        ? loggedActions.join("；")
-                        : `${completedCount}/${actionCount} 动作 · ${trainingDay.goal}`
-                      : "恢复、拉伸或轻活动"}
-                  </p>
-                </div>
-                <Badge
-                  className="mt-8 w-fit"
-                  variant={
-                    completed || active
-                      ? "default"
-                      : trainingDay
-                        ? "secondary"
-                        : "outline"
-                  }
+              <>
+                <button
+                  className={cn(
+                    "relative z-10 flex min-h-37.5 flex-col rounded-[14px] border p-3 text-left transition-colors",
+                    selected
+                      ? "border-primary bg-muted/50"
+                      : "border-transparent bg-primary-foreground hover:border-primary/40"
+                  )}
+                  key={day.value}
+                  onClick={() => onSelectDate(day.value)}
+                  type="button"
                 >
-                  {status}
-                </Badge>
-              </button>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[12px] text-muted-foreground">{`周${day.day}`}</p>
+                      <p className="mt-0 text-[20px] font-semibold">
+                        {day.label}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2 min-w-0 flex-1">
+                    <h3 className="line-clamp-2 text-[16px] leading-5 font-semibold">
+                      {title}
+                    </h3>
+                    <p className="mt-2 line-clamp-3 text-[12px] leading-4 text-muted-foreground">
+                      {trainingDay
+                        ? completed && loggedActions.length > 0
+                          ? loggedActions.join("；")
+                          : `${completedCount}/${actionCount} 动作 · ${trainingDay.goal}`
+                        : "恢复、拉伸或轻活动"}
+                    </p>
+                  </div>
+                  <Badge
+                    className="mt-8 w-fit"
+                    variant={
+                      completed || active
+                        ? "default"
+                        : trainingDay
+                          ? "secondary"
+                          : "outline"
+                    }
+                  >
+                    {status}
+                  </Badge>
+                </button>
+                {day.day !== "日" ? (
+                  <div className="flex items-center justify-center">
+                    <div className="h-46 w-px bg-border" aria-hidden="true" />
+                  </div>
+                ) : null}
+              </>
             )
           })}
         </div>
       ) : (
         <section className="mt-5 rounded-[14px] border border-dashed border-border bg-muted/40 p-8 text-center">
           <ClipboardList className="mx-auto size-7 text-muted-foreground" />
-          <h2 className="mt-3 text-[17px] font-black">还没有可执行的训练安排</h2>
+          <h2 className="mt-3 text-[17px] font-black">
+            还没有可执行的训练安排
+          </h2>
           <p className="mx-auto mt-2 max-w-107.5 text-[13px] leading-6 text-muted-foreground">
             选择一个常见模板，或从空白计划开始撰写。保存后会同步到后端计划接口。
           </p>
@@ -1510,9 +1474,14 @@ function TrainingConsistencyGrid({
     const value = localDateValue(date)
     const seconds = sumWorkoutSecondsForDate(workoutLogs, activePlanId, value)
     const completed = workoutLogs.some(
-      (log) => log.training_plan_id === activePlanId && log.workout_date === value && log.completed
+      (log) =>
+        log.training_plan_id === activePlanId &&
+        log.workout_date === value &&
+        log.completed
     )
-    const level = completed ? Math.min(4, Math.max(1, Math.ceil(seconds / 1200))) : 0
+    const level = completed
+      ? Math.min(4, Math.max(1, Math.ceil(seconds / 1200)))
+      : 0
 
     return { date, level, value }
   })
@@ -1521,7 +1490,9 @@ function TrainingConsistencyGrid({
     <section className="mt-5 rounded-[16px] border border-border bg-card p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-[18px] font-black tracking-[-0.03em]">训练连续性</h2>
+          <h2 className="text-[18px] font-black tracking-[-0.03em]">
+            训练连续性
+          </h2>
           <p className="mt-1 text-[12px] font-medium text-muted-foreground">
             最近 8 周 · 每一格都是一次和计划的约定
           </p>
@@ -1611,7 +1582,7 @@ function MoreTrainingMenu({
                   <Badge className="rounded-md" variant="secondary">
                     {template.level}
                   </Badge>
-                  <span className="line-clamp-2 text-[13px] font-semibold leading-5 text-foreground">
+                  <span className="line-clamp-2 text-[13px] leading-5 font-semibold text-foreground">
                     {template.title}
                   </span>
                   <span className="line-clamp-2 text-[12px] leading-5 text-muted-foreground">
@@ -1711,26 +1682,37 @@ function TrainingPlanDetailDialog({
     )
   }
   return (
-    <Dialog onOpenChange={onOpenChange} open={open} >
+    <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>
-            {plan.title}
-          </DialogTitle>
-          <DialogDescription>
-            计划详情
-          </DialogDescription>
+          <DialogTitle>{plan.title}</DialogTitle>
+          <DialogDescription>计划详情</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <DetailBlock label="目标" value={plan.goal ?? "未设置"} />
-          <DetailBlock label="周期" value={`${plan.start_date ?? "未设置"} - ${plan.end_date ?? "未设置"}`} />
+          <DetailBlock
+            label="周期"
+            value={`${plan.start_date ?? "未设置"} - ${plan.end_date ?? "未设置"}`}
+          />
         </div>
         <div className="grid gap-3">
           <DetailBlock label="摘要" value={plan.summary ?? "暂无摘要"} />
-          <DetailBlock label="周训练安排" value={plan.weekly_schedule ?? "未填写"} large />
-          <DetailBlock label="恢复建议" value={plan.recovery_guidance ?? "未填写"} large />
-          <DetailBlock label="营养建议" value={plan.nutrition_guidance ?? "未填写"} large />
+          <DetailBlock
+            label="周训练安排"
+            value={plan.weekly_schedule ?? "未填写"}
+            large
+          />
+          <DetailBlock
+            label="恢复建议"
+            value={plan.recovery_guidance ?? "未填写"}
+            large
+          />
+          <DetailBlock
+            label="营养建议"
+            value={plan.nutrition_guidance ?? "未填写"}
+            large
+          />
         </div>
 
         <DialogFooter>
@@ -1742,7 +1724,6 @@ function TrainingPlanDetailDialog({
     </Dialog>
   )
 }
-
 
 function TrainingCalendar({
   completedDateSet,
@@ -1847,11 +1828,17 @@ function SavedPlanGroup({
                           ) : null}
                         </span>
                         <span className="mt-2 flex flex-wrap gap-2">
-                          <Badge variant="secondary">{planStatusLabel(item.status)}</Badge>
-                          {item.goal ? <Badge variant="outline">{item.goal}</Badge> : null}
+                          <Badge variant="secondary">
+                            {planStatusLabel(item.status)}
+                          </Badge>
+                          {item.goal ? (
+                            <Badge variant="outline">{item.goal}</Badge>
+                          ) : null}
                         </span>
                         <span className="mt-3 line-clamp-2 text-[12px] leading-5 text-muted-foreground">
-                          {item.summary ?? item.weekly_schedule ?? "这份计划已保存到后端 plans 表。"}
+                          {item.summary ??
+                            item.weekly_schedule ??
+                            "这份计划已保存到后端 plans 表。"}
                         </span>
                         <span className="mt-2 text-[12px] text-muted-foreground">
                           {selected
@@ -1925,7 +1912,10 @@ function planStatusLabel(status: string) {
   return labels[status] ?? status
 }
 
-function buildDailySuggestion(plan: TrainingPlan | null, workoutLogs: WorkoutLog[]) {
+function buildDailySuggestion(
+  plan: TrainingPlan | null,
+  workoutLogs: WorkoutLog[]
+) {
   const latestLog = [...workoutLogs].sort(
     (left, right) =>
       new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
