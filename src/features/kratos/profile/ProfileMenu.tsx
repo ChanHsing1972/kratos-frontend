@@ -6,6 +6,7 @@ import {
   LogIn,
   LogOut,
   User,
+  Activity,
 } from "lucide-react"
 
 import { profileFormFromUser } from "@/entities/kratos/lib/domain"
@@ -42,6 +43,7 @@ import {
 type ProfileMenuProps = {
   authLoading: boolean
   menuOpen: boolean
+  onEditBodyData: () => void
   onLogin: () => void
   onLogout: () => void
   onProfileSubmit: (form: ProfileForm) => void
@@ -56,6 +58,7 @@ type ProfileMenuProps = {
 export function ProfileMenu({
   authLoading,
   menuOpen,
+  onEditBodyData,
   onLogin,
   onLogout,
   onProfileSubmit,
@@ -173,7 +176,14 @@ export function ProfileMenu({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openProfileDialog("training")}>
               <Edit3 />
-              训练数据
+              训练档案
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              onEditBodyData()
+              onToggleMenu(false)
+            }}>
+              <Activity />
+              身体数据
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>

@@ -59,7 +59,7 @@ export function ProfileEditDialog({
                 <ProfileInput
                   label="性别"
                   onChange={(value) => onFieldChange("gender", value)}
-                  placeholder="男/女"
+                  placeholder="性别"
                   value={form.gender}
                 />
                 <ProfileInput
@@ -67,33 +67,33 @@ export function ProfileEditDialog({
                   max={120}
                   min={0}
                   onChange={(value) => onFieldChange("age", value)}
-                  placeholder=""
+                  placeholder="年龄"
                   type="number"
                   value={form.age}
                 />
                 <ProfileInput
                   label="地区"
                   onChange={(value) => onFieldChange("location", value)}
-                  placeholder=""
+                  placeholder="地区"
                   value={form.location}
                 />
               </div>
               <ProfileTextarea
                 label="医疗情况"
                 onChange={(value) => onFieldChange("medicalConditions", value)}
-                placeholder="例如 无 / 高血压 / 哮喘"
+                placeholder="是否有高血压、糖尿病等需要注意的健康问题"
                 value={form.medicalConditions}
               />
               <ProfileTextarea
                 label="饮食习惯"
                 onChange={(value) => onFieldChange("dietaryHabits", value)}
-                placeholder="例如 高蛋白、少糖、乳糖不耐受"
+                placeholder="您的饮食偏好，例如素食、低碳水、间歇性禁食等"
                 value={form.dietaryHabits}
               />
               <ProfileTextarea
                 label="饮食限制"
                 onChange={(value) => onFieldChange("dietaryRestrictions", value)}
-                placeholder="例如 乳糖不耐受、海鲜过敏、不吃牛肉"
+                placeholder="是否有食物过敏、需要避免的食物等"
                 value={form.dietaryRestrictions}
               />
               {profileError ? (
@@ -120,33 +120,33 @@ export function ProfileEditDialog({
       >
         <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>训练数据</DialogTitle>
+            <DialogTitle>训练档案</DialogTitle>
             <DialogDescription>您的训练目标、经验、器械和限制条件。</DialogDescription>
           </DialogHeader>
 
           <form id="sidebar-training-form" onSubmit={onSubmit}>
             <FieldGroup>
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <ProfileInput
                   label="活动水平"
                   onChange={(value) => onFieldChange("activityLevel", value)}
-                  placeholder="例如 久坐 / 中等 / 高"
+                  placeholder="久坐 / 中等 / 活跃"
                   value={form.activityLevel}
                 />
                 <ProfileInput
                   label="训练经验"
                   onChange={(value) => onFieldChange("experienceLevel", value)}
-                  placeholder="例如 新手 / 中级"
+                  placeholder="新手 / 中级 / 高级"
                   value={form.experienceLevel}
                 />
                 <ProfileInput
                   label="每周可练天数"
                   max={7}
                   min={0}
+                  placeholder="每周可练天数"
                   onChange={(value) =>
                     onFieldChange("availableDaysPerWeek", value)
                   }
-                  placeholder="例如 4"
                   type="number"
                   value={form.availableDaysPerWeek}
                 />
@@ -156,14 +156,14 @@ export function ProfileEditDialog({
                   onChange={(value) =>
                     onFieldChange("workoutMinutesPerSession", value)
                   }
-                  placeholder="例如 45"
                   type="number"
+                  placeholder="单次训练时长"
                   value={form.workoutMinutesPerSession}
                 />
                 <ProfileInput
                   label="可用器械"
                   onChange={(value) => onFieldChange("equipmentAccess", value)}
-                  placeholder="例如 健身房、哑铃、弹力带"
+                  placeholder="哑铃、跑步机…"
                   value={form.equipmentAccess}
                 />
                 <ProfileInput
@@ -171,26 +171,26 @@ export function ProfileEditDialog({
                   onChange={(value) =>
                     onFieldChange("preferredWorkoutTypes", value)
                   }
-                  placeholder="例如 力量训练、跑步、瑜伽"
+                  placeholder="跑步、瑜伽…"
                   value={form.preferredWorkoutTypes}
                 />
               </div>
               <ProfileInput
                 label="健身目标"
                 onChange={(value) => onFieldChange("fitnessGoal", value)}
-                placeholder="例如 减脂 / 增肌 / 塑形"
+                placeholder="减脂 / 增肌 / 塑形"
                 value={form.fitnessGoal}
               />
               <ProfileTextarea
                 label="当前训练状态"
                 onChange={(value) => onFieldChange("fitnessSummary", value)}
-                placeholder="例如 近期恢复一般，想先提升基础力量"
+                placeholder="您目前的训练情况、遇到的挑战"
                 value={form.fitnessSummary}
               />
               <ProfileTextarea
                 label="伤病史"
                 onChange={(value) => onFieldChange("injuryHistory", value)}
-                placeholder="例如 右膝偶尔不适，避免跳跃"
+                placeholder="过去的伤病情况，可能影响训练的健康问题"
                 value={form.injuryHistory}
               />
               {profileError ? (

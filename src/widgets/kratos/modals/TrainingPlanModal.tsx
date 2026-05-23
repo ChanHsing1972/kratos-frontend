@@ -119,7 +119,7 @@ function TrainingPlanModalForm({
         }
       }}
     >
-      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-3xl no-scrollbar">
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-2xl no-scrollbar">
         <form className="grid gap-5" onSubmit={submit}>
           <DialogHeader>
             <DialogTitle>
@@ -130,7 +130,7 @@ function TrainingPlanModalForm({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1.3fr]">
             <FormInput
               label="计划标题"
               maxLength={120}
@@ -197,10 +197,27 @@ function TrainingPlanModalForm({
             placeholder="写清楚适合人群、训练频率和总体策略"
             value={form.summary}
           />
+
           <TrainingPlanScheduleEditor
             onChange={setWeeklySchedule}
             value={weeklySchedule}
           />
+
+          {/* <SuggestionChips
+            label="恢复提醒选项"
+            onSelect={(value) =>
+              setForm((current) => ({
+                ...current,
+                recoveryGuidance: appendText(current.recoveryGuidance, value),
+              }))
+            }
+            options={[
+              "训练中疼痛超过 3/10 时停止，并记录疼痛动作。",
+              "大重量训练日之间至少间隔 48 小时。",
+              "睡眠不足或酸痛明显时，将训练总量降低 15-25%。",
+            ]}
+          /> */}
+
           <FormTextarea
             label="营养建议"
             onChange={(value) =>
@@ -225,20 +242,7 @@ function TrainingPlanModalForm({
             rows={4}
             value={form.recoveryGuidance}
           />
-          {/* <SuggestionChips
-            label="恢复提醒选项"
-            onSelect={(value) =>
-              setForm((current) => ({
-                ...current,
-                recoveryGuidance: appendText(current.recoveryGuidance, value),
-              }))
-            }
-            options={[
-              "训练中疼痛超过 3/10 时停止，并记录疼痛动作。",
-              "大重量训练日之间至少间隔 48 小时。",
-              "睡眠不足或酸痛明显时，将训练总量降低 15-25%。",
-            ]}
-          /> */}
+
 
           {error ? <ErrorMessage message={error} /> : null}
 

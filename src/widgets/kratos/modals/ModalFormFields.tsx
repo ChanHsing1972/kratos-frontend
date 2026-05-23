@@ -42,7 +42,7 @@ export function FormTextarea({
     <Field>
       <Label>{label}</Label>
       <Textarea
-      className="min-h-[100px]"
+      className="min-h-[80px]"
         onChange={(event) => onChange(event.target.value)}
         value={value}
         {...props}

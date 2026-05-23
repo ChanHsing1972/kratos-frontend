@@ -67,8 +67,8 @@ export function TrainingPlanScheduleEditor({
 
     return (
         <section className="grid gap-4">
-            <div className="flex items-center justify-between gap-4">
-                <Label className="text-sm font-medium text-foreground">周训练安排</Label>
+            <div className="flex items-center justify-between">
+                <Label>周训练安排</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addDay}>
                     <Plus className="size-3.5" />
                     添加训练日
@@ -82,37 +82,35 @@ export function TrainingPlanScheduleEditor({
                         index={index}
                         key={day.id}
                         onChange={(nextDay) => updateDay(day.id, () => nextDay)}
-                        onRemove={() => removeDay(day.id)}
-                        onAddAction={() => {
-                            updateDay(day.id, (currentDay) => ({
-                                ...currentDay,
-                                actions: [
-                                    ...currentDay.actions,
-                                    createTrainingPlanWeeklyScheduleAction(),
-                                ],
-                            }))
-                        }}
                         onChangeAction={(actionId, updater) => {
-                            updateDay(day.id, (currentDay) => ({
-                                ...currentDay,
-                                actions: currentDay.actions.map((action) =>
-                                    action.id === actionId ? updater(action) : action
-                                ),
-                            }))
-                        }}
-                        onRemoveAction={(actionId) => {
                             updateDay(day.id, (currentDay) => {
-                                const nextActions = currentDay.actions.filter(
-                                    (action) => action.id !== actionId
+                                const nextActions = currentDay.actions.map((action) =>
+                                    action.id === actionId ? updater(action) : action
                                 )
+
+                                const lastAction = nextActions[nextActions.length - 1]
+                                if (lastAction && (lastAction.name || lastAction.amount || lastAction.note)) {
+                                    nextActions.push(createTrainingPlanWeeklyScheduleAction())
+                                }
 
                                 return {
                                     ...currentDay,
-                                    actions: nextActions.length
-                                        ? nextActions
-                                        : [createTrainingPlanWeeklyScheduleAction()],
+                                    actions: nextActions,
                                 }
                             })
+                        }}
+                        onRemoveAction={(actionId) => {
+                            const nextActions = day.actions.filter(
+                                (action) => action.id !== actionId
+                            );
+                            if (nextActions.length === 0) {
+                                removeDay(day.id);
+                            } else {
+                                updateDay(day.id, (currentDay) => ({
+                                    ...currentDay,
+                                    actions: nextActions,
+                                }));
+                            }
                         }}
                     />
                 ))}
@@ -124,56 +122,35 @@ export function TrainingPlanScheduleEditor({
 function TrainingPlanScheduleDayCard({
     day,
     index,
-    onAddAction,
     onChange,
     onChangeAction,
-    onRemove,
     onRemoveAction,
 }: {
     day: TrainingPlanWeeklyScheduleDay
     index: number
-    onAddAction: () => void
     onChange: (day: TrainingPlanWeeklyScheduleDay) => void
     onChangeAction: (
         actionId: string,
         updater: (action: TrainingPlanWeeklyScheduleAction) => TrainingPlanWeeklyScheduleAction
     ) => void
-    onRemove: () => void
     onRemoveAction: (actionId: string) => void
 }) {
     return (
         <article className="grid gap-0">
-            <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-foreground">训练日 {index + 1}</p>
-                <div className="flex items-center gap-2"> 
-                    <Button type="button" variant="outline" size="sm" onClick={onAddAction}>
-                        <Plus className="size-3.5" />
-                        添加动作
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-label={`删除训练日 ${index + 1}`}
-                        onClick={onRemove}
-                        className="hover:text-destructive"
-                    >
-                        <Trash2 className="size-3.5" />
-                        删除训练日
-                    </Button>
-                </div>
+            <div className="flex items-center justify-between mb-2">
+                <Label>训练日 {index + 1}</Label>
             </div>
 
             <div className="overflow-x-auto">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="px-0 py-3 pr-4 text-muted-foreground">星期</TableHead>
-                            <TableHead className="px-0 py-3 pr-4 text-muted-foreground">训练主题</TableHead>
-                            <TableHead className="px-0 py-3 pr-4 text-muted-foreground">动作名称</TableHead>
-                            <TableHead className="px-0 py-3 pr-4 text-muted-foreground">训练量</TableHead>
-                            <TableHead className="px-0 py-3 pr-4 text-muted-foreground">备注</TableHead>
-                            <TableHead className="w-10 px-0 text-right" />
+                            <TableHead className="h-10 px-0 text-muted-foreground">星期</TableHead>
+                            <TableHead className="h-10 px-0 text-muted-foreground">训练主题</TableHead>
+                            <TableHead className="h-10 px-0 text-muted-foreground">动作名称</TableHead>
+                            <TableHead className="h-10 px-0 text-muted-foreground">训练量</TableHead>
+                            <TableHead className="h-10 px-0 text-muted-foreground">备注</TableHead>
+                            <TableHead className="h-10 text-right" />
                         </TableRow>
                     </TableHeader>
 
@@ -186,7 +163,7 @@ function TrainingPlanScheduleDayCard({
                                     className="border-b border-border/60 last:border-b"
                                     key={action.id}
                                 >
-                                    <TableCell className="px-0 py-3 pr-4 align-top">
+                                    <TableCell className="px-0 py-3 pr-3 align-top">
                                         {isFirstAction ? (
                                             <Field>
                                                 <Select
@@ -217,7 +194,7 @@ function TrainingPlanScheduleDayCard({
                                             </Field>
                                         ) : null}
                                     </TableCell>
-                                    <TableCell className="px-0 py-3 pr-4 align-top">
+                                    <TableCell className="px-0 py-3 pr-3 align-top">
                                         {isFirstAction ? (
                                             <Field>
                                                 <Input
@@ -226,14 +203,14 @@ function TrainingPlanScheduleDayCard({
                                                     onChange={(event) =>
                                                         onChange({ ...day, theme: event.target.value })
                                                     }
-                                                    placeholder="例如 上肢推 / 上肢拉 / 下肢"
+                                                    placeholder="训练主题"
                                                     required
                                                     value={day.theme}
                                                 />
                                             </Field>
                                         ) : null}
                                     </TableCell>
-                                    <TableCell className="px-0 py-3 pr-4 align-top">
+                                    <TableCell className="px-0 py-3 pr-3 align-top">
                                         <Input
                                             aria-label={`训练日 ${index + 1} 第 ${actionIndex + 1} 个动作名称`}
                                             maxLength={120}
@@ -244,11 +221,10 @@ function TrainingPlanScheduleDayCard({
                                                 }))
                                             }
                                             placeholder="动作名称"
-                                            required
                                             value={action.name}
                                         />
                                     </TableCell>
-                                    <TableCell className="px-0 py-3 pr-4 align-top">
+                                    <TableCell className="px-0 py-3 pr-3 align-top">
                                         <Input
                                             aria-label={`训练日 ${index + 1} 第 ${actionIndex + 1} 个动作量`}
                                             maxLength={120}
@@ -259,11 +235,10 @@ function TrainingPlanScheduleDayCard({
                                                 }))
                                             }
                                             placeholder="4 组 x 8 次"
-                                            required
                                             value={action.amount}
                                         />
                                     </TableCell>
-                                    <TableCell className="px-0 py-3 pr-4 align-top">
+                                    <TableCell className="px-0 py-3 align-top">
                                         <Input
                                             aria-label={`训练日 ${index + 1} 第 ${actionIndex + 1} 个动作备注`}
                                             maxLength={120}
@@ -273,11 +248,11 @@ function TrainingPlanScheduleDayCard({
                                                     note: event.target.value,
                                                 }))
                                             }
-                                            placeholder="备注，可选"
+                                            placeholder="可选备注"
                                             value={action.note}
                                         />
                                     </TableCell>
-                                    <TableCell className="px-2 py-3 text-right align-top">
+                                    <TableCell className="px-2 text-right align-top">
                                         <Button
                                             aria-label={`删除训练日 ${index + 1} 第 ${actionIndex + 1} 个动作`}
                                             type="button"

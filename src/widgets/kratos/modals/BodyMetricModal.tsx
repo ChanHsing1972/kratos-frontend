@@ -16,6 +16,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog"
+import { Label } from "@/shared/ui/label"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/ui/input-group"
+import { Field, FieldLabel } from "@/shared/ui/field"
+import { Slider } from "@/shared/ui/slider"
 
 type BodyMetricModalProps = {
   error: string | null
@@ -74,123 +78,103 @@ export function BodyMetricModal({
         }
       }}
     >
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-155">
-        <form className="grid gap-5" onSubmit={submit}>
-          <DialogHeader>
-            <DialogTitle className="text-[20px] font-black tracking-[-0.04em]">
-              更新身体数据
-            </DialogTitle>
-            <DialogDescription className="text-[12px] leading-5 text-muted-foreground">
-              只填写本次要更新的项目，未填写字段会保持原值。
-            </DialogDescription>
-          </DialogHeader>
+      <DialogContent className="flex max-h-[90svh] flex-col overflow-hidden sm:max-w-lg no-scrollbar">
+        <DialogHeader>
+          <DialogTitle>
+            身体数据
+          </DialogTitle>
+          <DialogDescription>
+            记录身体数据有助于训练计划的调整和恢复状态的跟踪。
+          </DialogDescription>
+        </DialogHeader>
 
-          <section className="rounded-[14px] border border-border p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-[14px] font-black">常用体测</h3>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  体重、体脂和睡眠是最常更新的项目
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <MetricInput
-                label="体重"
-                onChange={(value) => updateField("weightKg", value)}
-                placeholder="70"
-                unit="kg"
-                value={form.weightKg}
-              />
-              <MetricInput
-                label="体脂率"
-                max={100}
-                onChange={(value) => updateField("bodyFatPercentage", value)}
-                placeholder="18.5"
-                unit="%"
-                value={form.bodyFatPercentage}
-              />
-              <MetricInput
-                label="目标体重"
-                onChange={(value) => updateField("targetWeightKg", value)}
-                placeholder="68"
-                unit="kg"
-                value={form.targetWeightKg}
-              />
-              <RangeField
-                label="睡眠时长"
-                max={24}
-                onChange={(value) => updateField("sleepHours", value)}
-                step={0.5}
-                unit="h"
-                value={form.sleepHours}
-              />
-            </div>
-          </section>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit}>
+          <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar">
+            <div className="grid gap-5 pb-5">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <MetricInput
+              label="身高"
+              onChange={(value) => updateField("heightCm", value)}
+              placeholder="175"
+              unit="cm"
+              value={form.heightCm}
+            />
+            <MetricInput
+              label="体重"
+              onChange={(value) => updateField("weightKg", value)}
+              placeholder="70"
+              unit="kg"
+              value={form.weightKg}
+            />
+            <MetricInput
+              label="目标体重"
+              onChange={(value) => updateField("targetWeightKg", value)}
+              placeholder="68"
+              unit="kg"
+              value={form.targetWeightKg}
+            />
+          </div>
 
-          <section className="rounded-[14px] border border-border p-4">
-            <div>
-              <h3 className="text-[14px] font-black">今日恢复状态</h3>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                滑动后才会更新对应打卡字段
-              </p>
-            </div>
-            <div className="mt-4 grid gap-4">
-              <RangeField
-                label="精力"
-                max={10}
-                min={1}
-                onChange={(value) => updateField("energyLevel", value)}
-                unit="/10"
-                value={form.energyLevel}
-              />
-              <RangeField
-                label="睡眠质量"
-                max={10}
-                min={1}
-                onChange={(value) => updateField("sleepQuality", value)}
-                unit="/10"
-                value={form.sleepQuality}
-              />
-              <RangeField
-                label="酸痛"
-                max={10}
-                min={1}
-                onChange={(value) => updateField("sorenessLevel", value)}
-                unit="/10"
-                value={form.sorenessLevel}
-              />
-            </div>
-          </section>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <RangeField
+              label="精力"
+              max={10}
+              min={1}
+              onChange={(value) => updateField("energyLevel", value)}
+              unit="/10"
+              value={form.energyLevel}
+            />
+            <RangeField
+              label="睡眠质量"
+              max={10}
+              min={1}
+              onChange={(value) => updateField("sleepQuality", value)}
+              unit="/10"
+              value={form.sleepQuality}
+            />
+            <RangeField
+              label="睡眠时长"
+              max={12}
+              onChange={(value) => updateField("sleepHours", value)}
+              step={0.5}
+              unit=" h"
+              value={form.sleepHours}
+            />
+            <RangeField
+              label="酸痛"
+              max={10}
+              min={1}
+              onChange={(value) => updateField("sorenessLevel", value)}
+              unit="/10"
+              value={form.sorenessLevel}
+            />
+          </div>
 
-          <section className="rounded-[14px] border border-border">
-            <button
-              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+          <div>
+            <Button
               onClick={() => setMoreOpen((current) => !current)}
               type="button"
+              variant="outline"
             >
-              <div>
-                <h3 className="text-[14px] font-black">更多体测项</h3>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  身高、骨骼肌、BMI 和围度
-                </p>
-              </div>
+              更多项目
               <ChevronDown
                 className={cn(
                   "size-4 text-muted-foreground transition-transform",
                   moreOpen && "rotate-180"
                 )}
               />
-            </button>
+            </Button>
             {moreOpen ? (
-              <div className="grid gap-3 border-t border-border p-4 sm:grid-cols-2">
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
                 <MetricInput
-                  label="身高"
-                  onChange={(value) => updateField("heightCm", value)}
-                  placeholder="175"
-                  unit="cm"
-                  value={form.heightCm}
+                  label="体脂率"
+                  max={100}
+                  onChange={(value) => updateField("bodyFatPercentage", value)}
+                  placeholder="18.5"
+                  unit="%"
+                  value={form.bodyFatPercentage}
                 />
+
                 <MetricInput
                   label="骨骼肌"
                   onChange={(value) => updateField("skeletalMuscleMassKg", value)}
@@ -228,7 +212,7 @@ export function BodyMetricModal({
                 />
               </div>
             ) : null}
-          </section>
+          </div>
 
           <FormTextarea
             label="备注"
@@ -238,10 +222,11 @@ export function BodyMetricModal({
           />
 
           {error ? <ErrorMessage message={error} /> : null}
+            </div>
+          </div>
 
-          <DialogFooter className="flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <DialogFooter className="flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
             <Button
-              className="h-10 rounded-[10px] border-border px-4 text-[13px]"
               onClick={() => setForm(emptyBodyMetricForm)}
               type="button"
               variant="outline"
@@ -249,9 +234,8 @@ export function BodyMetricModal({
               <RotateCcw className="size-4" />
               清空本次填写
             </Button>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Button
-                className="h-10 rounded-[10px] border-border px-4 text-[13px]"
                 onClick={onClose}
                 type="button"
                 variant="outline"
@@ -259,7 +243,6 @@ export function BodyMetricModal({
                 取消
               </Button>
               <Button
-                className="h-10 rounded-[10px] bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:bg-primary/90"
                 disabled={loading}
                 type="submit"
               >
@@ -290,26 +273,21 @@ function MetricInput({
   value: string
 }) {
   return (
-    <label className="block">
-      <span className="text-[12px] font-bold text-foreground">{label}</span>
-      <div className="mt-2 flex h-10 items-center rounded-[10px] border border-border bg-card focus-within:border-primary focus-within:ring-3 focus-within:ring-ring/20">
-        <input
-          className="min-w-0 flex-1 bg-transparent px-3 text-[13px] outline-none placeholder:text-muted-foreground"
+    <Field>
+      <FieldLabel htmlFor="inline-end-input">{label}</FieldLabel>
+      <InputGroup>
+        <InputGroupInput
           max={max}
           min={0}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          step="0.1"
-          type="number"
           value={value}
         />
-        {unit ? (
-          <span className="border-l border-border px-3 text-[12px] font-bold text-muted-foreground">
-            {unit}
-          </span>
-        ) : null}
-      </div>
-    </label>
+        {unit && <InputGroupAddon align="inline-end">
+          {unit}
+        </InputGroupAddon>}
+      </InputGroup>
+    </Field>
   )
 }
 
@@ -331,30 +309,40 @@ function RangeField({
   value: string
 }) {
   const displayValue = value ? `${value}${unit}` : "未填写"
-  const sliderValue = value || String(min)
+  const sliderValueNum = value ? Number(value) : min
 
   return (
-    <div>
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-[12px] font-bold text-foreground">{label}</span>
-        <button
-          className="text-[11px] font-bold text-muted-foreground hover:text-foreground"
-          onClick={() => onChange("")}
-          type="button"
-        >
+    // <div>
+    //   <input
+    //     className="mt-3 h-2 w-full accent-primary"
+    //     max={max}
+    //     min={min}
+    //     onChange={(event) => onChange(event.target.value)}
+    //     step={step}
+    //     type="range"
+    //     value={sliderValueNum}
+    //   />
+    //   <div className="mt-1 flex justify-between text-[10px] font-semibold text-muted-foreground">
+    //     <span>{min}</span>
+    //     <span>{max}</span>
+    //   </div>
+    // </div>
+    <div className="mx-auto grid w-full max-w-xs gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor="slider-demo-temperature">{label}</Label>
+        <span className="text-sm text-muted-foreground">
           {displayValue}
-        </button>
+        </span>
       </div>
-      <input
-        className="mt-3 h-2 w-full accent-primary"
-        max={max}
+      <Slider
+        id="slider-demo-temperature"
+        value={[sliderValueNum]}
+        onValueChange={(val) => onChange(String(Array.isArray(val) ? val[0] : val))}
         min={min}
-        onChange={(event) => onChange(event.target.value)}
+        max={max}
         step={step}
-        type="range"
-        value={sliderValue}
       />
-      <div className="mt-1 flex justify-between text-[10px] font-semibold text-muted-foreground">
+      <div className="flex justify-between text-[10px] text-muted-foreground">
         <span>{min}</span>
         <span>{max}</span>
       </div>

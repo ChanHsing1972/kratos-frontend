@@ -596,14 +596,14 @@ export function KratosPage() {
       if (bodyPayload.hasCheckinData) {
         const checkin = latestCheckin
           ? await updateAgentCheckin(token, latestCheckin.id, {
-              ...bodyPayload.checkin,
-              summary: "手动更新恢复状态",
-            })
+            ...bodyPayload.checkin,
+            summary: "手动更新恢复状态",
+          })
           : await createAgentCheckin(token, {
-              ...bodyPayload.checkin,
-              summary: "手动更新恢复状态",
-              training_plan_id: activePlan?.id ?? null,
-            })
+            ...bodyPayload.checkin,
+            summary: "手动更新恢复状态",
+            training_plan_id: activePlan?.id ?? null,
+          })
         setAgentCheckins((current) =>
           latestCheckin
             ? current.map((item) => (item.id === checkin.id ? checkin : item))
@@ -726,14 +726,14 @@ export function KratosPage() {
       if (bodyPayload.hasCheckinData) {
         await (latestCheckin
           ? updateAgentCheckin(token, latestCheckin.id, {
-              ...bodyPayload.checkin,
-              summary: "新用户引导恢复状态记录",
-            })
+            ...bodyPayload.checkin,
+            summary: "新用户引导恢复状态记录",
+          })
           : createAgentCheckin(token, {
-              ...bodyPayload.checkin,
-              summary: "新用户引导恢复状态记录",
-              training_plan_id: activePlan?.id ?? null,
-            }))
+            ...bodyPayload.checkin,
+            summary: "新用户引导恢复状态记录",
+            training_plan_id: activePlan?.id ?? null,
+          }))
       }
 
       const context = await refreshDashboard(token, { preserveMessages: true })
@@ -1707,6 +1707,7 @@ export function KratosPage() {
             <ProfileMenu
               authLoading={authLoading}
               menuOpen={profileMenuOpen}
+              onEditBodyData={openBodyMetricEditor}
               onLogin={() => openAuth("login")}
               onLogout={handleLogout}
               onProfileSubmit={handleProfileSubmit}

@@ -107,13 +107,17 @@ function parseTrainingPlanWeeklyScheduleLine(
             .map((segment) => segment.trim())
             .filter(Boolean)
             .map(parseTrainingPlanWeeklyScheduleAction)
-        : [createTrainingPlanWeeklyScheduleAction()]
+        : []
+
+    if (actions.length === 0 || actions[actions.length - 1].name !== "" || actions[actions.length - 1].amount !== "") {
+        actions.push(createTrainingPlanWeeklyScheduleAction())
+    }
 
     return {
         id: createScheduleId(),
         weekday,
         theme,
-        actions: actions.length ? actions : [createTrainingPlanWeeklyScheduleAction()],
+        actions,
     }
 }
 
