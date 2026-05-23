@@ -52,11 +52,32 @@ export type QuickAction = {
 export type ChatSession = {
   id: string
   title: string
+  summary?: string | null
   preview: string
   updatedAt: string
   messageCount: number
   pinned?: boolean
+  archived?: boolean
   deleted?: boolean
+  shared?: boolean
+  createdAt?: string
+  lastRunAt?: string | null
+  lastMessage?: string | null
+}
+
+export type AgentConversationSession = {
+  session_id: string
+  title: string
+  summary: string | null
+  is_pinned: boolean
+  is_archived: boolean
+  is_deleted: boolean
+  is_shared: boolean
+  created_at: string
+  updated_at: string
+  run_count: number
+  last_run_at: string | null
+  last_message: string | null
 }
 
 export type UserProfile = {

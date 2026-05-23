@@ -1,5 +1,6 @@
 import type {
   AgentCheckin,
+  AgentConversationSession,
   AgentRun,
   AgentRunTraceStep,
   AgentTraceStep,
@@ -361,6 +362,32 @@ export function chatSessionsFromAgentRuns(
         new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime()
       )
     })
+}
+
+export function chatSessionFromAgentSession(
+  session: AgentConversationSession
+): ChatSession {
+  return {
+    archived: session.is_archived,
+    createdAt: session.created_at,
+    deleted: session.is_deleted,
+    id: session.session_id,
+    lastMessage: session.last_message,
+    lastRunAt: session.last_run_at,
+    messageCount: session.run_count * 2,
+    pinned: session.is_pinned,
+    preview: session.last_message ?? session.summary ?? "还没有消息",
+    shared: session.is_shared,
+    summary: session.summary,
+    title: session.title,
+    updatedAt: session.updated_at,
+  }
+}
+
+export function chatSessionsFromAgentSessions(
+  sessions: AgentConversationSession[]
+): ChatSession[] {
+  return sessions.map(chatSessionFromAgentSession)
 }
 
 export function titleFromPrompt(prompt: string) {

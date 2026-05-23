@@ -96,7 +96,6 @@ export function Sidebar({
           chatSessions={chatSessions}
           onDeleteConversation={onDeleteConversation}
           onExportConversation={onExportConversation}
-          onNavSelect={onNavSelect}
           onRenameConversation={onRenameConversation}
           onSelectConversation={onSelectConversation}
           onTogglePinConversation={onTogglePinConversation}

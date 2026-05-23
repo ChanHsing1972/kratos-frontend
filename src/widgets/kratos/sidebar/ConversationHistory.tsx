@@ -16,7 +16,6 @@ type ConversationHistoryProps = {
   chatSessions: ChatSession[]
   onDeleteConversation: (sessionId: string) => void
   onExportConversation: (sessionId: string) => void
-  onNavSelect: (label: string) => void
   onRenameConversation: (sessionId: string, title: string) => void
   onSelectConversation: (sessionId: string) => void
   onTogglePinConversation: (sessionId: string) => void
@@ -27,7 +26,6 @@ export function ConversationHistory({
   chatSessions,
   onDeleteConversation,
   onExportConversation,
-  onNavSelect,
   onRenameConversation,
   onSelectConversation,
   onTogglePinConversation,
@@ -45,10 +43,7 @@ export function ConversationHistory({
                 onDelete={() => onDeleteConversation(session.id)}
                 onExport={() => onExportConversation(session.id)}
                 onRename={(title) => onRenameConversation(session.id, title)}
-                onSelect={() => {
-                  onNavSelect(session.id)
-                  onSelectConversation(session.id)
-                }}
+                onSelect={() => onSelectConversation(session.id)}
                 onTogglePin={() => onTogglePinConversation(session.id)}
                 session={session}
               />

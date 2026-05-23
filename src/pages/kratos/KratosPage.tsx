@@ -12,24 +12,31 @@ import { toast as sonnerToast } from "sonner"
 import { initialMessages, initialNotifications } from "@/features/kratos/model/fixtures"
 import {
   AUTH_TOKEN_KEY,
+  createAgentSession,
   createAgentCheckin,
   createBodyMetric,
   createMyFitnessProfile,
   createSkill,
   createTrainingPlan,
   createWorkoutLog,
+  deleteAgentSession,
   deleteSkill,
   deleteTrainingPlan,
+  exportAgentRunRagas,
+  getAgentSession,
   getCurrentUser,
   getErrorMessage,
-  listAgentRuns,
+  listAgentRunsForSession,
+  listAgentSessions,
   listSkills,
   loginUser,
   previewTrainingPlanAdjustment,
   registerUser,
+  renameAgentSession,
   streamAgentChat,
   updateAgentCheckin,
   updateBodyMetric,
+  updateAgentSession,
   updateSkillBinding,
   updateMyFitnessProfile,
   updateTrainingPlan,
@@ -37,7 +44,8 @@ import {
 import {
   buildPlanPanel,
   chatMessagesFromAgentRuns,
-  chatSessionsFromAgentRuns,
+  chatSessionFromAgentSession,
+  chatSessionsFromAgentSessions,
   formatTime,
   getLatestByDate,
   titleFromPrompt,
@@ -49,11 +57,9 @@ import {
 } from "@/entities/kratos/api/dashboard"
 import {
   markGeneratedTrainingPlanMessages,
-  resolveSessionUpdate,
   sortChatSessions,
 } from "@/features/kratos/lib/chatSessions"
 import {
-  buildConversationEvalExport,
   downloadJsonFile,
   safeFilename,
 } from "@/features/kratos/lib/conversationExport"
@@ -63,11 +69,11 @@ import {
 } from "@/features/kratos/lib/formPayloads"
 import {
   clearCachedUser,
+  readActiveAgentSessionId,
   readCachedUser,
-  readChatSessionMeta,
   readGeneratedTrainingPlanKeys,
   writeCachedUser,
-  writeChatSessionMeta,
+  writeActiveAgentSessionId,
   writeGeneratedTrainingPlanKeys,
 } from "@/features/kratos/lib/storage"
 import { ProfileMenu } from "@/features/kratos/profile/ProfileMenu"
@@ -147,10 +153,10 @@ export function KratosPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
   const [conversationLoading, setConversationLoading] = useState(false)
-  const [chatSessionMeta, setChatSessionMeta] = useState<
-    Record<string, Partial<ChatSession>>
-  >(() => readChatSessionMeta())
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(() =>
+    readActiveAgentSessionId()
+  )
   const [authMode, setAuthMode] = useState<AuthMode>("login")
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [authLoading, setAuthLoading] = useState(
@@ -191,7 +197,6 @@ export function KratosPage() {
   const [thinkingExpanded, setThinkingExpanded] = useState(true)
   const [composerValue, setComposerValue] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
-  const [agentSessionId, setAgentSessionId] = useState<string | null>(null)
   const [agentStreaming, setAgentStreaming] = useState(false)
   const [dashboardLoading, setDashboardLoading] = useState(false)
   const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>([])
@@ -231,7 +236,6 @@ export function KratosPage() {
     title: string
   } | null>(null)
   const activeStreamRef = useRef<AbortController | null>(null)
-  const chatSessionMetaRef = useRef(chatSessionMeta)
 
   useEffect(() => {
     if (!profileMenuOpen && !notificationsOpen) {
@@ -258,7 +262,7 @@ export function KratosPage() {
     getLatestByDate(trainingPlans, (plan) => plan.updated_at) ??
     null
   const activeSession =
-    chatSessions.find((session) => session.id === agentSessionId) ?? null
+    chatSessions.find((session) => session.id === activeSessionId) ?? null
   const activeSessionTitle = activeSession?.title ?? "新的训练对话"
   const latestMetric =
     getLatestByDate(bodyMetrics, (metric) => metric.recorded_at) ?? null
@@ -281,7 +285,7 @@ export function KratosPage() {
     let ignore = false
 
     loadInitialAuthSnapshot(token)
-      .then(({ context, plans, runs, skills: nextSkills, user }) => {
+      .then(async ({ context, plans, runs, skills: nextSkills, user }) => {
         if (ignore) {
           return
         }
@@ -289,6 +293,19 @@ export function KratosPage() {
         setCurrentUser(user)
         applyDashboardSnapshot(context, plans, runs, nextSkills)
         setOnboardingOpen(!context?.onboarding.ready_for_agent)
+        const selectedSessionId = await syncConversationSessions(
+          token,
+          readActiveAgentSessionId()
+        )
+
+        if (!selectedSessionId) {
+          setMessages(initialMessages)
+          setActiveSessionId(null)
+          setActiveNav("new")
+          return
+        }
+
+        await loadConversationSession(token, selectedSessionId)
       })
       .catch(() => {
         if (ignore) {
@@ -342,11 +359,6 @@ export function KratosPage() {
     }
   }, [trainingSession])
 
-  useEffect(() => {
-    chatSessionMetaRef.current = chatSessionMeta
-    writeChatSessionMeta(chatSessionMeta)
-  }, [chatSessionMeta])
-
   const openAuth = (mode: AuthMode) => {
     setAuthMode(mode)
     setAuthError(null)
@@ -372,6 +384,19 @@ export function KratosPage() {
       writeCachedUser(user)
       setCurrentUser(user)
       const context = await refreshDashboard(token.access_token)
+      const selectedSessionId = await syncConversationSessions(
+        token.access_token,
+        readActiveAgentSessionId()
+      )
+
+      if (selectedSessionId) {
+        await loadConversationSession(token.access_token, selectedSessionId)
+      } else {
+        setMessages(initialMessages)
+        setActiveSessionId(null)
+        setActiveNav("new")
+      }
+
       setAuthModalOpen(false)
       setOnboardingOpen(
         authMode === "register" || !context?.onboarding.ready_for_agent
@@ -399,7 +424,8 @@ export function KratosPage() {
     setWorkoutLogs([])
     setAgentCheckins([])
     setMessages(initialMessages)
-    setAgentSessionId(null)
+    setActiveSessionId(null)
+    writeActiveAgentSessionId(null)
     setChatSessions([])
     setProfileMenuOpen(false)
     setOnboardingOpen(false)
@@ -454,10 +480,68 @@ export function KratosPage() {
     setSidebarDrawerOpen(false)
   }
 
+  const syncConversationSessions = async (
+    token: string,
+    preferredSessionId: string | null = activeSessionId
+  ) => {
+    const sessions = await listAgentSessions(token, {
+      includeArchived: true,
+      includeDeleted: false,
+      limit: 200,
+    })
+    const nextSessions = chatSessionsFromAgentSessions(sessions)
+      .filter((session) => !session.deleted)
+      .sort(sortChatSessions)
+    setChatSessions(nextSessions)
+
+    const nextActiveSessionId =
+      preferredSessionId &&
+        nextSessions.some((session) => session.id === preferredSessionId)
+        ? preferredSessionId
+        : nextSessions[0]?.id ?? null
+
+    setActiveSessionId(nextActiveSessionId)
+    writeActiveAgentSessionId(nextActiveSessionId)
+    return nextActiveSessionId
+  }
+
+  const loadConversationSession = async (token: string, sessionId: string) => {
+    setConversationLoading(true)
+    setSidebarDrawerOpen(false)
+
+    try {
+      const [session, runs] = await Promise.all([
+        getAgentSession(token, sessionId),
+        listAgentRunsForSession(token, sessionId),
+      ])
+
+      const mappedSession = chatSessionFromAgentSession(session)
+      setChatSessions((current) =>
+        [mappedSession, ...current.filter((item) => item.id !== sessionId)]
+          .filter((item) => !item.deleted)
+          .sort(sortChatSessions)
+      )
+      setMessages(
+        runs.length
+          ? markGeneratedTrainingPlanMessages(
+            chatMessagesFromAgentRuns(runs),
+            generatedTrainingPlanKeys
+          )
+          : initialMessages
+      )
+      setActiveSessionId(sessionId)
+      writeActiveAgentSessionId(sessionId)
+      setActiveNav(sessionId)
+    } finally {
+      setConversationLoading(false)
+    }
+  }
+
   const handleCreateConversation = () => {
     activeStreamRef.current?.abort()
     setMessages(initialMessages)
-    setAgentSessionId(null)
+    setActiveSessionId(null)
+    writeActiveAgentSessionId(null)
     setComposerValue("")
     setAgentStreaming(false)
     setActiveNav("new")
@@ -474,75 +558,84 @@ export function KratosPage() {
     }
 
     activeStreamRef.current?.abort()
-    setActiveNav(sessionId)
-    setAgentSessionId(sessionId)
-    setConversationLoading(true)
-    setSidebarDrawerOpen(false)
 
     try {
-      const runs = await listAgentRuns(token, 200)
-      const sessionRuns = runs.filter((run) => run.session_id === sessionId)
-      setMessages(
-        markGeneratedTrainingPlanMessages(
-          chatMessagesFromAgentRuns(sessionRuns),
-          generatedTrainingPlanKeys
-        )
-      )
+      await loadConversationSession(token, sessionId)
       sonnerToast.success("对话已切换")
-
     } catch (error) {
       sonnerToast.error(getErrorMessage(error), { richColors: true })
-    } finally {
-      setConversationLoading(false)
     }
-  }
-
-  const updateSessionMeta = (
-    sessionId: string,
-    update:
-      | Partial<ChatSession>
-      | ((current: Partial<ChatSession>) => Partial<ChatSession>)
-  ) => {
-    setChatSessionMeta((current) => {
-      const previous = current[sessionId] ?? {}
-      const next = typeof update === "function" ? update(previous) : update
-      return {
-        ...current,
-        [sessionId]: {
-          ...previous,
-          ...next,
-        },
-      }
-    })
-    setChatSessions((current) =>
-      current
-        .map((session) =>
-          session.id === sessionId
-            ? { ...session, ...resolveSessionUpdate(session, update) }
-            : session
-        )
-        .filter((session) => !session.deleted)
-        .sort(sortChatSessions)
-    )
   }
 
   const handleRenameConversation = (sessionId: string, title: string) => {
-    updateSessionMeta(sessionId, { title })
-    sonnerToast.success("对话已重命名")
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      return
+    }
+
+    void renameAgentSession(token, sessionId, title)
+      .then((session) => {
+        setChatSessions((current) =>
+          [chatSessionFromAgentSession(session), ...current.filter((item) => item.id !== session.session_id)]
+            .filter((item) => !item.deleted)
+            .sort(sortChatSessions)
+        )
+        sonnerToast.success("对话已重命名")
+      })
+      .catch((error) => {
+        sonnerToast.error(getErrorMessage(error), { richColors: true })
+      })
   }
 
   const handleTogglePinConversation = (sessionId: string) => {
-    updateSessionMeta(sessionId, (current) => ({ pinned: !current.pinned }))
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      return
+    }
+
+    const session = chatSessions.find((item) => item.id === sessionId)
+    const nextPinned = !session?.pinned
+
+    void updateAgentSession(token, sessionId, {
+      is_pinned: nextPinned,
+    })
+      .then((updated) => {
+        setChatSessions((current) =>
+          [chatSessionFromAgentSession(updated), ...current.filter((item) => item.id !== updated.session_id)]
+            .filter((item) => !item.deleted)
+            .sort(sortChatSessions)
+        )
+      })
+      .catch((error) => {
+        sonnerToast.error(getErrorMessage(error), { richColors: true })
+      })
   }
 
   const handleDeleteConversation = (sessionId: string) => {
-    updateSessionMeta(sessionId, { deleted: true })
-    if (agentSessionId === sessionId) {
-      setMessages(initialMessages)
-      setAgentSessionId(null)
-      setActiveNav("new")
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      return
     }
-    sonnerToast.success("对话已删除")
+
+    void deleteAgentSession(token, sessionId)
+      .then(() => {
+        setChatSessions((current) => current.filter((item) => item.id !== sessionId))
+
+        if (activeSessionId === sessionId) {
+          setMessages(initialMessages)
+          setActiveSessionId(null)
+          writeActiveAgentSessionId(null)
+          setActiveNav("new")
+        }
+
+        sonnerToast.success("对话已删除")
+      })
+      .catch((error) => {
+        sonnerToast.error(getErrorMessage(error), { richColors: true })
+      })
   }
 
   const handleExportConversation = async (sessionId: string) => {
@@ -556,18 +649,14 @@ export function KratosPage() {
     sonnerToast.info("正在导出为 JSON 文件")
 
     try {
-      const runs = await listAgentRuns(token, 200)
-      const sessionRuns = runs.filter((run) => run.session_id === sessionId)
-      if (!sessionRuns.length) {
+      const runs = await listAgentRunsForSession(token, sessionId)
+      const latestRun = runs[runs.length - 1]
+      if (!latestRun) {
         sonnerToast.info("这段对话暂无可导出的消息")
         return
       }
 
-      const payload = buildConversationEvalExport({
-        runs: sessionRuns,
-        session,
-        user: currentUser,
-      })
+      const payload = await exportAgentRunRagas(token, latestRun.id)
       downloadJsonFile(
         payload,
         `${safeFilename(session?.title ?? "kratos-conversation")}-${sessionId}.json`
@@ -654,9 +743,9 @@ export function KratosPage() {
   function applyDashboardSnapshot(
     context: FitnessContext,
     plans: TrainingPlan[],
-    runs: AgentRun[],
+    _runs: AgentRun[],
     nextSkills: Skill[],
-    options: { preserveMessages?: boolean } = {}
+    _options: { preserveMessages?: boolean } = {}
   ) {
     setFitnessContext(context)
     setTrainingPlans(plans)
@@ -666,31 +755,6 @@ export function KratosPage() {
     setBodyMetrics(context.recent_body_metrics)
     setWorkoutLogs(context.recent_workout_logs)
     setAgentCheckins(context.recent_checkins)
-    const restoredSessions = chatSessionsFromAgentRuns(
-      runs,
-      chatSessionMetaRef.current
-    )
-    setChatSessions(restoredSessions)
-    if (!options.preserveMessages) {
-      const currentSessionId =
-        agentSessionId &&
-          restoredSessions.some((session) => session.id === agentSessionId)
-          ? agentSessionId
-          : (restoredSessions[0]?.id ?? null)
-      const sessionRuns = currentSessionId
-        ? runs.filter((run) => run.session_id === currentSessionId)
-        : []
-      setMessages(
-        sessionRuns.length
-          ? markGeneratedTrainingPlanMessages(
-            chatMessagesFromAgentRuns(sessionRuns),
-            generatedTrainingPlanKeys
-          )
-          : initialMessages
-      )
-      setAgentSessionId(currentSessionId)
-      setActiveNav(currentSessionId ?? "new")
-    }
   }
 
   const upsertFitnessProfile = async (
@@ -777,6 +841,32 @@ export function KratosPage() {
       return
     }
 
+    let nextSessionId = activeSessionId
+    try {
+      if (!nextSessionId) {
+        const session = await createAgentSession(token)
+        nextSessionId = session.session_id
+        const sessionTitle = titleFromPrompt(body)
+        setActiveSessionId(nextSessionId)
+        writeActiveAgentSessionId(nextSessionId)
+        setChatSessions((current) =>
+          [
+            {
+              ...chatSessionFromAgentSession(session),
+              title: sessionTitle,
+            },
+            ...current.filter((item) => item.id !== session.session_id),
+          ].sort(sortChatSessions)
+        )
+        void renameAgentSession(token, nextSessionId, sessionTitle).catch(
+          () => undefined
+        )
+      }
+    } catch (error) {
+      sonnerToast.error(getErrorMessage(error), { richColors: true })
+      return
+    }
+
     const assistantMessageId = createId()
     const controller = new AbortController()
     activeStreamRef.current = controller
@@ -812,7 +902,9 @@ export function KratosPage() {
         onEvent: (event) => {
           if (event.session_id) {
             const nextSessionId = event.session_id
-            setAgentSessionId(nextSessionId)
+            const sessionTitle = titleFromPrompt(body)
+            setActiveSessionId(nextSessionId)
+            writeActiveAgentSessionId(nextSessionId)
             setActiveNav(nextSessionId)
             setChatSessions((current) => {
               if (current.some((session) => session.id === nextSessionId)) {
@@ -822,17 +914,18 @@ export function KratosPage() {
               return [
                 {
                   id: nextSessionId,
-                  title: titleFromPrompt(body),
+                  title: sessionTitle,
                   preview: body,
                   updatedAt: new Date().toISOString(),
                   messageCount: 2,
-                  pinned: Boolean(
-                    chatSessionMetaRef.current[nextSessionId]?.pinned
-                  ),
+                  pinned: false,
                 },
                 ...current,
               ].sort(sortChatSessions)
             })
+            void renameAgentSession(token, nextSessionId, sessionTitle).catch(
+              () => undefined
+            )
           }
 
           setMessages((current) =>
@@ -893,7 +986,7 @@ export function KratosPage() {
             })
           )
         },
-        sessionId: agentSessionId,
+        sessionId: nextSessionId,
         signal: controller.signal,
         token,
       })
@@ -1665,7 +1758,7 @@ export function KratosPage() {
       return <EvaluationPage />
     }
 
-    const ConversationPage = agentSessionId
+    const ConversationPage = activeSessionId
       ? ConversationDetailPage
       : NewConversationPage
 

@@ -1,6 +1,7 @@
 import type {
   AgentCheckin,
   AgentCheckinPayload,
+  AgentConversationSession,
   AgentRun,
   AgentStreamEvent,
   BodyMetric,
@@ -196,6 +197,136 @@ export async function updateMyFitnessProfile(
 export async function listAgentRuns(token: string, limit = 50) {
   return authorizedJson<AgentRun[]>(
     `/agent/runs?limit=${encodeURIComponent(limit)}`,
+    token
+  )
+}
+
+export async function listAgentRunsForSession(
+  token: string,
+  sessionId: string
+) {
+  return authorizedJson<AgentRun[]>(
+    `/agent/runs?session_id=${encodeURIComponent(sessionId)}`,
+    token
+  )
+}
+
+export async function listAgentSessions(
+  token: string,
+  params: {
+    includeArchived?: boolean
+    includeDeleted?: boolean
+    limit?: number
+  } = {}
+) {
+  const query = new URLSearchParams()
+  if (params.includeArchived !== undefined) {
+    query.set("include_archived", String(params.includeArchived))
+  }
+  if (params.includeDeleted !== undefined) {
+    query.set("include_deleted", String(params.includeDeleted))
+  }
+  if (params.limit !== undefined) {
+    query.set("limit", String(params.limit))
+  }
+
+  const path = query.toString() ? `/agent/sessions?${query.toString()}` : "/agent/sessions"
+  return authorizedJson<AgentConversationSession[]>(path, token)
+}
+
+export async function getAgentSession(token: string, sessionId: string) {
+  return authorizedJson<AgentConversationSession>(
+    `/agent/sessions/${encodeURIComponent(sessionId)}`,
+    token
+  )
+}
+
+export async function createAgentSession(token: string) {
+  return authorizedJson<AgentConversationSession>("/agent/sessions", token, {
+    method: "POST",
+  })
+}
+
+export async function renameAgentSession(
+  token: string,
+  sessionId: string,
+  title: string
+) {
+  return authorizedJson<AgentConversationSession>(
+    `/agent/sessions/${encodeURIComponent(sessionId)}/rename`,
+    token,
+    {
+      body: JSON.stringify({ title }),
+      method: "PATCH",
+    }
+  )
+}
+
+export async function pinAgentSession(
+  token: string,
+  sessionId: string,
+  isPinned: boolean
+) {
+  return authorizedJson<AgentConversationSession>(
+    `/agent/sessions/${encodeURIComponent(sessionId)}/pin`,
+    token,
+    {
+      body: JSON.stringify({ is_pinned: isPinned }),
+      method: "PATCH",
+    }
+  )
+}
+
+export async function archiveAgentSession(
+  token: string,
+  sessionId: string,
+  isArchived: boolean
+) {
+  return authorizedJson<AgentConversationSession>(
+    `/agent/sessions/${encodeURIComponent(sessionId)}/archive`,
+    token,
+    {
+      body: JSON.stringify({ is_archived: isArchived }),
+      method: "PATCH",
+    }
+  )
+}
+
+export async function updateAgentSession(
+  token: string,
+  sessionId: string,
+  payload: Partial<{
+    title: string
+    summary: string | null
+    is_pinned: boolean
+    is_archived: boolean
+    is_deleted: boolean
+    is_shared: boolean
+  }>
+) {
+  return authorizedJson<AgentConversationSession>(
+    `/agent/sessions/${encodeURIComponent(sessionId)}`,
+    token,
+    {
+      body: JSON.stringify(payload),
+      method: "PATCH",
+    }
+  )
+}
+
+export async function deleteAgentSession(token: string, sessionId: string) {
+  return authorizedJson<AgentConversationSession | null>(
+    `/agent/sessions/${encodeURIComponent(sessionId)}`,
+    token,
+    {
+      method: "DELETE",
+    }
+  )
+}
+
+export async function exportAgentRunRagas(token: string, runId: number) {
+  return authorizedJson<unknown>(
+    `/agent/runs/${encodeURIComponent(runId)}/export/ragas`,
     token
   )
 }

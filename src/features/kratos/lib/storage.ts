@@ -1,30 +1,26 @@
 import { clearInitialAuthSnapshot } from "@/entities/kratos/api/dashboard"
-import type { ChatSession, UserProfile } from "@/entities/kratos/model/types"
+import type { UserProfile } from "@/entities/kratos/model/types"
 
-const CHAT_SESSION_META_KEY = "kratos-chat-session-meta"
+const ACTIVE_AGENT_SESSION_KEY = "kratos-active-agent-session-id"
 const GENERATED_TRAINING_PLAN_KEY = "kratos-generated-training-plan-keys"
 const AUTH_USER_CACHE_KEY = "kratos-auth-user"
 
-export function readChatSessionMeta(): Record<string, Partial<ChatSession>> {
+export function readActiveAgentSessionId(): string | null {
   try {
-    const raw = localStorage.getItem(CHAT_SESSION_META_KEY)
-    if (!raw) {
-      return {}
-    }
-
-    const parsed = JSON.parse(raw) as unknown
-    return parsed && typeof parsed === "object"
-      ? (parsed as Record<string, Partial<ChatSession>>)
-      : {}
+    const value = localStorage.getItem(ACTIVE_AGENT_SESSION_KEY)
+    return value && value.trim() ? value : null
   } catch {
-    return {}
+    return null
   }
 }
 
-export function writeChatSessionMeta(
-  metadata: Record<string, Partial<ChatSession>>
-) {
-  localStorage.setItem(CHAT_SESSION_META_KEY, JSON.stringify(metadata))
+export function writeActiveAgentSessionId(sessionId: string | null) {
+  if (!sessionId) {
+    localStorage.removeItem(ACTIVE_AGENT_SESSION_KEY)
+    return
+  }
+
+  localStorage.setItem(ACTIVE_AGENT_SESSION_KEY, sessionId)
 }
 
 export function readCachedUser(): UserProfile | null {
