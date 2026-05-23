@@ -1,5 +1,13 @@
-import { useState, type FormEvent } from "react"
-import { LoaderCircle } from "lucide-react"
+import { useMemo, useState, type FormEvent } from "react"
+import { CalendarIcon, LoaderCircle } from "lucide-react"
+import { type DateRange } from "react-day-picker"
+import { Calendar as DateCalendar } from "@/shared/ui/calendar"
+import { Field } from "@/shared/ui/field"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/shared/ui/popover"
 
 import type {
   TrainingPlanForm,
@@ -9,8 +17,14 @@ import {
   ErrorMessage,
   FormInput,
   FormTextarea,
-  SuggestionChips,
 } from "@/widgets/kratos/modals/ModalFormFields"
+import {
+  TrainingPlanScheduleEditor,
+} from "@/widgets/kratos/modals/TrainingPlanScheduleEditor"
+import {
+  parseTrainingPlanWeeklySchedule,
+  serializeTrainingPlanWeeklySchedule,
+} from "@/widgets/kratos/modals/trainingPlanSchedule"
 import { Button } from "@/shared/ui/button"
 import {
   Dialog,
@@ -20,6 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog"
+import { Label } from "@/shared/ui/label"
 
 type TrainingPlanModalProps = {
   draft: TrainingPlanPayload | null
@@ -38,17 +53,61 @@ export function TrainingPlanModal({
   onSubmit,
   open,
 }: TrainingPlanModalProps) {
-  const [form, setForm] = useState<TrainingPlanForm>(() =>
-    trainingPlanFormFromPayload(draft)
-  )
+  const draftSnapshot = [
+    draft?.title ?? "",
+    draft?.goal ?? "",
+    draft?.status ?? "",
+    draft?.start_date ?? "",
+    draft?.end_date ?? "",
+    draft?.summary ?? "",
+    draft?.weekly_schedule ?? "",
+    draft?.nutrition_guidance ?? "",
+    draft?.recovery_guidance ?? "",
+  ].join("\u0000")
 
   if (!open) {
     return null
   }
 
+  return (
+    <TrainingPlanModalForm
+      key={draftSnapshot}
+      draft={draft}
+      error={error}
+      loading={loading}
+      onClose={onClose}
+      onSubmit={onSubmit}
+      open={open}
+    />
+  )
+}
+
+function TrainingPlanModalForm({
+  draft,
+  error,
+  loading,
+  onClose,
+  onSubmit,
+  open,
+}: TrainingPlanModalProps) {
+  const [form, setForm] = useState<TrainingPlanForm>(() =>
+    trainingPlanFormFromPayload(draft)
+  )
+  const [weeklySchedule, setWeeklySchedule] = useState(() =>
+    parseTrainingPlanWeeklySchedule(draft?.weekly_schedule ?? "")
+  )
+  const selectedDateRange = trainingPlanDateRangeFromForm(
+    form.startDate,
+    form.endDate
+  )
+  const weeklyScheduleText = useMemo(
+    () => serializeTrainingPlanWeeklySchedule(weeklySchedule),
+    [weeklySchedule]
+  )
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    onSubmit(trainingPlanPayloadFromForm(form))
+    onSubmit(trainingPlanPayloadFromForm(form, weeklyScheduleText))
   }
 
   return (
@@ -60,7 +119,7 @@ export function TrainingPlanModal({
         }
       }}
     >
-      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-3xl no-scrollbar">
         <form className="grid gap-5" onSubmit={submit}>
           <DialogHeader>
             <DialogTitle>
@@ -88,31 +147,46 @@ export function TrainingPlanModal({
               onChange={(value) =>
                 setForm((current) => ({ ...current, goal: value }))
               }
-              placeholder="例如 减脂 / 增肌 / 塑形 / 康复"
+              placeholder="减脂 / 增肌 / 塑形 / 康复"
               value={form.goal}
             />
-
-
-
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FormInput
-                label="开始日期"
-                onChange={(value) =>
-                  setForm((current) => ({ ...current, startDate: value }))
-                }
-                type="date"
-                value={form.startDate}
-              />
-              <FormInput
-                label="结束日期"
-                onChange={(value) =>
-                  setForm((current) => ({ ...current, endDate: value }))
-                }
-                type="date"
-                value={form.endDate}
-              />
-            </div>
+            <Field>
+              <Label htmlFor="training-plan-date-range">
+                训练周期
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="training-plan-date-range"
+                    type="button"
+                    variant="outline"
+                    className="justify-start font-normal text-muted-foreground"
+                  >
+                    <CalendarIcon className="size-4" />
+                    <span >{trainingPlanDateRangeLabel(selectedDateRange)}</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <DateCalendar
+                    defaultMonth={
+                      selectedDateRange?.from ??
+                      selectedDateRange?.to ??
+                      new Date()
+                    }
+                    mode="range"
+                    numberOfMonths={2}
+                    onSelect={(range) => {
+                      setForm((current) => ({
+                        ...current,
+                        endDate: range?.to ? formatCalendarDate(range.to) : "",
+                        startDate: range?.from ? formatCalendarDate(range.from) : "",
+                      }))
+                    }}
+                    selected={selectedDateRange}
+                  />
+                </PopoverContent>
+              </Popover>
+            </Field>
           </div>
 
           <FormTextarea
@@ -123,71 +197,35 @@ export function TrainingPlanModal({
             placeholder="写清楚适合人群、训练频率和总体策略"
             value={form.summary}
           />
-          <SuggestionChips
-            label="摘要选项"
-            onSelect={(value) =>
-              setForm((current) => ({
-                ...current,
-                summary: appendText(current.summary, value),
-              }))
-            }
-            options={[
-              "适合新手建立规律训练习惯，每周 3-4 次，控制动作质量和恢复。",
-              "适合有基础训练者提升肌肉量与力量表现，每周 4-5 次。",
-              "适合时间紧张用户，单次训练控制在 30-45 分钟。",
-            ]}
+          <TrainingPlanScheduleEditor
+            onChange={setWeeklySchedule}
+            value={weeklySchedule}
           />
           <FormTextarea
-            label="周训练安排"
+            label="营养建议"
             onChange={(value) =>
-              setForm((current) => ({ ...current, weeklySchedule: value }))
-            }
-            placeholder="每行一个训练日，例如：周一｜上肢推：卧推 4 组 x 8 次..."
-            required
-            rows={7}
-            value={form.weeklySchedule}
-          />
-          <SuggestionChips
-            label="训练日选项"
-            onSelect={(value) =>
               setForm((current) => ({
                 ...current,
-                weeklySchedule: appendText(current.weeklySchedule, value),
+                nutritionGuidance: value,
               }))
             }
-            options={[
-              "周一｜全身力量：深蹲模式 3 组 x 10 次；俯卧撑 3 组 x 8-12 次；平板支撑 3 组 x 30 秒",
-              "周三｜上肢拉：高位下拉 4 组 x 10 次；哑铃划船 3 组 x 12 次；面拉 3 组 x 15 次",
-              "周五｜低冲击有氧：快走或椭圆机 35 分钟；髋部和胸椎拉伸 10 分钟",
-            ]}
+            placeholder="训练日前后补给、蛋白质、水分等"
+            rows={4}
+            value={form.nutritionGuidance}
           />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <FormTextarea
-              label="营养建议"
-              onChange={(value) =>
-                setForm((current) => ({
-                  ...current,
-                  nutritionGuidance: value,
-                }))
-              }
-              placeholder="训练日前后补给、蛋白质、水分等"
-              rows={4}
-              value={form.nutritionGuidance}
-            />
-            <FormTextarea
-              label="恢复与风险提醒"
-              onChange={(value) =>
-                setForm((current) => ({
-                  ...current,
-                  recoveryGuidance: value,
-                }))
-              }
-              placeholder="休息间隔、疼痛阈值、动作替换等"
-              rows={4}
-              value={form.recoveryGuidance}
-            />
-          </div>
-          <SuggestionChips
+          <FormTextarea
+            label="恢复与风险提醒"
+            onChange={(value) =>
+              setForm((current) => ({
+                ...current,
+                recoveryGuidance: value,
+              }))
+            }
+            placeholder="休息间隔、疼痛阈值、动作替换等"
+            rows={4}
+            value={form.recoveryGuidance}
+          />
+          {/* <SuggestionChips
             label="恢复提醒选项"
             onSelect={(value) =>
               setForm((current) => ({
@@ -200,13 +238,12 @@ export function TrainingPlanModal({
               "大重量训练日之间至少间隔 48 小时。",
               "睡眠不足或酸痛明显时，将训练总量降低 15-25%。",
             ]}
-          />
+          /> */}
 
           {error ? <ErrorMessage message={error} /> : null}
 
-          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+          <DialogFooter className="sticky -bottom-5 z-10 backdrop-blur ">
             <Button
-              className="h-10 rounded-[10px] border-border px-4 text-[13px]"
               onClick={onClose}
               type="button"
               variant="outline"
@@ -214,7 +251,6 @@ export function TrainingPlanModal({
               取消
             </Button>
             <Button
-              className="h-10 rounded-[10px] bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:bg-primary/90"
               disabled={loading}
               type="submit"
             >
@@ -244,7 +280,10 @@ function trainingPlanFormFromPayload(
   }
 }
 
-function trainingPlanPayloadFromForm(form: TrainingPlanForm): TrainingPlanPayload {
+function trainingPlanPayloadFromForm(
+  form: TrainingPlanForm,
+  weeklyScheduleText: string
+): TrainingPlanPayload {
   return {
     end_date: compactFormText(form.endDate),
     goal: compactFormText(form.goal),
@@ -254,7 +293,7 @@ function trainingPlanPayloadFromForm(form: TrainingPlanForm): TrainingPlanPayloa
     status: form.status || "draft",
     summary: compactFormText(form.summary),
     title: form.title.trim(),
-    weekly_schedule: compactFormText(form.weeklySchedule),
+    weekly_schedule: compactFormText(weeklyScheduleText),
   }
 }
 
@@ -263,15 +302,70 @@ function compactFormText(value: string) {
   return trimmed ? trimmed : null
 }
 
-function appendText(current: string, addition: string) {
-  const trimmed = current.trim()
-  if (!trimmed) {
-    return addition
+function trainingPlanDateRangeFromForm(
+  startDate: string,
+  endDate: string
+): DateRange | undefined {
+  const from = parseDateValue(startDate)
+  const to = parseDateValue(endDate)
+
+  if (!from && !to) {
+    return undefined
   }
 
-  if (trimmed.includes(addition)) {
-    return trimmed
+  if (from && to) {
+    return { from, to }
   }
 
-  return `${trimmed}\n${addition}`
+  const singleDate = from ?? to
+  return singleDate ? { from: singleDate } : undefined
+}
+
+function trainingPlanDateRangeLabel(dateRange: DateRange | undefined) {
+  if (dateRange?.from && dateRange.to) {
+    return `${formatCalendarDate(dateRange.from)} 至 ${formatCalendarDate(dateRange.to)}`
+  }
+
+  if (dateRange?.from) {
+    return formatCalendarDate(dateRange.from)
+  }
+
+  if (dateRange?.to) {
+    return formatCalendarDate(dateRange.to)
+  }
+
+  return "选择开始和结束日期"
+}
+
+function parseDateValue(value: string) {
+  if (!value) {
+    return undefined
+  }
+
+  const [yearText, monthText, dayText] = value.split("-")
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const day = Number(dayText)
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return undefined
+  }
+
+  const parsed = new Date(year, month - 1, day)
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return undefined
+  }
+
+  return parsed
+}
+
+function formatCalendarDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }

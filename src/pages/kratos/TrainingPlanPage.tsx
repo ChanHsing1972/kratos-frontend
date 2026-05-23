@@ -20,7 +20,7 @@ import {
   MoreHorizontal,
   List,
 } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 
 import { Button } from "@/shared/ui/button"
 import { Calendar } from "@/shared/ui/calendar"
@@ -1339,10 +1339,6 @@ function WeeklyTrainingTimeline({
             const completed = completedDateSet.has(day.value)
             const selected = selectedDate === day.value
             const active = trainingDay?.dateValue === selectedDate
-            const completedCount =
-              trainingDay?.actions.filter(
-                (action) => completed || completedExercises.includes(action.id)
-              ).length ?? 0
             const actionCount = trainingDay?.actions.length ?? 0
             const title = trainingDay ? trainingDay.title : "休息"
             const status = completed
@@ -1354,7 +1350,7 @@ function WeeklyTrainingTimeline({
                   : "休息日"
 
             return (
-              <>
+              <Fragment key={day.value}>
                 <button
                   className={cn(
                     "relative z-10 flex min-h-37.5 flex-col rounded-[14px] border p-3 text-left transition-colors",
@@ -1362,7 +1358,6 @@ function WeeklyTrainingTimeline({
                       ? "border-primary bg-muted"
                       : "border-transparent bg-primary-foreground hover:bg-muted"
                   )}
-                  key={day.value}
                   onClick={() => onSelectDate(day.value)}
                   type="button"
                 >
@@ -1404,7 +1399,7 @@ function WeeklyTrainingTimeline({
                     <div className="h-46 w-px bg-border/80" aria-hidden="true" />
                   </div>
                 ) : null}
-              </>
+              </Fragment>
             )
           })}
         </div>

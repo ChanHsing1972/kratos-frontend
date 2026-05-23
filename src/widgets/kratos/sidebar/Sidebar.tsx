@@ -57,7 +57,7 @@ export function Sidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton className="pr-2" size="lg" tooltip="Kratos">
-              <div className="hidden aspect-square font-black size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground group-data-[collapsible=icon]:flex transition-all duration-300">
+              <div className="hidden aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary font-black text-sidebar-primary-foreground transition-all duration-300 group-data-[collapsible=icon]:flex">
                 K
               </div>
               <div className="grid flex-1 text-left text-lg leading-tight opacity-100 transition-[opacity,transform] duration-200 ease-out group-data-[collapsible=icon]:opacity-0">
@@ -68,19 +68,19 @@ export function Sidebar({
                   AI Fitness Coach
                 </span>
               </div>
-              <SidebarMenuAction
-                aria-label="收起侧边栏"
-                className="cursor-w-resize"
-                onClick={(event) => {
-                  event.preventDefault()
-                  event.stopPropagation()
-                  onToggleCollapse()
-                }}
-                type="button"
-              >
-                <PanelLeft />
-              </SidebarMenuAction>
             </SidebarMenuButton>
+            <SidebarMenuAction
+              aria-label="收起侧边栏"
+              className="cursor-w-resize"
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                onToggleCollapse()
+              }}
+              type="button"
+            >
+              <PanelLeft />
+            </SidebarMenuAction>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

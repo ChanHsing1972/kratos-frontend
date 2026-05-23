@@ -42,6 +42,7 @@ export function FormTextarea({
     <Field>
       <Label>{label}</Label>
       <Textarea
+      className="min-h-[100px]"
         onChange={(event) => onChange(event.target.value)}
         value={value}
         {...props}
@@ -51,7 +52,6 @@ export function FormTextarea({
 }
 
 export function SuggestionChips({
-  label,
   onSelect,
   options,
 }: {
@@ -61,8 +61,7 @@ export function SuggestionChips({
 }) {
   return (
     <Field>
-      <Label>{label}</Label>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 -mt-3">
         {options.map((option) => (
           <Button
             className="border border-border rounded-full text-left text-[12px] font-normal text-muted-foreground "
