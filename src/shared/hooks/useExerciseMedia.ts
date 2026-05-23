@@ -4,27 +4,42 @@ import { getExerciseMedia, AUTH_TOKEN_KEY, type ExerciseMediaResponse } from "..
 const mediaCache = new Map<string, ExerciseMediaResponse | null>()
 
 export function useExerciseMedia(actionName: string) {
-  const cached = mediaCache.get(actionName)
+  const normalizedInitialName = actionName.trim()
+  const cached = mediaCache.get(normalizedInitialName)
   const [media, setMedia] = useState<ExerciseMediaResponse | null>(cached ?? null)
-  const [loading, setLoading] = useState(!mediaCache.has(actionName))
+  const [loading, setLoading] = useState(!mediaCache.has(normalizedInitialName))
 
   useEffect(() => {
     const normalizedName = actionName.trim()
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    let isMounted = true
+    const cleanup = () => {
+      isMounted = false
+    }
+
+    const updateMediaState = (
+      nextMedia: ExerciseMediaResponse | null,
+      nextLoading: boolean
+    ) => {
+      queueMicrotask(() => {
+        if (isMounted) {
+          setMedia(nextMedia)
+          setLoading(nextLoading)
+        }
+      })
+    }
+
     if (!normalizedName) {
-      setMedia(null)
-      setLoading(false)
-      return
+      updateMediaState(null, false)
+      return cleanup
     }
 
     if (mediaCache.has(normalizedName)) {
-      setMedia(mediaCache.get(normalizedName) ?? null)
-      setLoading(false)
-      return
+      updateMediaState(mediaCache.get(normalizedName) ?? null, false)
+      return cleanup
     }
 
-    let isMounted = true
-    setLoading(true)
+    updateMediaState(null, true)
 
     getExerciseMedia(normalizedName, token)
       .then((data) => {
@@ -45,9 +60,7 @@ export function useExerciseMedia(actionName: string) {
         }
       })
 
-    return () => {
-      isMounted = false
-    }
+    return cleanup
   }, [actionName])
 
   return { media, mediaUrl: media?.media_url ?? null, loading }

@@ -579,8 +579,29 @@ function splitTrainingDayContent(content: string) {
 function splitTrainingActions(content: string) {
   return content
     .split(/[；;]\s*/)
-    .map((item) => item.trim())
+    .flatMap(expandTrainingActionSegment)
     .filter(isRecordableTrainingAction)
+    .filter(Boolean)
+}
+
+function expandTrainingActionSegment(segment: string) {
+  const normalized = segment.trim()
+  if (!normalized) {
+    return []
+  }
+
+  if (!normalized.includes("、")) {
+    return [normalized]
+  }
+
+  return normalized
+    .split("、")
+    .map((item) =>
+      item
+        .replace(/\s*各\s*[\s\S]*$/, "")
+        .replace(/\s*完成\s*\d+\s*轮[\s\S]*$/, "")
+        .trim()
+    )
     .filter(Boolean)
 }
 
