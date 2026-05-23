@@ -4,16 +4,16 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
-  Flame,
+  // Flame,
   Play,
   RotateCcw,
   Save,
   Ban,
   PencilLine,
   PlusCircle,
-  SlidersHorizontal,
-  Timer,
-  Trophy,
+  // SlidersHorizontal,
+  // Timer,
+  // Trophy,
   Trash2,
   WandSparkles,
   Pause,
@@ -68,8 +68,7 @@ import type {
 } from "@/entities/kratos/model/types"
 import { ActionImage } from "@/shared/ui/ActionImage"
 import { ButtonGroup } from "@/shared/ui/button-group"
-import { Separator } from "@/shared/ui/separator"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
 
 type TrainingPlanPageProps = {
   activePlan: TrainingPlan | null
@@ -605,17 +604,17 @@ function buildCompletedDateSet(logs: WorkoutLog[], planId: number | null) {
   )
 }
 
-function sumWorkoutSecondsForDate(
-  logs: WorkoutLog[],
-  planId: number | null,
-  dateValue: string
-) {
-  return logs
-    .filter(
-      (log) => log.training_plan_id === planId && log.workout_date === dateValue
-    )
-    .reduce((sum, log) => sum + getWorkoutSeconds(log), 0)
-}
+// function sumWorkoutSecondsForDate(
+//   logs: WorkoutLog[],
+//   planId: number | null,
+//   dateValue: string
+// ) {
+//   return logs
+//     .filter(
+//       (log) => log.training_plan_id === planId && log.workout_date === dateValue
+//     )
+//     .reduce((sum, log) => sum + getWorkoutSeconds(log), 0)
+// }
 
 function sumWorkoutSecondsForWeek(
   logs: WorkoutLog[],
@@ -796,14 +795,14 @@ function formatDurationShort(totalSeconds: number) {
   return `${minutes} 分 ${seconds.toString().padStart(2, "0")} 秒`
 }
 
-function formatMinutes(totalSeconds: number) {
-  const minutes = Math.round(totalSeconds / 60)
-  return `${minutes} min`
-}
+// function formatMinutes(totalSeconds: number) {
+//   const minutes = Math.round(totalSeconds / 60)
+//   return `${minutes} min`
+// }
 
-function formatHours(totalSeconds: number) {
-  return `${(totalSeconds / 3600).toFixed(1)} 小时`
-}
+// function formatHours(totalSeconds: number) {
+//   return `${(totalSeconds / 3600).toFixed(1)} 小时`
+// }
 
 function buildPlanStageLabel(plan: TrainingPlan | null, weekStart: Date) {
   if (!plan?.start_date) {
@@ -847,86 +846,86 @@ function calculateTrainingStreak(logs: WorkoutLog[], planId: number | null) {
 
 type TrainingDay = ReturnType<typeof buildTrainingDays>[number]
 
-function TrainingStatsBar({
-  className,
-  completedSessions,
-  planTitle,
-  planTotalProgress,
-  planTotalSeconds,
-  stageLabel,
-  streakDays,
-  totalSessions,
-  weekCalories,
-  weekProgress,
-  weekSeconds,
-}: {
-  className?: string
-  completedSessions: number
-  planTitle: string
-  planTotalProgress: number
-  planTotalSeconds: number
-  stageLabel: string
-  streakDays: number
-  totalSessions: number
-  weekCalories: number
-  weekProgress: number
-  weekSeconds: number
-}) {
-  const stats = [
-    {
-      icon: CalendarIcon,
-      label: "当前计划",
-      sub: stageLabel,
-      value: planTitle,
-    },
-    {
-      icon: SlidersHorizontal,
-      label: "本周进度",
-      sub: `${weekProgress}% 完成`,
-      value: `${completedSessions} / ${totalSessions || 0} 次`,
-    },
-    {
-      icon: Timer,
-      label: "本周训练时长",
-      sub: `总累计 ${formatHours(planTotalSeconds)}`,
-      value: formatMinutes(weekSeconds),
-    },
-    {
-      icon: Flame,
-      label: "本周消耗",
-      sub: "来自训练记录",
-      value: `${weekCalories} kcal`,
-    },
-    {
-      icon: Trophy,
-      label: "连续训练",
-      sub: `计划总进度 ${planTotalProgress}%`,
-      value: `${streakDays} 天`,
-    },
-  ]
+// function TrainingStatsBar({
+//   className,
+//   completedSessions,
+//   planTitle,
+//   planTotalProgress,
+//   planTotalSeconds,
+//   stageLabel,
+//   streakDays,
+//   totalSessions,
+//   weekCalories,
+//   weekProgress,
+//   weekSeconds,
+// }: {
+//   className?: string
+//   completedSessions: number
+//   planTitle: string
+//   planTotalProgress: number
+//   planTotalSeconds: number
+//   stageLabel: string
+//   streakDays: number
+//   totalSessions: number
+//   weekCalories: number
+//   weekProgress: number
+//   weekSeconds: number
+// }) {
+//   const stats = [
+//     {
+//       icon: CalendarIcon,
+//       label: "当前计划",
+//       sub: stageLabel,
+//       value: planTitle,
+//     },
+//     {
+//       icon: SlidersHorizontal,
+//       label: "本周进度",
+//       sub: `${weekProgress}% 完成`,
+//       value: `${completedSessions} / ${totalSessions || 0} 次`,
+//     },
+//     {
+//       icon: Timer,
+//       label: "本周训练时长",
+//       sub: `总累计 ${formatHours(planTotalSeconds)}`,
+//       value: formatMinutes(weekSeconds),
+//     },
+//     {
+//       icon: Flame,
+//       label: "本周消耗",
+//       sub: "来自训练记录",
+//       value: `${weekCalories} kcal`,
+//     },
+//     {
+//       icon: Trophy,
+//       label: "连续训练",
+//       sub: `计划总进度 ${planTotalProgress}%`,
+//       value: `${streakDays} 天`,
+//     },
+//   ]
 
-  return (
-    <div className={cn("grid gap-3 sm:grid-cols-2 xl:grid-cols-5", className)}>
-      {stats.map(({ icon: Icon, label, sub, value }) => (
-        <div
-          className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-3"
-          key={label}
-        >
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-            <Icon className="size-4" strokeWidth={1.8} />
-          </span>
-          <div className="min-w-0">
-            <p className="text-[12px] text-muted-foreground">{label}</p>
-            <p className="truncate text-[15px] font-semibold">{value}</p>
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-              {sub}
-            </p>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
+//   return (
+//     <div className={cn("grid gap-3 sm:grid-cols-2 xl:grid-cols-5", className)}>
+//       {stats.map(({ icon: Icon, label, sub, value }) => (
+//         <div
+//           className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-3"
+//           key={label}
+//         >
+//           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+//             <Icon className="size-4" strokeWidth={1.8} />
+//           </span>
+//           <div className="min-w-0">
+//             <p className="text-[12px] text-muted-foreground">{label}</p>
+//             <p className="truncate text-[15px] font-semibold">{value}</p>
+//             <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+//               {sub}
+//             </p>
+//           </div>
+//         </div>
+//       ))}
+//     </div>
+//   )
+// }
 
 function TodayTrainingHero({
   anotherTrainingActive,
@@ -1176,9 +1175,9 @@ function WeeklyTrainingTimeline({
   calendarMenuRef,
   calendarOpen,
   calendarVisibleDate,
-  completedSessions,
+  // completedSessions,
   completedDateSet,
-  completedExercises,
+  // completedExercises,
   onCalendarSelectDate,
   onCalendarVisibleDateChange,
   onDeletePlan,
@@ -1188,22 +1187,22 @@ function WeeklyTrainingTimeline({
   onSelectDate,
   onSelectPlan,
   onToggleCalendar,
-  planTitle,
-  planTotalProgress,
-  planTotalSeconds,
+  // planTitle,
+  // planTotalProgress,
+  // planTotalSeconds,
   onWeekBackward,
   onWeekForward,
   selectedDate,
-  stageLabel,
-  streakDays,
+  // stageLabel,
+  // streakDays,
   trainingDays,
   trainingPlans,
-  totalSessions,
-  weekCalories,
-  weekProgress,
+  // totalSessions,
+  // weekCalories,
+  // weekProgress,
   weekRangeLabel,
   weekStart,
-  weekSeconds,
+  // weekSeconds,
   workoutLogs,
 }: {
   activePlan: TrainingPlan | null

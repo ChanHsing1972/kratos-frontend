@@ -12,7 +12,6 @@ import {
   DialogTitle,
 } from "@/shared/ui/dialog"
 import { Field } from "@/shared/ui/field"
-import { Label } from "@/shared/ui/label"
 import { Textarea } from "@/shared/ui/textarea"
 
 type TrainingFeedbackModalProps = {
