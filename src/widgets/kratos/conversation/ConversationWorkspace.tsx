@@ -119,8 +119,8 @@ export function ConversationWorkspace({
         ) : (
           <>
             <div className="relative min-h-0 flex-1">
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-background via-background/88 to-transparent" />
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 bg-gradient-to-b from-transparent via-background/72 to-background" />
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 bg-gradient-to-b from-card via-card/55 to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 bg-gradient-to-b from-transparent via-card/55 to-card" />
               <div
                 className="h-full min-h-0 overflow-y-auto bg-card"
                 ref={scrollViewportRef}
@@ -143,7 +143,7 @@ export function ConversationWorkspace({
             </div>
 
             <div className="relative shrink-0 bg-card px-5 pt-1 pb-3 sm:px-6">
-              <div className="pointer-events-none absolute inset-x-0 -top-10 h-10 bg-gradient-to-b from-transparent via-background/72 to-background" />
+              <div className="pointer-events-none absolute inset-x-0 -top-8 h-8 bg-gradient-to-b from-transparent via-card/50 to-card" />
               <div className="mx-auto w-full max-w-[820px]">
                 <ConversationComposer
                   onAttachment={onAttachment}

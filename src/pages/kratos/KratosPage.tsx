@@ -121,6 +121,16 @@ import type {
   WorkoutLog,
 } from "@/entities/kratos/model/types"
 import { Button } from "@/shared/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/ui/alert-dialog"
 
 type TrainingSession = {
   actionIds: string[]
@@ -166,6 +176,8 @@ export function KratosPage() {
   const [editingTrainingPlanId, setEditingTrainingPlanId] = useState<
     number | null
   >(null)
+  const [deletingPlan, setDeletingPlan] = useState<TrainingPlan | null>(null)
+  const [deletingSkill, setDeletingSkill] = useState<Skill | null>(null)
   const [trainingPlanSubmitting, setTrainingPlanSubmitting] = useState(false)
   const [trainingPlanError, setTrainingPlanError] = useState<string | null>(
     null
@@ -1370,19 +1382,21 @@ export function KratosPage() {
       return
     }
 
-    const confirmed = window.confirm(
-      `确定删除「${plan.title}」吗？相关训练记录会保留。`
-    )
-    if (!confirmed) {
-      return
-    }
+    setDeletingPlan(plan)
+  }
+
+  const executeDeleteTrainingPlan = async () => {
+    if (!deletingPlan) return
+
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) return
 
     setDashboardLoading(true)
 
     try {
-      await deleteTrainingPlan(token, plan.id)
+      await deleteTrainingPlan(token, deletingPlan.id)
       setTrainingPlans((current) =>
-        current.filter((item) => item.id !== plan.id)
+        current.filter((item) => item.id !== deletingPlan.id)
       )
       await refreshDashboard(token, { preserveMessages: true })
       sonnerToast.success("训练计划已删除")
@@ -1390,6 +1404,7 @@ export function KratosPage() {
       sonnerToast.error(getErrorMessage(error))
     } finally {
       setDashboardLoading(false)
+      setDeletingPlan(null)
     }
   }
 
@@ -1480,17 +1495,21 @@ export function KratosPage() {
       return
     }
 
-    const confirmed = window.confirm(`确定删除「${skill.name}」吗？`)
-    if (!confirmed) {
-      return
-    }
+    setDeletingSkill(skill)
+  }
+
+  const executeDeleteSkill = async () => {
+    if (!deletingSkill) return
+
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) return
 
     setSkillSubmitting(true)
     setSkillError(null)
 
     try {
-      await deleteSkill(token, skill.id)
-      setSkills((current) => current.filter((item) => item.id !== skill.id))
+      await deleteSkill(token, deletingSkill.id)
+      setSkills((current) => current.filter((item) => item.id !== deletingSkill.id))
       sonnerToast.success("Skill 已删除")
     } catch (error) {
       const message = getErrorMessage(error)
@@ -1498,6 +1517,7 @@ export function KratosPage() {
       sonnerToast.error(message)
     } finally {
       setSkillSubmitting(false)
+      setDeletingSkill(null)
     }
   }
 
@@ -1799,6 +1819,42 @@ export function KratosPage() {
       />
       <DetailModal panel={detailPanel} onClose={() => setDetailPanel(null)} />
       <Toaster position="bottom-right" />
+
+      <AlertDialog open={!!deletingPlan} onOpenChange={(open) => {
+        if (!open) setDeletingPlan(null)
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定删除「{deletingPlan?.title}」吗？</AlertDialogTitle>
+            <AlertDialogDescription>相关训练记录会保留。</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={dashboardLoading}>取消</AlertDialogCancel>
+            <AlertDialogAction disabled={dashboardLoading} onClick={(e) => {
+              e.preventDefault()
+              executeDeleteTrainingPlan()
+            }}>确定</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deletingSkill} onOpenChange={(open) => {
+        if (!open) setDeletingSkill(null)
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定删除「{deletingSkill?.name}」吗？</AlertDialogTitle>
+            <AlertDialogDescription>此操作无法撤销。</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={skillSubmitting}>取消</AlertDialogCancel>
+            <AlertDialogAction disabled={skillSubmitting} onClick={(e) => {
+              e.preventDefault()
+              executeDeleteSkill()
+            }}>确定</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
