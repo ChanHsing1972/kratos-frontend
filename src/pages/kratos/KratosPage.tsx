@@ -747,6 +747,7 @@ export function KratosPage() {
     nextSkills: Skill[],
     _options: { preserveMessages?: boolean } = {}
   ) {
+    void _options
     setFitnessContext(context)
     setTrainingPlans(plans)
     setSkills(nextSkills)
@@ -896,36 +897,43 @@ export function KratosPage() {
     ])
     setComposerValue("")
 
+    let handledStreamSessionId: string | null = null
+
     try {
       await streamAgentChat({
         message: body,
         onEvent: (event) => {
-          if (event.session_id) {
-            const nextSessionId = event.session_id
+          if (event.session_id && event.session_id !== handledStreamSessionId) {
+            handledStreamSessionId = event.session_id
+            const serverSessionId = event.session_id
             const sessionTitle = titleFromPrompt(body)
-            setActiveSessionId(nextSessionId)
-            writeActiveAgentSessionId(nextSessionId)
-            setActiveNav(nextSessionId)
+            const optimisticSessionId = nextSessionId
+            nextSessionId = serverSessionId
+            setActiveSessionId(serverSessionId)
+            writeActiveAgentSessionId(serverSessionId)
+            setActiveNav(serverSessionId)
             setChatSessions((current) => {
-              if (current.some((session) => session.id === nextSessionId)) {
-                return current
+              const withoutOptimistic =
+                optimisticSessionId && optimisticSessionId !== serverSessionId
+                  ? current.filter((session) => session.id !== optimisticSessionId)
+                  : current
+
+              if (withoutOptimistic.some((session) => session.id === serverSessionId)) {
+                return [...withoutOptimistic].sort(sortChatSessions)
               }
 
               return [
                 {
-                  id: nextSessionId,
+                  id: serverSessionId,
                   title: sessionTitle,
                   preview: body,
                   updatedAt: new Date().toISOString(),
                   messageCount: 2,
                   pinned: false,
                 },
-                ...current,
+                ...withoutOptimistic,
               ].sort(sortChatSessions)
             })
-            void renameAgentSession(token, nextSessionId, sessionTitle).catch(
-              () => undefined
-            )
           }
 
           setMessages((current) =>
@@ -990,6 +998,9 @@ export function KratosPage() {
         signal: controller.signal,
         token,
       })
+      if (nextSessionId) {
+        await syncConversationSessions(token, nextSessionId)
+      }
       await refreshDashboard(token, { preserveMessages: true })
     } catch (error) {
       if (controller.signal.aborted) {
