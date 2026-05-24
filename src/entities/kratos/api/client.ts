@@ -203,10 +203,11 @@ export async function listAgentRuns(token: string, limit = 50) {
 
 export async function listAgentRunsForSession(
   token: string,
-  sessionId: string
+  sessionId: string,
+  limit = 200
 ) {
   return authorizedJson<AgentRun[]>(
-    `/agent/runs?session_id=${encodeURIComponent(sessionId)}`,
+    `/agent/runs?session_id=${encodeURIComponent(sessionId)}&limit=${encodeURIComponent(limit)}`,
     token
   )
 }

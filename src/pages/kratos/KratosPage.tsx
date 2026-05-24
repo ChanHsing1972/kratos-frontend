@@ -490,7 +490,7 @@ export function KratosPage() {
       limit: 200,
     })
     const nextSessions = chatSessionsFromAgentSessions(sessions)
-      .filter((session) => !session.deleted)
+      .filter((session) => !session.deleted && session.messageCount > 0)
       .sort(sortChatSessions)
     setChatSessions(nextSessions)
 
@@ -516,18 +516,31 @@ export function KratosPage() {
       ])
 
       const mappedSession = chatSessionFromAgentSession(session)
+      if (runs.length === 0) {
+        setChatSessions((current) => current.filter((item) => item.id !== sessionId))
+        if (activeSessionId === sessionId) {
+          setActiveSessionId(null)
+          writeActiveAgentSessionId(null)
+          setActiveNav("new")
+        }
+        throw new Error(
+          session.run_count > 0
+            ? "会话元信息存在，但消息记录未返回，请刷新后重试"
+            : "这是一个没有消息的空会话，已从历史列表移除"
+        )
+      }
+
       setChatSessions((current) =>
         [mappedSession, ...current.filter((item) => item.id !== sessionId)]
           .filter((item) => !item.deleted)
           .sort(sortChatSessions)
       )
+
       setMessages(
-        runs.length
-          ? markGeneratedTrainingPlanMessages(
-            chatMessagesFromAgentRuns(runs),
-            generatedTrainingPlanKeys
-          )
-          : initialMessages
+        markGeneratedTrainingPlanMessages(
+          chatMessagesFromAgentRuns(runs),
+          generatedTrainingPlanKeys
+        )
       )
       setActiveSessionId(sessionId)
       writeActiveAgentSessionId(sessionId)
