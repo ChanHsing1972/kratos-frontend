@@ -439,6 +439,9 @@ function buildTrainingDays(plan: TrainingPlan | null, weekStart: Date) {
 }
 
 function isDailyTrainingPlan(plan: TrainingPlan | null) {
+  if (plan?.plan_kind) {
+    return plan.plan_kind === "daily"
+  }
   const lines = getPlanExerciseLines(plan).filter(isTrainingDayLine)
   if (!plan || lines.length !== 1) {
     return false

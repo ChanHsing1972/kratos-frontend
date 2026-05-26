@@ -13,6 +13,7 @@ import type {
   ProfileForm,
   TrainingPlan,
   TrainingPlanPayload,
+  TrainingSchedule,
   TrainingPlanTemplate,
   UserProfile,
   WorkoutLog,
@@ -274,6 +275,7 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
         author: "assistant" as const,
         body: run.answer,
         suggestedTrainingPlan: trainingPlanPayloadFromAgentResult(run.result_payload),
+        suggestedHealthData: pendingHealthDataFromTrace(run.trace_steps),
         time: formatStoredTime(run.created_at),
         trace: run.trace_steps
           .sort((left, right) => left.position - right.position)
@@ -314,10 +316,53 @@ export function trainingPlanPayloadFromAgentResult(
       ? precautions.join("\n")
       : "训练前充分热身，训练后完成拉伸；如出现疼痛或明显疲劳，及时降低强度。",
     start_date: localTrainingDateValue(new Date()),
-    status: "active",
+    status: "draft",
+    duration_weeks: numberValue(workoutPlan.duration_weeks) ?? (sessions.length > 1 ? 4 : null),
+    plan_kind: sessions.length === 1 ? "daily" : "program",
+    schedule_json: buildStructuredSchedule(sessions),
     summary: buildWorkoutPlanSummary(title, goal, sessions),
     title,
     weekly_schedule: weeklySchedule,
+  }
+}
+
+function pendingHealthDataFromTrace(traceSteps: AgentRunTraceStep[]) {
+  for (const step of traceSteps) {
+    const raw = asRecord(step.raw)
+    const pending = asRecord(raw?.pending_health_data)
+    if (pending) {
+      return pending
+    }
+  }
+  return undefined
+}
+
+function buildStructuredSchedule(sessions: Record<string, unknown>[]): TrainingSchedule | null {
+  if (!sessions.length) {
+    return null
+  }
+  const weekDays =
+    sessions.length === 1
+      ? [weekdayLabel(new Date())]
+      : ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+  const structuredSessions = sessions.map((session, index) => ({
+    exercises: asRecordArray(session.exercises).map((exercise, exerciseIndex) => ({
+      id: `agent-exercise-${index}-${exerciseIndex}`,
+      name: textValue(exercise.name) ?? textValue(exercise.title) ?? `动作 ${exerciseIndex + 1}`,
+      notes: textValue(exercise.notes),
+      rest_seconds: null,
+      target_reps: textValue(exercise.reps),
+      target_rpe: null,
+      target_sets: numberValue(exercise.sets),
+      target_weight_kg: null,
+    })),
+    id: `agent-session-${index}`,
+    title: textValue(session.title) ?? textValue(session.focus) ?? `训练 ${index + 1}`,
+    weekday: weekDays[index % weekDays.length],
+  }))
+  return {
+    version: 1,
+    weeks: [{ sessions: structuredSessions, week: 1 }],
   }
 }
 

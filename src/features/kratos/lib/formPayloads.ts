@@ -142,6 +142,8 @@ export function buildBodyPayload(
     return null
   }
   const notes = compactOptionalText(form.notes)
+  const mood = compactOptionalText(form.mood)
+  const painNotes = compactOptionalText(form.painNotes)
 
   for (const [label, value] of [
     ["精力", energyLevel],
@@ -157,11 +159,19 @@ export function buildBodyPayload(
   return {
     checkin: compactPayload({
       energy_level: energyLevel,
+      sleep_hours: sleepHours,
       sleep_quality: sleepQuality,
       soreness_level: sorenessLevel,
+      mood,
+      pain_notes: painNotes,
     }),
     hasCheckinData:
-      energyLevel !== null || sleepQuality !== null || sorenessLevel !== null,
+      energyLevel !== null ||
+      sleepHours !== null ||
+      sleepQuality !== null ||
+      sorenessLevel !== null ||
+      mood !== null ||
+      painNotes !== null,
     hasMetricData:
       heightCm !== null ||
       weightKg !== null ||
@@ -172,7 +182,6 @@ export function buildBodyPayload(
       chestCm !== null ||
       waistCm !== null ||
       hipCm !== null ||
-      sleepHours !== null ||
       notes !== null,
     metric: compactPayload({
       height_cm: heightCm,
@@ -184,7 +193,6 @@ export function buildBodyPayload(
       chest_cm: chestCm,
       waist_cm: waistCm,
       hip_cm: hipCm,
-      sleep_hours: sleepHours,
       notes,
     }),
   }

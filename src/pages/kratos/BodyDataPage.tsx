@@ -4,9 +4,12 @@ import {
   ChevronRight,
   Circle,
   ClipboardList,
+  Download,
   Gauge,
+  Pencil,
   PlusCircle,
   Scale,
+  Trash2,
   Utensils,
 } from "lucide-react"
 
@@ -22,7 +25,7 @@ import type {
 } from "@/entities/kratos/model/types"
 import { KratosPageHeader } from "@/widgets/kratos/layout/KratosPageHeader"
 
-const BODY_DATA_TABS = ["概览", "体成分", "围度", "恢复状态", "力量表现", "心肺健康", "体能测试", "健康指标"] as const
+const BODY_DATA_TABS = ["概览", "体成分", "围度", "恢复状态", "训练表现"] as const
 type BodyDataTab = (typeof BODY_DATA_TABS)[number]
 
 type BodyDataPageProps = {
@@ -30,6 +33,9 @@ type BodyDataPageProps = {
   latestCheckin: AgentCheckin | null
   latestMetric: BodyMetric | null
   onEditBodyData: () => void
+  onEditBodyMetric: (metric: BodyMetric) => void
+  onDeleteBodyMetric: (metric: BodyMetric) => void
+  onExportBodyData: () => void
   onboarding: OnboardingStatus | null
   profile: FitnessProfile | null
   workoutLogs: WorkoutLog[]
@@ -40,6 +46,9 @@ export function BodyDataPage({
   latestCheckin,
   latestMetric,
   onEditBodyData,
+  onEditBodyMetric,
+  onDeleteBodyMetric,
+  onExportBodyData,
   onboarding,
   profile,
   workoutLogs,
@@ -59,7 +68,7 @@ export function BodyDataPage({
   const chest = latestMetric?.chest_cm ?? null
   const waist = latestMetric?.waist_cm ?? null
   const hip = latestMetric?.hip_cm ?? null
-  const sleepHours = latestMetric?.sleep_hours ?? null
+  const sleepHours = latestCheckin?.sleep_hours ?? latestMetric?.sleep_hours ?? null
   const bmi = latestMetric?.bmi ?? calculateBmi(latestMetric)
   const age = profile?.age ?? null
   const targetWeight = latestMetric?.target_weight_kg ?? null
@@ -68,7 +77,7 @@ export function BodyDataPage({
   const weightChange = formatMetricChange(weightSeries, "kg")
   const bodyFatChange = formatMetricChange(bodyFatSeries, "%")
   const muscleChange = formatMetricChange(muscleSeries, "kg")
-  const sleepChange = formatMetricChange(sleepSeries, "h")
+  const sleepChange = latestCheckin?.sleep_hours != null ? "来自最近恢复打卡" : formatMetricChange(sleepSeries, "h")
   const weightProgress = calculateTargetProgress(weightSeries[0]?.value ?? null, weight, targetWeight)
   const trendInsight = buildTrendInsight({
     bodyFatSeries,
@@ -87,6 +96,10 @@ export function BodyDataPage({
             subtitle="全面了解您的身体状态变化趋势"
             actions={
               <>
+                <Button className="h-10 rounded-[8px]" onClick={onExportBodyData} type="button" variant="outline">
+                  <Download className="size-4" />
+                  导出数据
+                </Button>
                 <button className="inline-flex h-9 items-center gap-2 rounded-[8px] border border-[#e5e5e5] px-4 text-[13px] font-semibold">
                   {dateRange}
                   <Calendar className="size-4" />
@@ -185,8 +198,8 @@ export function BodyDataPage({
             <RecoveryPanel latestCheckin={latestCheckin} sleepHours={sleepHours} />
           ) : null}
 
-          {["力量表现", "心肺健康", "体能测试", "健康指标"].includes(activeTab) ? (
-            <EmptyDataPanel title={activeTab} description="当前后端还没有对应的数据表或字段，后续接入后再展示真实数据。" />
+          {activeTab === "训练表现" ? (
+            <TrainingPerformancePanel workoutLogs={workoutLogs} />
           ) : null}
           <p className="mt-6 text-center text-[12px] text-muted-foreground">* 所有数据基于您的录入与设备监测量，如有误差请以实际情况为准。</p>
         </section>
@@ -201,6 +214,9 @@ export function BodyDataPage({
           latestMetric={latestMetric}
           muscle={muscle}
           onEditBodyData={onEditBodyData}
+          onEditBodyMetric={onEditBodyMetric}
+          onDeleteBodyMetric={onDeleteBodyMetric}
+          bodyMetrics={bodyMetrics}
           onboarding={onboarding}
           workoutLogs={workoutLogs}
           trendInsight={trendInsight}
@@ -222,6 +238,9 @@ function BodyRightRail({
   latestMetric,
   muscle,
   onEditBodyData,
+  onEditBodyMetric,
+  onDeleteBodyMetric,
+  bodyMetrics,
   onboarding,
   trendInsight,
   waist,
@@ -236,6 +255,9 @@ function BodyRightRail({
   latestMetric: BodyMetric | null
   muscle: number | null
   onEditBodyData: () => void
+  onEditBodyMetric: (metric: BodyMetric) => void
+  onDeleteBodyMetric: (metric: BodyMetric) => void
+  bodyMetrics: BodyMetric[]
   onboarding: OnboardingStatus | null
   trendInsight: string
   waist: number | null
@@ -250,6 +272,27 @@ function BodyRightRail({
           <BodyOverviewCell label="体脂等级" value={bodyFat ? getBodyFatLevel(bodyFat) : "暂无记录"} sub={formatMetricWithUnit(bodyFat, "%")} bordered />
           <BodyOverviewCell label="腰围" value={formatMetricWithUnit(waist, "cm")} sub={waist ? "已记录" : "暂无记录"} />
           <BodyOverviewCell label="骨骼肌量" value={formatMetricWithUnit(muscle, "kg")} sub={muscle ? "已记录" : "暂无记录"} bordered />
+        </div>
+      </section>
+      <section className="rounded-[12px] border border-border bg-card p-5">
+        <RailHeader title="测量历史" compact />
+        <p className="mt-2 text-[12px] text-muted-foreground">每次录入保留独立时间点，可修正或删除误录记录。</p>
+        <div className="mt-3 divide-y divide-border">
+          {bodyMetrics.slice(0, 5).map((metric) => (
+            <div className="flex items-center gap-2 py-3 text-[12px]" key={metric.id}>
+              <span className="flex-1">
+                {formatShortDate(metric.measured_at ?? metric.recorded_at) ?? "-"} · {formatMetricWithUnit(metric.weight_kg, "kg")}
+              </span>
+              <span className="text-muted-foreground">{formatMetricSource(metric.source)}</span>
+              <button aria-label="编辑测量记录" onClick={() => onEditBodyMetric(metric)} type="button">
+                <Pencil className="size-3.5 text-muted-foreground hover:text-foreground" />
+              </button>
+              <button aria-label="删除测量记录" onClick={() => onDeleteBodyMetric(metric)} type="button">
+                <Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" />
+              </button>
+            </div>
+          ))}
+          {!bodyMetrics.length ? <p className="py-3 text-[12px] text-muted-foreground">暂无测量记录</p> : null}
         </div>
       </section>
       <section className="rounded-[12px] border border-border bg-card p-5">
@@ -330,24 +373,41 @@ function CircumferenceCard({ label, series, value }: { label: string; series: Me
 }
 
 function RecoveryPanel({ latestCheckin, sleepHours }: { latestCheckin: AgentCheckin | null; sleepHours: number | null }) {
+  const displaySleepHours = latestCheckin?.sleep_hours ?? sleepHours
   return (
     <section className="mt-5 rounded-[12px] border border-border bg-card p-5">
-      <ChartHeader title="恢复状态" subtitle="来自 body_metrics 睡眠时长与 agent_checkins 主观打卡" />
+      <ChartHeader title="恢复状态" subtitle="来自每日恢复打卡；历史身体记录中的睡眠时长仍兼容展示" />
       <div className="mt-5 grid gap-4 md:grid-cols-4">
-        <BodyOverviewCell label="睡眠时长" value={formatMetricWithUnit(sleepHours, "h")} sub="body_metrics.sleep_hours" />
-        <BodyOverviewCell label="精力" value={formatScore(latestCheckin?.energy_level)} sub="agent_checkins.energy_level" bordered />
-        <BodyOverviewCell label="睡眠质量" value={formatScore(latestCheckin?.sleep_quality)} sub="agent_checkins.sleep_quality" bordered />
-        <BodyOverviewCell label="酸痛" value={formatScore(latestCheckin?.soreness_level)} sub="agent_checkins.soreness_level" bordered />
+        <BodyOverviewCell label="睡眠时长" value={formatMetricWithUnit(displaySleepHours, "h")} sub="每日打卡" />
+        <BodyOverviewCell label="精力" value={formatScore(latestCheckin?.energy_level)} sub="每日打卡" bordered />
+        <BodyOverviewCell label="睡眠质量" value={formatScore(latestCheckin?.sleep_quality)} sub="每日打卡" bordered />
+        <BodyOverviewCell label="酸痛" value={formatScore(latestCheckin?.soreness_level)} sub="每日打卡" bordered />
       </div>
     </section>
   )
 }
 
-function EmptyDataPanel({ description, title }: { description: string; title: string }) {
+function formatMetricSource(source: string | null | undefined) {
+  if (source === "chat_confirmation") return "对话确认"
+  if (source === "onboarding") return "建档录入"
+  return "手动录入"
+}
+
+function TrainingPerformancePanel({ workoutLogs }: { workoutLogs: WorkoutLog[] }) {
+  const completed = workoutLogs.filter((log) => log.completed).length
+  const duration = workoutLogs.reduce((total, log) => total + (log.duration_minutes ?? 0), 0)
+  const setCount = workoutLogs.reduce(
+    (total, log) => total + (log.exercises ?? []).reduce((count, exercise) => count + exercise.sets.length, 0),
+    0
+  )
   return (
-    <section className="mt-5 rounded-[12px] border border-dashed border-border bg-card p-8 text-center">
-      <h3 className="text-[18px] font-black">{title}</h3>
-      <p className="mx-auto mt-2 max-w-[460px] text-[13px] leading-6 text-muted-foreground">{description}</p>
+    <section className="mt-5 rounded-[12px] border border-border bg-card p-5">
+      <ChartHeader title="训练表现" subtitle="来自真实训练日志与动作组记录" />
+      <div className="mt-5 grid gap-4 md:grid-cols-3">
+        <BodyOverviewCell label="完成训练" value={`${completed} 次`} sub="已完成日志" />
+        <BodyOverviewCell label="累计时长" value={`${duration} 分钟`} sub="训练记录" bordered />
+        <BodyOverviewCell label="记录组数" value={`${setCount} 组`} sub="进阶记录" bordered />
+      </div>
     </section>
   )
 }

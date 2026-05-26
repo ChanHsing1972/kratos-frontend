@@ -17,6 +17,7 @@ export function TrainingPlanSuggestionCard({
   onEdit,
   plan,
 }: TrainingPlanSuggestionCardProps) {
+  const isProgram = plan.plan_kind === "program"
   const scheduleLines =
     plan.weekly_schedule
       ?.split(/\r?\n/)
@@ -29,7 +30,7 @@ export function TrainingPlanSuggestionCard({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-            AI 训练计划草稿
+            {isProgram ? "AI 周期计划草稿" : "AI 今日训练建议"}
           </p>
           <h4 className="mt-1 text-[15px] font-black tracking-[-0.03em] text-foreground">
             {plan.title}
@@ -37,6 +38,11 @@ export function TrainingPlanSuggestionCard({
           {plan.goal ? (
             <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
               {plan.goal}
+            </p>
+          ) : null}
+          {isProgram && plan.duration_weeks ? (
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              周期：{plan.duration_weeks} 周
             </p>
           ) : null}
         </div>
@@ -68,7 +74,7 @@ export function TrainingPlanSuggestionCard({
           onClick={onCreate}
           type="button"
         >
-          {created ? "已保存到训练计划" : loading ? "生成中..." : "生成训练计划"}
+          {created ? "已保存到训练计划" : loading ? "保存中..." : isProgram ? "保存草稿" : "生成今日计划"}
           <ChevronRight className="size-3.5" />
         </button>
         <button

@@ -9,12 +9,15 @@ import { copyText } from "@/shared/lib/clipboard"
 import { MarkdownMessage } from "@/widgets/kratos/conversation/MarkdownMessage"
 import { ThinkingCard, ThinkingDots } from "@/widgets/kratos/conversation/ThinkingTrace"
 import { TrainingPlanSuggestionCard } from "@/widgets/kratos/conversation/TrainingPlanSuggestionCard"
+import { HealthDataConfirmationCard } from "@/widgets/kratos/conversation/HealthDataConfirmationCard"
 
 type ChatBubbleProps = {
   creatingTrainingPlan: boolean
   message: ChatMessage
   onCreateTrainingPlan: (messageId: string, payload: TrainingPlanPayload) => void
   onEditTrainingPlanDraft: (payload: TrainingPlanPayload) => void
+  onConfirmHealthData: (messageId: string) => void
+  confirmingHealthData: boolean
   onToggleThinking: () => void
   thinkingExpanded: boolean
 }
@@ -24,6 +27,8 @@ export function ChatBubble({
   message,
   onCreateTrainingPlan,
   onEditTrainingPlanDraft,
+  onConfirmHealthData,
+  confirmingHealthData,
   onToggleThinking,
   thinkingExpanded,
 }: ChatBubbleProps) {
@@ -113,6 +118,15 @@ export function ChatBubble({
               }
               onEdit={() => onEditTrainingPlanDraft(message.suggestedTrainingPlan!)}
               plan={message.suggestedTrainingPlan}
+            />
+          ) : null}
+
+          {message.suggestedHealthData && !message.streaming ? (
+            <HealthDataConfirmationCard
+              data={message.suggestedHealthData}
+              loading={confirmingHealthData}
+              onConfirm={() => onConfirmHealthData(message.id)}
+              saved={Boolean(message.healthDataSaved)}
             />
           ) : null}
 

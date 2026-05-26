@@ -23,6 +23,7 @@ import { Slider } from "@/shared/ui/slider"
 
 type BodyMetricModalProps = {
   error: string | null
+  initialForm?: BodyMetricForm | null
   loading: boolean
   onClose: () => void
   onSubmit: (form: BodyMetricForm) => void
@@ -30,13 +31,16 @@ type BodyMetricModalProps = {
 }
 
 const emptyBodyMetricForm: BodyMetricForm = {
+  measuredAt: localDatetimeValue(new Date()),
   bmi: "",
   bodyFatPercentage: "",
   chestCm: "",
   energyLevel: "",
   heightCm: "",
   hipCm: "",
+  mood: "",
   notes: "",
+  painNotes: "",
   skeletalMuscleMassKg: "",
   sleepHours: "",
   sleepQuality: "",
@@ -48,12 +52,13 @@ const emptyBodyMetricForm: BodyMetricForm = {
 
 export function BodyMetricModal({
   error,
+  initialForm,
   loading,
   onClose,
   onSubmit,
   open,
 }: BodyMetricModalProps) {
-  const [form, setForm] = useState<BodyMetricForm>(emptyBodyMetricForm)
+  const [form, setForm] = useState<BodyMetricForm>(initialForm ?? emptyBodyMetricForm)
   const [moreOpen, setMoreOpen] = useState(false)
 
   if (!open) {
@@ -84,13 +89,20 @@ export function BodyMetricModal({
             身体数据
           </DialogTitle>
           <DialogDescription>
-            记录身体数据有助于训练计划的调整和恢复状态的跟踪。
+            记录将作为独立时间点保存并自动标记来源，用于趋势与训练调整。身体及恢复信息仅在您确认后记录，您可在身体数据页修正或删除误录。
           </DialogDescription>
         </DialogHeader>
 
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit}>
           <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar">
             <div className="grid gap-5 pb-5">
+          <MetricInput
+            label="测量时间"
+            onChange={(value) => updateField("measuredAt", value)}
+            placeholder=""
+            type="datetime-local"
+            value={form.measuredAt}
+          />
           <div className="grid gap-4 sm:grid-cols-3">
             <MetricInput
               label="身高"
@@ -149,6 +161,19 @@ export function BodyMetricModal({
               value={form.sorenessLevel}
             />
           </div>
+          <MetricInput
+            label="情绪状态"
+            onChange={(value) => updateField("mood", value)}
+            placeholder="例如：平稳、压力较大"
+            type="text"
+            value={form.mood}
+          />
+          <FormTextarea
+            label="疼痛/不适说明"
+            onChange={(value) => updateField("painNotes", value)}
+            placeholder="例如：深蹲时右膝刺痛，或训练中出现头晕"
+            value={form.painNotes}
+          />
 
           <div>
             <Button
@@ -262,6 +287,7 @@ function MetricInput({
   max,
   onChange,
   placeholder,
+  type,
   unit,
   value,
 }: {
@@ -269,6 +295,7 @@ function MetricInput({
   max?: number
   onChange: (value: string) => void
   placeholder: string
+  type?: string
   unit?: string
   value: string
 }) {
@@ -281,6 +308,7 @@ function MetricInput({
           min={0}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
+          type={type}
           value={value}
         />
         {unit && <InputGroupAddon align="inline-end">
@@ -289,6 +317,11 @@ function MetricInput({
       </InputGroup>
     </Field>
   )
+}
+
+function localDatetimeValue(date: Date) {
+  const offset = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
 }
 
 function RangeField({

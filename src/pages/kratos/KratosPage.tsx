@@ -12,7 +12,7 @@ import { toast as sonnerToast } from "sonner"
 import { initialMessages, initialNotifications } from "@/features/kratos/model/fixtures"
 import {
   AUTH_TOKEN_KEY,
-  createAgentSession,
+  activateTrainingPlan,
   createAgentCheckin,
   createBodyMetric,
   createMyFitnessProfile,
@@ -20,6 +20,7 @@ import {
   createTrainingPlan,
   createWorkoutLog,
   deleteAgentSession,
+  deleteBodyMetric,
   deleteSkill,
   deleteTrainingPlan,
   exportAgentRunRagas,
@@ -28,15 +29,17 @@ import {
   getErrorMessage,
   listAgentRunsForSession,
   listAgentSessions,
+  listAgentTools,
   listSkills,
   loginUser,
   previewTrainingPlanAdjustment,
   registerUser,
   renameAgentSession,
   streamAgentChat,
-  updateAgentCheckin,
-  updateBodyMetric,
   updateAgentSession,
+  updateAgentTool,
+  updateBodyMetric,
+  updateWorkoutLog,
   updateSkillBinding,
   updateMyFitnessProfile,
   updateTrainingPlan,
@@ -103,6 +106,7 @@ import { Toaster } from "@/shared/ui/sonner"
 import { useTheme } from "@/app/providers/theme-provider"
 import type {
   AgentCheckin,
+  AgentToolConfig,
   AgentRun,
   AuthForm,
   AuthMode,
@@ -125,6 +129,7 @@ import type {
   TrainingPlanPayload,
   UserProfile,
   WorkoutLog,
+  SuggestedHealthData,
 } from "@/entities/kratos/model/types"
 import { Button } from "@/shared/ui/button"
 import {
@@ -147,15 +152,80 @@ type TrainingSession = {
   workoutDate: string
 }
 
+function routeFromLocation() {
+  const path = window.location.pathname
+  const chatMatch = path.match(/^\/chat\/([^/]+)$/)
+  if (chatMatch && chatMatch[1] !== "new") {
+    return { nav: decodeURIComponent(chatMatch[1]), sessionId: decodeURIComponent(chatMatch[1]) }
+  }
+  if (path === "/training") return { nav: "训练计划", sessionId: null }
+  if (path === "/body") return { nav: "身体数据", sessionId: null }
+  if (path === "/capabilities") return { nav: "能力中心", sessionId: null }
+  return { nav: "new", sessionId: null }
+}
+
+function pushWorkspacePath(path: string) {
+  if (window.location.pathname !== path) {
+    window.history.pushState({}, "", path)
+  }
+}
+
+function replaceWorkspacePath(path: string) {
+  if (window.location.pathname !== path) {
+    window.history.replaceState({}, "", path)
+  }
+}
+
+function localDateValue(date: Date) {
+  const month = `${date.getMonth() + 1}`.padStart(2, "0")
+  const day = `${date.getDate()}`.padStart(2, "0")
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+function healthDataFromAgentRaw(raw: unknown): SuggestedHealthData | undefined {
+  if (!raw || typeof raw !== "object" || !("pending_health_data" in raw)) {
+    return undefined
+  }
+  const pending = raw.pending_health_data
+  return pending && typeof pending === "object"
+    ? (pending as SuggestedHealthData)
+    : undefined
+}
+
+function bodyMetricFormFromRecord(metric: BodyMetric): BodyMetricForm {
+  const measuredAt = metric.measured_at ?? metric.recorded_at
+  const date = new Date(measuredAt)
+  const offset = date.getTimezoneOffset() * 60_000
+  return {
+    measuredAt: new Date(date.getTime() - offset).toISOString().slice(0, 16),
+    bmi: metric.bmi?.toString() ?? "",
+    bodyFatPercentage: metric.body_fat_percentage?.toString() ?? "",
+    chestCm: metric.chest_cm?.toString() ?? "",
+    energyLevel: "",
+    heightCm: metric.height_cm?.toString() ?? "",
+    hipCm: metric.hip_cm?.toString() ?? "",
+    mood: "",
+    notes: metric.notes ?? "",
+    painNotes: "",
+    skeletalMuscleMassKg: metric.skeletal_muscle_mass_kg?.toString() ?? "",
+    sleepHours: "",
+    sleepQuality: "",
+    sorenessLevel: "",
+    targetWeightKg: metric.target_weight_kg?.toString() ?? "",
+    waistCm: metric.waist_cm?.toString() ?? "",
+    weightKg: metric.weight_kg?.toString() ?? "",
+  }
+}
+
 export function KratosPage() {
   const { setTheme, theme } = useTheme()
-  const [activeNav, setActiveNav] = useState("new")
+  const [activeNav, setActiveNav] = useState(() => routeFromLocation().nav)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
   const [conversationLoading, setConversationLoading] = useState(false)
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() =>
-    readActiveAgentSessionId()
+    routeFromLocation().sessionId ?? readActiveAgentSessionId()
   )
   const [authMode, setAuthMode] = useState<AuthMode>("login")
   const [authModalOpen, setAuthModalOpen] = useState(false)
@@ -174,6 +244,7 @@ export function KratosPage() {
   const [onboardingSubmitting, setOnboardingSubmitting] = useState(false)
   const [onboardingError, setOnboardingError] = useState<string | null>(null)
   const [bodyMetricModalOpen, setBodyMetricModalOpen] = useState(false)
+  const [editingBodyMetric, setEditingBodyMetric] = useState<BodyMetric | null>(null)
   const [bodyMetricSubmitting, setBodyMetricSubmitting] = useState(false)
   const [bodyMetricError, setBodyMetricError] = useState<string | null>(null)
   const [trainingPlanModalOpen, setTrainingPlanModalOpen] = useState(false)
@@ -201,8 +272,10 @@ export function KratosPage() {
   const [dashboardLoading, setDashboardLoading] = useState(false)
   const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>([])
   const [skills, setSkills] = useState<Skill[]>([])
+  const [tools, setTools] = useState<AgentToolConfig[]>([])
   const [skillSubmitting, setSkillSubmitting] = useState(false)
   const [skillError, setSkillError] = useState<string | null>(null)
+  const [confirmingHealthDataId, setConfirmingHealthDataId] = useState<string | null>(null)
   const [fitnessContext, setFitnessContext] = useState<FitnessContext | null>(
     null
   )
@@ -224,6 +297,7 @@ export function KratosPage() {
   const [trainingPaused, setTrainingPaused] = useState(false)
   const [trainingFeedbackOpen, setTrainingFeedbackOpen] = useState(false)
   const [trainingFeedback, setTrainingFeedback] = useState("")
+  const [trainingRpe, setTrainingRpe] = useState("")
   const [trainingFeedbackError, setTrainingFeedbackError] = useState<
     string | null
   >(null)
@@ -233,9 +307,12 @@ export function KratosPage() {
   const [lastCompletedWorkout, setLastCompletedWorkout] = useState<{
     completed: boolean
     durationSeconds: number
+    logId: number
+    log: WorkoutLog
     title: string
   } | null>(null)
   const activeStreamRef = useRef<AbortController | null>(null)
+  const sendLockRef = useRef(false)
 
   useEffect(() => {
     if (!profileMenuOpen && !notificationsOpen) {
@@ -258,16 +335,14 @@ export function KratosPage() {
 
   const unreadCount = notifications.filter((item) => !item.read).length
   const activePlan =
-    trainingPlans.find((plan) => plan.status === "active") ??
-    getLatestByDate(trainingPlans, (plan) => plan.updated_at) ??
-    null
+    trainingPlans.find((plan) => plan.status === "active") ?? null
   const activeSession =
     chatSessions.find((session) => session.id === activeSessionId) ?? null
   const activeSessionTitle = activeSession?.title ?? "新的训练对话"
   const latestMetric =
-    getLatestByDate(bodyMetrics, (metric) => metric.recorded_at) ?? null
+    getLatestByDate(bodyMetrics, (metric) => metric.measured_at ?? metric.recorded_at) ?? null
   const latestCheckin =
-    getLatestByDate(agentCheckins, (checkin) => checkin.created_at) ?? null
+    getLatestByDate(agentCheckins, (checkin) => checkin.checkin_date ?? checkin.created_at) ?? null
   const onboardingStatus: OnboardingStatus | null =
     fitnessContext?.onboarding ?? null
 
@@ -277,6 +352,9 @@ export function KratosPage() {
       clearCachedUser()
       setCurrentUser(null)
       setAuthLoading(false)
+      if (window.location.pathname === "/") {
+        replaceWorkspacePath("/chat/new")
+      }
       return
     }
 
@@ -285,27 +363,30 @@ export function KratosPage() {
     let ignore = false
 
     loadInitialAuthSnapshot(token)
-      .then(async ({ context, plans, runs, skills: nextSkills, user }) => {
+      .then(async ({ context, plans, runs, skills: nextSkills, tools: nextTools, user }) => {
         if (ignore) {
           return
         }
         writeCachedUser(user)
         setCurrentUser(user)
-        applyDashboardSnapshot(context, plans, runs, nextSkills)
+        applyDashboardSnapshot(context, plans, runs, nextSkills, nextTools)
         setOnboardingOpen(!context?.onboarding.ready_for_agent)
         const selectedSessionId = await syncConversationSessions(
           token,
-          readActiveAgentSessionId()
+          routeFromLocation().sessionId ?? readActiveAgentSessionId()
         )
 
         if (!selectedSessionId) {
           setMessages(initialMessages)
           setActiveSessionId(null)
           setActiveNav("new")
+          replaceWorkspacePath("/chat/new")
           return
         }
 
-        await loadConversationSession(token, selectedSessionId)
+        if (routeFromLocation().nav === "new" || routeFromLocation().sessionId) {
+          await loadConversationSession(token, selectedSessionId)
+        }
       })
       .catch(() => {
         if (ignore) {
@@ -327,6 +408,24 @@ export function KratosPage() {
       ignore = true
     }
     // Only restore persisted auth state on first mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const route = routeFromLocation()
+      setActiveNav(route.nav)
+      if (!route.sessionId) {
+        return
+      }
+      const token = localStorage.getItem(AUTH_TOKEN_KEY)
+      if (token) {
+        void loadConversationSession(token, route.sessionId)
+      }
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+    // Navigation handler should bind once; load uses current authenticated state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -395,6 +494,7 @@ export function KratosPage() {
         setMessages(initialMessages)
         setActiveSessionId(null)
         setActiveNav("new")
+        replaceWorkspacePath("/chat/new")
       }
 
       setAuthModalOpen(false)
@@ -423,6 +523,7 @@ export function KratosPage() {
     setBodyMetrics([])
     setWorkoutLogs([])
     setAgentCheckins([])
+    setTools([])
     setMessages(initialMessages)
     setActiveSessionId(null)
     writeActiveAgentSessionId(null)
@@ -430,16 +531,19 @@ export function KratosPage() {
     setProfileMenuOpen(false)
     setOnboardingOpen(false)
     setBodyMetricModalOpen(false)
+    pushWorkspacePath("/chat/new")
+    setActiveNav("new")
     sonnerToast.info("已退出登录")
   }
 
-  const openBodyMetricEditor = () => {
+  const openBodyMetricEditor = (metric: BodyMetric | null = null) => {
     if (!currentUser) {
       openAuth("login")
       return
     }
 
     setBodyMetricError(null)
+    setEditingBodyMetric(metric)
     setBodyMetricModalOpen(true)
   }
 
@@ -477,6 +581,15 @@ export function KratosPage() {
       return
     }
     setActiveNav(label)
+    pushWorkspacePath(
+      label === "训练计划"
+        ? "/training"
+        : label === "身体数据"
+          ? "/body"
+          : label === "能力中心"
+            ? "/capabilities"
+            : "/chat/new"
+    )
     setSidebarDrawerOpen(false)
   }
 
@@ -545,6 +658,7 @@ export function KratosPage() {
       setActiveSessionId(sessionId)
       writeActiveAgentSessionId(sessionId)
       setActiveNav(sessionId)
+      pushWorkspacePath(`/chat/${encodeURIComponent(sessionId)}`)
     } finally {
       setConversationLoading(false)
     }
@@ -558,6 +672,7 @@ export function KratosPage() {
     setComposerValue("")
     setAgentStreaming(false)
     setActiveNav("new")
+    pushWorkspacePath("/chat/new")
     setConversationLoading(false)
     setSidebarDrawerOpen(false)
     sonnerToast.success("已新建对话")
@@ -574,6 +689,7 @@ export function KratosPage() {
 
     try {
       await loadConversationSession(token, sessionId)
+      pushWorkspacePath(`/chat/${encodeURIComponent(sessionId)}`)
       sonnerToast.success("对话已切换")
     } catch (error) {
       sonnerToast.error(getErrorMessage(error), { richColors: true })
@@ -697,42 +813,69 @@ export function KratosPage() {
 
     try {
       if (bodyPayload.hasMetricData) {
-        const metric = latestMetric
-          ? await updateBodyMetric(token, latestMetric.id, bodyPayload.metric)
-          : await createBodyMetric(token, bodyPayload.metric)
+        const metricPayload = {
+          ...bodyPayload.metric,
+          measured_at: form.measuredAt
+            ? new Date(form.measuredAt).toISOString()
+            : new Date().toISOString(),
+          source: editingBodyMetric?.source ?? "manual",
+        }
+        const metric = editingBodyMetric
+          ? await updateBodyMetric(token, editingBodyMetric.id, metricPayload)
+          : await createBodyMetric(token, metricPayload)
         setBodyMetrics((current) =>
-          latestMetric
-            ? current.map((item) => (item.id === metric.id ? metric : item))
+          editingBodyMetric
+            ? current.map((item) => item.id === metric.id ? metric : item)
             : [metric, ...current]
         )
       }
 
       if (bodyPayload.hasCheckinData) {
-        const checkin = latestCheckin
-          ? await updateAgentCheckin(token, latestCheckin.id, {
-            ...bodyPayload.checkin,
-            summary: "手动更新恢复状态",
-          })
-          : await createAgentCheckin(token, {
-            ...bodyPayload.checkin,
-            summary: "手动更新恢复状态",
-            training_plan_id: activePlan?.id ?? null,
-          })
-        setAgentCheckins((current) =>
-          latestCheckin
-            ? current.map((item) => (item.id === checkin.id ? checkin : item))
-            : [checkin, ...current]
-        )
+        const checkin = await createAgentCheckin(token, {
+          ...bodyPayload.checkin,
+          checkin_date: localDateValue(new Date()),
+          source: "manual",
+          summary: "手动记录恢复状态",
+          training_plan_id: activePlan?.id ?? null,
+        })
+        setAgentCheckins((current) => [checkin, ...current])
       }
 
       await refreshDashboard(token, { preserveMessages: true })
       setBodyMetricModalOpen(false)
-      sonnerToast.success("身体数据已更新")
+      setEditingBodyMetric(null)
+      sonnerToast.success(editingBodyMetric ? "身体测量记录已修正" : "身体数据已更新")
     } catch (error) {
       setBodyMetricError(getErrorMessage(error))
     } finally {
       setBodyMetricSubmitting(false)
     }
+  }
+
+  const handleDeleteBodyMetric = async (metric: BodyMetric) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) return
+    try {
+      await deleteBodyMetric(token, metric.id)
+      setBodyMetrics((current) => current.filter((item) => item.id !== metric.id))
+      await refreshDashboard(token, { preserveMessages: true })
+      sonnerToast.success("身体测量记录已删除")
+    } catch (error) {
+      sonnerToast.error(getErrorMessage(error), { richColors: true })
+    }
+  }
+
+  const handleExportBodyData = () => {
+    downloadJsonFile(
+      {
+        exported_at: new Date().toISOString(),
+        body_metrics: bodyMetrics,
+        recovery_checkins: agentCheckins,
+        workout_logs: workoutLogs,
+      },
+      `kratos-health-data-${localDateValue(new Date())}.json`
+    )
+    sonnerToast.success("身体与训练数据已导出")
   }
 
   const refreshDashboard = async (
@@ -742,8 +885,8 @@ export function KratosPage() {
     setDashboardLoading(true)
 
     try {
-      const { context, plans, runs, skills: nextSkills } = await loadDashboardSnapshot(token)
-      applyDashboardSnapshot(context, plans, runs, nextSkills, options)
+      const { context, plans, runs, skills: nextSkills, tools: nextTools } = await loadDashboardSnapshot(token)
+      applyDashboardSnapshot(context, plans, runs, nextSkills, nextTools, options)
       return context
     } catch (error) {
       sonnerToast.error(getErrorMessage(error), { richColors: true })
@@ -758,12 +901,14 @@ export function KratosPage() {
     plans: TrainingPlan[],
     _runs: AgentRun[],
     nextSkills: Skill[],
+    nextTools: AgentToolConfig[],
     _options: { preserveMessages?: boolean } = {}
   ) {
     void _options
     setFitnessContext(context)
     setTrainingPlans(plans)
     setSkills(nextSkills)
+    setTools(nextTools)
     setSkillError(null)
     setFitnessProfile(context.profile)
     setBodyMetrics(context.recent_body_metrics)
@@ -809,21 +954,20 @@ export function KratosPage() {
       setFitnessProfile(updatedProfile)
 
       if (bodyPayload.hasMetricData) {
-        await (latestMetric
-          ? updateBodyMetric(token, latestMetric.id, bodyPayload.metric)
-          : createBodyMetric(token, bodyPayload.metric))
+        await createBodyMetric(token, {
+          ...bodyPayload.metric,
+          measured_at: new Date().toISOString(),
+          source: "onboarding",
+        })
       }
       if (bodyPayload.hasCheckinData) {
-        await (latestCheckin
-          ? updateAgentCheckin(token, latestCheckin.id, {
+        await createAgentCheckin(token, {
             ...bodyPayload.checkin,
-            summary: "新用户引导恢复状态记录",
-          })
-          : createAgentCheckin(token, {
-            ...bodyPayload.checkin,
+            checkin_date: localDateValue(new Date()),
+            source: "onboarding",
             summary: "新用户引导恢复状态记录",
             training_plan_id: activePlan?.id ?? null,
-          }))
+          })
       }
 
       const context = await refreshDashboard(token, { preserveMessages: true })
@@ -843,7 +987,7 @@ export function KratosPage() {
       return
     }
 
-    if (agentStreaming) {
+    if (agentStreaming || sendLockRef.current) {
       sonnerToast.warning("Kratos 正在回复，请稍等")
       return
     }
@@ -855,30 +999,28 @@ export function KratosPage() {
       return
     }
 
-    let nextSessionId = activeSessionId
-    try {
-      if (!nextSessionId) {
-        const session = await createAgentSession(token)
-        nextSessionId = session.session_id
-        const sessionTitle = titleFromPrompt(body)
-        setActiveSessionId(nextSessionId)
-        writeActiveAgentSessionId(nextSessionId)
-        setChatSessions((current) =>
-          [
-            {
-              ...chatSessionFromAgentSession(session),
-              title: sessionTitle,
-            },
-            ...current.filter((item) => item.id !== session.session_id),
-          ].sort(sortChatSessions)
-        )
-        void renameAgentSession(token, nextSessionId, sessionTitle).catch(
-          () => undefined
-        )
-      }
-    } catch (error) {
-      sonnerToast.error(getErrorMessage(error), { richColors: true })
-      return
+    sendLockRef.current = true
+    let nextSessionId = activeSessionId ?? createId()
+    const clientTurnId = createId()
+    if (!activeSessionId) {
+      const sessionTitle = titleFromPrompt(body)
+      setActiveSessionId(nextSessionId)
+      writeActiveAgentSessionId(nextSessionId)
+      setActiveNav(nextSessionId)
+      pushWorkspacePath(`/chat/${encodeURIComponent(nextSessionId)}`)
+      setChatSessions((current) =>
+        [
+          {
+            id: nextSessionId,
+            title: sessionTitle,
+            preview: body,
+            updatedAt: new Date().toISOString(),
+            messageCount: 2,
+            pinned: false,
+          },
+          ...current.filter((item) => item.id !== nextSessionId),
+        ].sort(sortChatSessions)
+      )
     }
 
     const assistantMessageId = createId()
@@ -914,6 +1056,7 @@ export function KratosPage() {
 
     try {
       await streamAgentChat({
+        clientTurnId,
         message: body,
         onEvent: (event) => {
           if (event.session_id && event.session_id !== handledStreamSessionId) {
@@ -954,6 +1097,8 @@ export function KratosPage() {
               if (message.id !== assistantMessageId) {
                 return message
               }
+              const suggestedHealthData =
+                healthDataFromAgentRaw(event.raw) ?? message.suggestedHealthData
 
               if (event.type === "done") {
                 return {
@@ -961,6 +1106,7 @@ export function KratosPage() {
                   body: event.answer ?? message.body,
                   completedAt: Date.now(),
                   streaming: false,
+                  suggestedHealthData,
                 }
               }
 
@@ -977,6 +1123,7 @@ export function KratosPage() {
                   completedAt: Date.now(),
                   error: event.content,
                   streaming: false,
+                  suggestedHealthData,
                   trace: [...(message.trace ?? []), event],
                 }
               }
@@ -991,6 +1138,7 @@ export function KratosPage() {
                   : false
                 return {
                   ...message,
+                  suggestedHealthData,
                   suggestedTrainingPlan:
                     suggestedTrainingPlan ?? message.suggestedTrainingPlan,
                   trainingPlanCreatedId: generatedAlready
@@ -1002,6 +1150,7 @@ export function KratosPage() {
 
               return {
                 ...message,
+                suggestedHealthData,
                 trace: [...(message.trace ?? []), event],
               }
             })
@@ -1044,6 +1193,7 @@ export function KratosPage() {
     } finally {
       activeStreamRef.current = null
       setAgentStreaming(false)
+      sendLockRef.current = false
     }
   }
 
@@ -1051,6 +1201,7 @@ export function KratosPage() {
     activeStreamRef.current?.abort()
     activeStreamRef.current = null
     setAgentStreaming(false)
+    sendLockRef.current = false
     setMessages((current) =>
       current.map((message) =>
         message.streaming
@@ -1078,6 +1229,48 @@ export function KratosPage() {
     }
     setComposerValue(action.prompt)
     sonnerToast.info(`${action.title}已填入输入框`)
+  }
+
+  const handleConfirmHealthData = async (messageId: string) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    const message = messages.find((item) => item.id === messageId)
+    const data = message?.suggestedHealthData
+    if (!token || !data) {
+      openAuth("login")
+      return
+    }
+    setConfirmingHealthDataId(messageId)
+    try {
+      if (data.profile && Object.keys(data.profile).length) {
+        await upsertFitnessProfile(token, data.profile)
+      }
+      if (data.body_metric && Object.keys(data.body_metric).length) {
+        await createBodyMetric(token, {
+          ...data.body_metric,
+          measured_at: new Date().toISOString(),
+          source: "chat_confirmation",
+        })
+      }
+      if (data.checkin && Object.keys(data.checkin).length) {
+        await createAgentCheckin(token, {
+          ...data.checkin,
+          checkin_date: localDateValue(new Date()),
+          source: "chat_confirmation",
+          training_plan_id: activePlan?.id ?? null,
+        })
+      }
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === messageId ? { ...item, healthDataSaved: true } : item
+        )
+      )
+      await refreshDashboard(token, { preserveMessages: true })
+      sonnerToast.success("已确认并保存健康数据")
+    } catch (error) {
+      sonnerToast.error(getErrorMessage(error), { richColors: true })
+    } finally {
+      setConfirmingHealthDataId(null)
+    }
   }
 
   const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1250,6 +1443,18 @@ export function KratosPage() {
         training_plan_id: activePlan?.id ?? null,
         workout_date: workoutDate,
         workout_type: "strength",
+        exercises: actions.map((action, index) => ({
+          completed: action !== "未标记完成动作",
+          exercise_id: `${workoutDate}-${index}`,
+          name: action,
+          position: index,
+          sets: [
+            {
+              completed: action !== "未标记完成动作",
+              set_number: 1,
+            },
+          ],
+        })),
       })
       setWorkoutLogs((current) => [log, ...current])
       setCompletedExercises([])
@@ -1268,9 +1473,12 @@ export function KratosPage() {
         setLastCompletedWorkout({
           completed,
           durationSeconds: elapsedSeconds,
+          logId: log.id,
+          log,
           title: dayTitle || activePlan?.title || "未命名训练",
         })
         setTrainingFeedback("")
+        setTrainingRpe("")
         setTrainingAdjustment(null)
         setTrainingFeedbackError(null)
         setTrainingFeedbackOpen(true)
@@ -1353,7 +1561,10 @@ export function KratosPage() {
         return
       }
 
-      const plan = await createTrainingPlan(token, payload)
+      const plan = await createTrainingPlan(token, {
+        ...payload,
+        status: "draft",
+      })
       const generatedKey = trainingPlanDraftKey(payload)
       const nextKeys = new Set(generatedTrainingPlanKeys)
       nextKeys.add(generatedKey)
@@ -1365,7 +1576,10 @@ export function KratosPage() {
       setTrainingPlanDraft(null)
       setEditingTrainingPlanId(null)
       setActiveNav("训练计划")
-      sonnerToast.success("训练计划已保存")
+      pushWorkspacePath("/training")
+      sonnerToast.success(
+        "计划草稿已保存，请确认后设为当前"
+      )
     } catch (error) {
       setTrainingPlanError(getErrorMessage(error))
     } finally {
@@ -1411,7 +1625,7 @@ export function KratosPage() {
     try {
       const plan = await createTrainingPlan(token, {
         ...payload,
-        status: payload.status ?? "active",
+        status: "draft",
       })
       const nextKeys = new Set(generatedTrainingPlanKeys)
       nextKeys.add(generatedKey)
@@ -1427,7 +1641,12 @@ export function KratosPage() {
       )
       await refreshDashboard(token, { preserveMessages: true })
       setActiveNav("训练计划")
-      sonnerToast.success("已根据聊天内容生成训练计划")
+      pushWorkspacePath("/training")
+      sonnerToast.success(
+        payload.plan_kind === "daily"
+          ? "今日训练草稿已保存，请设为当前后开始训练"
+          : "周期训练草稿已保存，请确认后设为当前"
+      )
     } catch (error) {
       sonnerToast.error(getErrorMessage(error))
     } finally {
@@ -1451,19 +1670,7 @@ export function KratosPage() {
     setDashboardLoading(true)
 
     try {
-      const activePlansToPause = trainingPlans.filter(
-        (item) => item.id !== plan.id && item.status === "active"
-      )
-
-      const updated = await updateTrainingPlan(token, plan.id, {
-        status: "active",
-      })
-
-      await Promise.all(
-        activePlansToPause.map((item) =>
-          updateTrainingPlan(token, item.id, { status: "paused" })
-        )
-      )
+      const updated = await activateTrainingPlan(token, plan.id)
 
       setTrainingPlans((current) =>
         current.map((item) => {
@@ -1471,9 +1678,7 @@ export function KratosPage() {
             return updated
           }
 
-          if (
-            activePlansToPause.some((activeItem) => activeItem.id === item.id)
-          ) {
+          if (item.id !== updated.id && item.status === "active") {
             return { ...item, status: "paused" }
           }
 
@@ -1483,6 +1688,7 @@ export function KratosPage() {
       setCompletedExercises([])
       setTrainingStarted(false)
       await refreshDashboard(token, { preserveMessages: true })
+      pushWorkspacePath("/training")
       sonnerToast.success(`已切换到：${updated.title}`)
     } catch (error) {
       sonnerToast.error(getErrorMessage(error))
@@ -1537,8 +1743,12 @@ export function KratosPage() {
     setSkillError(null)
 
     try {
-      const nextSkills = await listSkills(token)
+      const [nextSkills, nextTools] = await Promise.all([
+        listSkills(token),
+        listAgentTools(token),
+      ])
       setSkills(nextSkills)
+      setTools(nextTools)
     } catch (error) {
       const message = getErrorMessage(error)
       setSkillError(message)
@@ -1590,6 +1800,29 @@ export function KratosPage() {
         current.map((item) => (item.id === updated.id ? updated : item))
       )
       sonnerToast.success(enabled ? "Skill 已启用" : "Skill 已停用")
+    } catch (error) {
+      const message = getErrorMessage(error)
+      setSkillError(message)
+      sonnerToast.error(message)
+    } finally {
+      setSkillSubmitting(false)
+    }
+  }
+
+  const handleToggleTool = async (tool: AgentToolConfig, enabled: boolean) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      return
+    }
+    setSkillSubmitting(true)
+    setSkillError(null)
+    try {
+      const updated = await updateAgentTool(token, tool.name, enabled)
+      setTools((current) =>
+        current.map((item) => (item.name === updated.name ? updated : item))
+      )
+      sonnerToast.success(enabled ? "工具已启用" : "工具已禁用")
     } catch (error) {
       const message = getErrorMessage(error)
       setSkillError(message)
@@ -1659,6 +1892,28 @@ export function KratosPage() {
     setTrainingFeedbackError(null)
 
     try {
+      const perceivedExertion = trainingRpe.trim() ? Number(trainingRpe) : null
+      if (
+        perceivedExertion !== null &&
+        (!Number.isFinite(perceivedExertion) ||
+          perceivedExertion < 1 ||
+          perceivedExertion > 10)
+      ) {
+        setTrainingFeedbackError("RPE 必须在 1 到 10 之间")
+        return
+      }
+      if (perceivedExertion !== null) {
+        await updateWorkoutLog(token, lastCompletedWorkout.logId, {
+          perceived_exertion: perceivedExertion,
+          exercises: lastCompletedWorkout.log.exercises.map((exercise) => ({
+            ...exercise,
+            sets: exercise.sets.map((set) => ({
+              ...set,
+              rpe: set.completed ? perceivedExertion : set.rpe,
+            })),
+          })),
+        })
+      }
       const adjustment = await previewTrainingPlanAdjustment(
         token,
         activePlan.id,
@@ -1666,6 +1921,7 @@ export function KratosPage() {
           completed: lastCompletedWorkout.completed,
           duration_seconds: lastCompletedWorkout.durationSeconds,
           feedback: trainingFeedback.trim(),
+          workout_log_id: lastCompletedWorkout.logId,
           workout_title: lastCompletedWorkout.title,
         }
       )
@@ -1754,6 +2010,9 @@ export function KratosPage() {
           latestCheckin={latestCheckin}
           latestMetric={latestMetric}
           onEditBodyData={openBodyMetricEditor}
+          onEditBodyMetric={openBodyMetricEditor}
+          onDeleteBodyMetric={handleDeleteBodyMetric}
+          onExportBodyData={handleExportBodyData}
           onboarding={onboardingStatus}
           profile={fitnessProfile}
           workoutLogs={workoutLogs}
@@ -1761,7 +2020,7 @@ export function KratosPage() {
       )
     }
 
-    if (activeNav === "Skill") {
+    if (activeNav === "能力中心") {
       return (
         <SkillPanelPage
           currentUser={currentUser}
@@ -1772,7 +2031,9 @@ export function KratosPage() {
           onLogin={() => openAuth("login")}
           onRefresh={refreshSkills}
           onToggleSkill={handleToggleSkill}
+          onToggleTool={handleToggleTool}
           skills={skills}
+          tools={tools}
           submitting={skillSubmitting}
         />
       )
@@ -1801,6 +2062,8 @@ export function KratosPage() {
         onComposerKeyDown={handleComposerKeyDown}
         onCreateTrainingPlanFromMessage={handleCreateTrainingPlanFromChat}
         onEditTrainingPlanDraft={openTrainingPlanComposer}
+        onConfirmHealthData={handleConfirmHealthData}
+        confirmingHealthDataId={confirmingHealthDataId}
         onMarkNotificationsRead={markAllNotificationsRead}
         onQuickAction={handleQuickAction}
         onSendMessage={handleSendMessage}
@@ -1895,9 +2158,13 @@ export function KratosPage() {
       />
       <BodyMetricModal
         error={bodyMetricError}
-        key={bodyMetricModalOpen ? "body-open" : "body-closed"}
+        initialForm={editingBodyMetric ? bodyMetricFormFromRecord(editingBodyMetric) : null}
+        key={`${bodyMetricModalOpen ? "body-open" : "body-closed"}-${editingBodyMetric?.id ?? "new"}`}
         loading={bodyMetricSubmitting}
-        onClose={() => setBodyMetricModalOpen(false)}
+        onClose={() => {
+          setBodyMetricModalOpen(false)
+          setEditingBodyMetric(null)
+        }}
         onSubmit={handleBodyMetricSubmit}
         open={bodyMetricModalOpen}
       />
@@ -1917,17 +2184,24 @@ export function KratosPage() {
         adjustment={trainingAdjustment}
         error={trainingFeedbackError}
         feedback={trainingFeedback}
+        perceivedExertion={trainingRpe}
         loading={trainingFeedbackLoading}
         onApply={handleApplyTrainingAdjustment}
         onClose={() => {
           setTrainingFeedbackOpen(false)
           setTrainingFeedback("")
+          setTrainingRpe("")
           setTrainingFeedbackError(null)
           setTrainingAdjustment(null)
           setLastCompletedWorkout(null)
         }}
         onFeedbackChange={(value) => {
           setTrainingFeedback(value)
+          setTrainingFeedbackError(null)
+          setTrainingAdjustment(null)
+        }}
+        onPerceivedExertionChange={(value) => {
+          setTrainingRpe(value)
           setTrainingFeedbackError(null)
           setTrainingAdjustment(null)
         }}

@@ -13,15 +13,18 @@ import {
 } from "@/shared/ui/dialog"
 import { Field } from "@/shared/ui/field"
 import { Textarea } from "@/shared/ui/textarea"
+import { Input } from "@/shared/ui/input"
 
 type TrainingFeedbackModalProps = {
   adjustment: TrainingPlanAdjustmentResponse | null
   error: string | null
   feedback: string
+  perceivedExertion: string
   loading: boolean
   onApply: () => void
   onClose: () => void
   onFeedbackChange: (value: string) => void
+  onPerceivedExertionChange: (value: string) => void
   onPreview: () => void
   open: boolean
 }
@@ -30,10 +33,12 @@ export function TrainingFeedbackModal({
   adjustment,
   error,
   feedback,
+  perceivedExertion,
   loading,
   onApply,
   onClose,
   onFeedbackChange,
+  onPerceivedExertionChange,
   onPreview,
   open,
 }: TrainingFeedbackModalProps) {
@@ -67,6 +72,20 @@ export function TrainingFeedbackModal({
           rows={5}
           value={feedback}
         />
+        <Field>
+          <label className="text-sm font-medium" htmlFor="perceived-exertion">
+            主观强度 RPE（可选，1-10）
+          </label>
+          <Input
+            id="perceived-exertion"
+            max={10}
+            min={1}
+            onChange={(event) => onPerceivedExertionChange(event.target.value)}
+            placeholder="例如 7"
+            type="number"
+            value={perceivedExertion}
+          />
+        </Field>
         {!adjustment && <SuggestionChips
           label="快速反馈"
           onSelect={(value) => onFeedbackChange(appendText(feedback, value))}

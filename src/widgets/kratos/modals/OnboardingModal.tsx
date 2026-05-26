@@ -465,13 +465,16 @@ export function OnboardingModal({
 
 function bodyMetricFormFromMetric(metric: BodyMetric | null): BodyMetricForm {
   return {
+    measuredAt: "",
     bmi: metric?.bmi?.toString() ?? "",
     bodyFatPercentage: metric?.body_fat_percentage?.toString() ?? "",
     chestCm: metric?.chest_cm?.toString() ?? "",
     hipCm: metric?.hip_cm?.toString() ?? "",
+    mood: "",
     energyLevel: "",
     heightCm: metric?.height_cm?.toString() ?? "",
     notes: "",
+    painNotes: "",
     skeletalMuscleMassKg: metric?.skeletal_muscle_mass_kg?.toString() ?? "",
     sleepHours: metric?.sleep_hours?.toString() ?? "",
     sleepQuality: "",

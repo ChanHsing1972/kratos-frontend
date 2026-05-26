@@ -24,6 +24,7 @@ import {
 import {
   parseTrainingPlanWeeklySchedule,
   serializeTrainingPlanWeeklySchedule,
+  type TrainingPlanWeeklyScheduleDay,
 } from "@/widgets/kratos/modals/trainingPlanSchedule"
 import { Button } from "@/shared/ui/button"
 import {
@@ -107,7 +108,7 @@ function TrainingPlanModalForm({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    onSubmit(trainingPlanPayloadFromForm(form, weeklyScheduleText))
+    onSubmit(trainingPlanPayloadFromForm(form, weeklyScheduleText, weeklySchedule))
   }
 
   return (
@@ -286,15 +287,42 @@ function trainingPlanFormFromPayload(
 
 function trainingPlanPayloadFromForm(
   form: TrainingPlanForm,
-  weeklyScheduleText: string
+  weeklyScheduleText: string,
+  schedule: TrainingPlanWeeklyScheduleDay[]
 ): TrainingPlanPayload {
+  const populatedDays = schedule.filter((day) =>
+    day.actions.some((action) => action.name.trim() && action.amount.trim())
+  )
   return {
     end_date: compactFormText(form.endDate),
     goal: compactFormText(form.goal),
     nutrition_guidance: compactFormText(form.nutritionGuidance),
     recovery_guidance: compactFormText(form.recoveryGuidance),
     start_date: compactFormText(form.startDate),
-    status: form.status || "draft",
+    status: "draft",
+    plan_kind: populatedDays.length <= 1 ? "daily" : "program",
+    duration_weeks: populatedDays.length <= 1 ? null : 4,
+    schedule_json: {
+      version: 1,
+      weeks: [
+        {
+          week: 1,
+          sessions: populatedDays.map((day) => ({
+            exercises: day.actions
+              .filter((action) => action.name.trim() && action.amount.trim())
+              .map((action) => ({
+                id: action.id,
+                name: action.name.trim(),
+                notes: action.note.trim() || null,
+                target_reps: action.amount.trim(),
+              })),
+            id: day.id,
+            title: day.theme.trim(),
+            weekday: day.weekday,
+          })),
+        },
+      ],
+    },
     summary: compactFormText(form.summary),
     title: form.title.trim(),
     weekly_schedule: compactFormText(weeklyScheduleText),

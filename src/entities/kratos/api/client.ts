@@ -21,6 +21,7 @@ import type {
   UserUpdatePayload,
   WorkoutLog,
   WorkoutLogPayload,
+  AgentToolConfig,
 } from "@/entities/kratos/model/types"
 
 export const API_BASE_URL =
@@ -130,6 +131,12 @@ export async function updateBodyMetric(
   })
 }
 
+export async function deleteBodyMetric(token: string, metricId: number) {
+  return authorizedJson<null>(`/body-metrics/${metricId}`, token, {
+    method: "DELETE",
+  })
+}
+
 export async function listWorkoutLogs(token: string) {
   return authorizedJson<WorkoutLog[]>("/workout-logs", token)
 }
@@ -138,6 +145,17 @@ export async function createWorkoutLog(token: string, payload: WorkoutLogPayload
   return authorizedJson<WorkoutLog>("/workout-logs", token, {
     body: JSON.stringify(payload),
     method: "POST",
+  })
+}
+
+export async function updateWorkoutLog(
+  token: string,
+  logId: number,
+  payload: Partial<WorkoutLogPayload>
+) {
+  return authorizedJson<WorkoutLog>(`/workout-logs/${logId}`, token, {
+    body: JSON.stringify(payload),
+    method: "PATCH",
   })
 }
 
@@ -152,6 +170,12 @@ export async function createAgentCheckin(
   return authorizedJson<AgentCheckin>("/agent-checkins", token, {
     body: JSON.stringify(payload),
     method: "POST",
+  })
+}
+
+export async function deleteAgentCheckin(token: string, checkinId: number) {
+  return authorizedJson<null>(`/agent-checkins/${checkinId}`, token, {
+    method: "DELETE",
   })
 }
 
@@ -360,13 +384,40 @@ export async function deleteSkill(token: string, skillId: number) {
   })
 }
 
+export async function listAgentTools(token: string) {
+  return authorizedJson<AgentToolConfig[]>("/tools", token)
+}
+
+export async function updateAgentTool(
+  token: string,
+  toolName: string,
+  enabled: boolean
+) {
+  return authorizedJson<AgentToolConfig>(
+    `/tools/${encodeURIComponent(toolName)}`,
+    token,
+    {
+      body: JSON.stringify({ enabled }),
+      method: "PATCH",
+    }
+  )
+}
+
+export async function activateTrainingPlan(token: string, planId: number) {
+  return authorizedJson<TrainingPlan>(`/plans/${planId}/activate`, token, {
+    method: "POST",
+  })
+}
+
 export async function streamAgentChat({
+  clientTurnId,
   message,
   onEvent,
   sessionId,
   signal,
   token,
 }: {
+  clientTurnId: string
   message: string
   onEvent: (event: AgentStreamEvent) => void
   sessionId: string | null
@@ -375,6 +426,7 @@ export async function streamAgentChat({
 }) {
   const response = await fetch(`${API_BASE_URL}/agent/chat/stream`, {
     body: JSON.stringify({
+      client_turn_id: clientTurnId,
       message,
       session_id: sessionId,
     }),

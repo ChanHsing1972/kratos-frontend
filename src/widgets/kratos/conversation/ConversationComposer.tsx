@@ -56,7 +56,6 @@ export function ConversationComposer({
       {mode === "write" ? (
         <InputGroupTextarea
           className="min-h-16 resize-none text-base disabled:opacity-100 md:text-sm"
-          disabled={sending}
           onChange={(event) => onChange(event.target.value)}
           onCompositionEnd={(event) => {
             event.currentTarget.dataset.composing = "false"
@@ -135,7 +134,7 @@ export function ConversationComposer({
           type="button"
         >
           {sending ? (
-            <Square className="size-4 fill-current" />
+            <Square className="size-3 fill-current" />
           ) : (
             <ArrowUp className="size-4" />
           )}

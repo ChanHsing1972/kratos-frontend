@@ -154,6 +154,20 @@ export type SkillPayload = {
   definition?: string | null
 }
 
+export type AgentToolConfig = {
+  id: number
+  name: string
+  description: string | null
+  category: string
+  enabled: boolean
+  requires_api_key: boolean
+  health_status: "unknown" | "healthy" | "degraded" | "unavailable" | "disabled" | string
+  failure_count: number
+  api_key_configured: boolean
+  created_at: string
+  updated_at: string
+}
+
 export type FitnessProfile = {
   id: number
   user_id: number
@@ -186,6 +200,9 @@ export type TrainingPlan = {
   title: string
   goal: string | null
   status: string
+  plan_kind: "daily" | "program"
+  duration_weeks: number | null
+  schedule_json: TrainingSchedule | null
   start_date: string | null
   end_date: string | null
   summary: string | null
@@ -200,6 +217,9 @@ export type TrainingPlanPayload = {
   title: string
   goal?: string | null
   status?: string
+  plan_kind?: "daily" | "program"
+  duration_weeks?: number | null
+  schedule_json?: TrainingSchedule | null
   start_date?: string | null
   end_date?: string | null
   summary?: string | null
@@ -208,8 +228,32 @@ export type TrainingPlanPayload = {
   recovery_guidance?: string | null
 }
 
+export type TrainingScheduleExercise = {
+  id: string
+  name: string
+  target_sets?: number | null
+  target_reps?: string | null
+  target_weight_kg?: number | null
+  target_rpe?: number | null
+  rest_seconds?: number | null
+  notes?: string | null
+}
+
+export type TrainingScheduleSession = {
+  id: string
+  weekday: string
+  title: string
+  exercises: TrainingScheduleExercise[]
+}
+
+export type TrainingSchedule = {
+  version: number
+  weeks: Array<{ week: number; sessions: TrainingScheduleSession[] }>
+}
+
 export type TrainingPlanAdjustmentPayload = {
   feedback: string
+  workout_log_id?: number | null
   workout_title?: string | null
   completed?: boolean | null
   duration_seconds?: number | null
@@ -254,6 +298,9 @@ export type BodyMetric = {
   sleep_hours: number | null
   notes: string | null
   recorded_at: string
+  measured_at: string | null
+  source: string
+  external_id: string | null
 }
 
 export type WorkoutLog = {
@@ -270,6 +317,25 @@ export type WorkoutLog = {
   completed: boolean
   notes: string | null
   created_at: string
+  exercises: WorkoutExerciseLog[]
+}
+
+export type WorkoutSetLog = {
+  set_number: number
+  reps?: number | null
+  weight_kg?: number | null
+  rpe?: number | null
+  completed: boolean
+  pain_notes?: string | null
+}
+
+export type WorkoutExerciseLog = {
+  exercise_id?: string | null
+  name: string
+  position?: number
+  completed: boolean
+  notes?: string | null
+  sets: WorkoutSetLog[]
 }
 
 export type WorkoutLogPayload = {
@@ -283,9 +349,11 @@ export type WorkoutLogPayload = {
   calories_burned?: number | null
   completed?: boolean
   notes?: string | null
+  exercises?: WorkoutExerciseLog[]
 }
 
 export type BodyMetricForm = {
+  measuredAt: string
   heightCm: string
   weightKg: string
   targetWeightKg: string
@@ -299,6 +367,8 @@ export type BodyMetricForm = {
   energyLevel: string
   sleepQuality: string
   sorenessLevel: string
+  mood: string
+  painNotes: string
   notes: string
 }
 
@@ -314,6 +384,9 @@ export type BodyMetricPayload = {
   hip_cm?: number | null
   sleep_hours?: number | null
   notes?: string | null
+  measured_at?: string | null
+  source?: string
+  external_id?: string | null
 }
 
 export type OnboardingStatus = {
@@ -341,6 +414,10 @@ export type AgentCheckinPayload = {
   energy_level?: number | null
   sleep_quality?: number | null
   soreness_level?: number | null
+  checkin_date?: string | null
+  sleep_hours?: number | null
+  pain_notes?: string | null
+  source?: string
   adherence_score?: number | null
   mood?: string | null
   summary?: string | null
@@ -353,6 +430,10 @@ export type AgentCheckin = {
   energy_level: number | null
   sleep_quality: number | null
   soreness_level: number | null
+  checkin_date: string | null
+  sleep_hours: number | null
+  pain_notes: string | null
+  source: string
   adherence_score: number | null
   mood: string | null
   summary: string | null
@@ -394,9 +475,17 @@ export type ChatMessage = {
   error?: string
   suggestedTrainingPlan?: TrainingPlanPayload
   trainingPlanCreatedId?: number
+  suggestedHealthData?: SuggestedHealthData
+  healthDataSaved?: boolean
   startedAt?: number
   streaming?: boolean
   trace?: AgentTraceStep[]
+}
+
+export type SuggestedHealthData = {
+  body_metric?: BodyMetricPayload
+  checkin?: AgentCheckinPayload
+  profile?: FitnessProfilePayload
 }
 
 export type NotificationItem = {

@@ -27,7 +27,7 @@ import {
 import { Input } from "@/shared/ui/input"
 import { Textarea } from "@/shared/ui/textarea"
 import { cn } from "@/shared/lib/utils"
-import type { Skill, SkillPayload, UserProfile } from "@/entities/kratos/model/types"
+import type { AgentToolConfig, Skill, SkillPayload, UserProfile } from "@/entities/kratos/model/types"
 
 type SkillPanelPageProps = {
   currentUser: UserProfile | null
@@ -38,7 +38,9 @@ type SkillPanelPageProps = {
   onLogin: () => void
   onRefresh: () => Promise<void> | void
   onToggleSkill: (skill: Skill, enabled: boolean) => Promise<void> | void
+  onToggleTool: (tool: AgentToolConfig, enabled: boolean) => Promise<void> | void
   skills: Skill[]
+  tools: AgentToolConfig[]
   submitting: boolean
 }
 
@@ -71,10 +73,13 @@ export function SkillPanelPage({
   onLogin,
   onRefresh,
   onToggleSkill,
+  onToggleTool,
   skills,
+  tools,
   submitting,
 }: SkillPanelPageProps) {
   const [activeTab, setActiveTab] = useState<"market" | "mine">("market")
+  const [panel, setPanel] = useState<"skills" | "tools">("skills")
   const [form, setForm] = useState<SkillForm>(defaultForm)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -128,9 +133,9 @@ export function SkillPanelPage({
       <section className="mx-auto flex min-h-full w-full max-w-[1480px] flex-col px-6 py-7 sm:px-8 xl:px-12">
         <header className="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="text-[28px] leading-tight font-black">Skill</h1>
+            <h1 className="text-[28px] leading-tight font-black">能力中心</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              用领域能力包调整 Kratos Agent 的策略、输出格式和工具范围。
+              管理教练策略与可调用工具，清楚了解每次建议依赖的能力。
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -143,6 +148,13 @@ export function SkillPanelPage({
           </div>
         </header>
 
+        <div className="mt-6 inline-flex w-fit rounded-lg border bg-muted p-1">
+          <TabButton active={panel === "skills"} label="Skills" onClick={() => setPanel("skills")} />
+          <TabButton active={panel === "tools"} label="Tools" onClick={() => setPanel("tools")} />
+        </div>
+
+        {panel === "skills" ? (
+          <>
         {!currentUser ? (
           <Card className="mt-6">
             <CardHeader>
@@ -281,9 +293,109 @@ export function SkillPanelPage({
             </Card>
           </aside>
         </div>
+          </>
+        ) : (
+          <ToolsPanel
+            loading={loading}
+            onLogin={onLogin}
+            onToggleTool={onToggleTool}
+            submitting={submitting}
+            tools={tools}
+            user={currentUser}
+          />
+        )}
       </section>
     </main>
   )
+}
+
+function ToolsPanel({
+  loading,
+  onLogin,
+  onToggleTool,
+  submitting,
+  tools,
+  user,
+}: {
+  loading: boolean
+  onLogin: () => void
+  onToggleTool: (tool: AgentToolConfig, enabled: boolean) => Promise<void> | void
+  submitting: boolean
+  tools: AgentToolConfig[]
+  user: UserProfile | null
+}) {
+  if (!user) {
+    return (
+      <Card className="mt-6 p-6 text-sm">
+        登录后可以选择 Agent 可使用的工具。
+        <Button className="ml-4" onClick={onLogin} type="button">登录</Button>
+      </Card>
+    )
+  }
+  const groups = Object.entries(
+    tools.reduce<Record<string, AgentToolConfig[]>>((result, tool) => {
+      result[tool.category] = [...(result[tool.category] ?? []), tool]
+      return result
+    }, {})
+  )
+  return (
+    <div className="mt-6 grid gap-6">
+      <p className="text-sm text-muted-foreground">
+        禁用的工具不会被 Agent 调用；需要密钥但尚未配置的工具暂不可启用。
+      </p>
+      {loading && !tools.length ? <p className="text-sm">正在读取工具...</p> : null}
+      {groups.map(([category, categoryTools]) => (
+        <section className="grid gap-3" key={category}>
+          <h2 className="text-lg font-bold">{toolCategoryLabel(category)}</h2>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {categoryTools.map((tool) => {
+              const unavailable = tool.requires_api_key && !tool.api_key_configured
+              return (
+                <Card className="p-4" key={tool.name}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm font-bold">{tool.name}</h3>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        {tool.description ?? "无描述"}
+                      </p>
+                    </div>
+                    <Badge variant={tool.enabled && !unavailable ? "secondary" : "outline"}>
+                      {unavailable ? "缺少配置" : tool.enabled ? "启用中" : "已关闭"}
+                    </Badge>
+                  </div>
+                  {tool.failure_count > 0 ? (
+                    <p className="mt-3 text-xs text-destructive">
+                      最近调用失败 {tool.failure_count} 次
+                    </p>
+                  ) : null}
+                  <Button
+                    className="mt-4"
+                    disabled={submitting || unavailable}
+                    onClick={() => onToggleTool(tool, !tool.enabled)}
+                    type="button"
+                    variant={tool.enabled ? "outline" : "default"}
+                  >
+                    {tool.enabled ? "禁用" : "启用"}
+                  </Button>
+                </Card>
+              )
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+function toolCategoryLabel(category: string) {
+  return {
+    diet: "饮食",
+    fitness: "训练计算与安全",
+    fitness_knowledge: "动作知识",
+    location: "路线与位置",
+    search: "联网搜索",
+    weather: "天气建议",
+  }[category] ?? category
 }
 
 function SkillCard({
