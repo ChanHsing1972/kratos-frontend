@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react"
 import {
+  AlertCircle,
   BookOpenText,
   Check,
   LoaderCircle,
@@ -9,25 +10,21 @@ import {
   SlidersHorizontal,
   Trash2,
   WandSparkles,
+  Wrench,
   X,
 } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
 
+import type { AgentToolConfig, Skill, SkillPayload, UserProfile } from "@/entities/kratos/model/types"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/shared/ui/accordion"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
 import { Input } from "@/shared/ui/input"
+import { ScrollArea } from "@/shared/ui/scroll-area"
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/shared/ui/sheet"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
 import { Textarea } from "@/shared/ui/textarea"
-import { cn } from "@/shared/lib/utils"
-import type { AgentToolConfig, Skill, SkillPayload, UserProfile } from "@/entities/kratos/model/types"
 
 type SkillPanelPageProps = {
   currentUser: UserProfile | null
@@ -78,19 +75,18 @@ export function SkillPanelPage({
   tools,
   submitting,
 }: SkillPanelPageProps) {
-  const [activeTab, setActiveTab] = useState<"market" | "mine">("market")
-  const [panel, setPanel] = useState<"skills" | "tools">("skills")
+  const [skillFilter, setSkillFilter] = useState<"all" | "active" | "custom">("all")
+  const [createOpen, setCreateOpen] = useState(false)
   const [form, setForm] = useState<SkillForm>(defaultForm)
   const [formError, setFormError] = useState<string | null>(null)
-
-  const enabledCount = skills.filter((skill) => skill.enabled).length
-  const customCount = skills.filter((skill) => skill.source === "custom").length
-  const visibleSkills = useMemo(() => {
-    if (activeTab === "market") {
-      return skills
-    }
-    return skills.filter((skill) => skill.enabled || skill.source === "custom")
-  }, [activeTab, skills])
+  const enabledSkills = skills.filter((skill) => skill.enabled)
+  const enabledTools = tools.filter((tool) => tool.enabled && isAvailable(tool))
+  const unresolvedTools = useMemo(() => getUnresolvedToolDependencies(enabledSkills, tools), [enabledSkills, tools])
+  const visibleSkills = skills.filter((skill) => {
+    if (skillFilter === "active") return skill.enabled
+    if (skillFilter === "custom") return !skill.is_builtin
+    return true
+  })
 
   const updateForm = (field: keyof SkillForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }))
@@ -103,15 +99,10 @@ export function SkillPanelPage({
       onLogin()
       return
     }
-    if (!form.name.trim()) {
-      setFormError("请填写 Skill 名称")
+    if (!form.name.trim() || !form.promptSnippet.trim()) {
+      setFormError("请填写名称和核心策略")
       return
     }
-    if (!form.promptSnippet.trim()) {
-      setFormError("请填写系统提示片段")
-      return
-    }
-
     try {
       await onCreateSkill({
         name: form.name.trim(),
@@ -122,283 +113,219 @@ export function SkillPanelPage({
         output_format: compactOptional(form.outputFormat),
         forbidden_rules: compactOptional(form.forbiddenRules),
       })
-      setActiveTab("mine")
+      setCreateOpen(false)
+      setSkillFilter("active")
     } catch {
-      // App owns toast and API error display.
+      // App owns API error feedback.
     }
   }
 
   return (
-    <main className="min-h-0 flex-1 overflow-y-auto bg-background">
-      <section className="mx-auto flex min-h-full w-full max-w-[1480px] flex-col px-6 py-7 sm:px-8 xl:px-12">
-        <header className="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-start lg:justify-between">
+    <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
+      <section className="mx-auto mt-16 flex min-h-full w-full max-w-[900px] flex-col px-6 pb-12 sm:px-8">
+        <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
           <div>
-            <h1 className="text-[28px] leading-tight font-black">能力中心</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              管理教练策略与可调用工具，清楚了解每次建议依赖的能力。
+            <p className="text-sm text-muted-foreground">Agent 配置</p>
+            <h1 className="mt-1 text-3xl font-medium tracking-[-0.05em]">能力中心</h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+              Skill 决定教练的策略边界，Tool 提供计算或查询能力。只启用您真正希望 Agent 使用的能力。
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <StatPill icon={WandSparkles} label="已启用" value={enabledCount} />
-            <StatPill icon={BookOpenText} label="自建" value={customCount} />
-            <Button disabled={loading} onClick={onRefresh} type="button" variant="outline">
-              {loading ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCcw />}
+          <div className="flex shrink-0 gap-2">
+            <Button disabled={loading} onClick={onRefresh} type="button" variant="ghost">
+              {loading ? <LoaderCircle className="animate-spin" /> : <RefreshCcw />}
               刷新
+            </Button>
+            <Button onClick={() => setCreateOpen(true)} type="button">
+              <Plus />
+              创建策略
             </Button>
           </div>
         </header>
 
-        <div className="mt-6 inline-flex w-fit rounded-lg border bg-muted p-1">
-          <TabButton active={panel === "skills"} label="Skills" onClick={() => setPanel("skills")} />
-          <TabButton active={panel === "tools"} label="Tools" onClick={() => setPanel("tools")} />
-        </div>
+        <ConfigurationHero
+          enabledSkills={enabledSkills}
+          enabledTools={enabledTools}
+          unresolvedTools={unresolvedTools}
+        />
 
-        {panel === "skills" ? (
-          <>
-        {!currentUser ? (
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>登录后管理 Skill</CardTitle>
-              <CardDescription>
-                Skill 绑定到用户账号，登录后才能启用内置能力或创建自己的训练教练。
-              </CardDescription>
-              <CardAction>
-                <Button onClick={onLogin} type="button">登录</Button>
-              </CardAction>
-            </CardHeader>
-          </Card>
-        ) : null}
+        {error ? <p className="mt-5 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p> : null}
 
-        <div className="grid min-h-0 flex-1 gap-6 pt-6 xl:grid-cols-[minmax(0,1fr)_390px]">
-          <section className="min-w-0">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="inline-flex rounded-lg border bg-muted p-1">
-                <TabButton
-                  active={activeTab === "market"}
-                  label="Skill 市场"
-                  onClick={() => setActiveTab("market")}
-                />
-                <TabButton
-                  active={activeTab === "mine"}
-                  label="我的 Skill"
-                  onClick={() => setActiveTab("mine")}
-                />
-              </div>
-              {error ? (
-                <Badge variant="destructive">{error}</Badge>
-              ) : null}
-            </div>
+        <Tabs className="mt-10" defaultValue="skills">
+          <TabsList aria-label="能力中心分类" variant="line">
+            <TabsTrigger value="skills">
+              <WandSparkles />
+              Skills
+            </TabsTrigger>
+            <TabsTrigger value="tools">
+              <Wrench />
+              Tools
+            </TabsTrigger>
+          </TabsList>
 
-            {loading && !skills.length ? (
-              <Card className="grid min-h-[360px] place-items-center">
-                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                  <LoaderCircle className="size-4 animate-spin" />
-                  正在读取 Skill
-                </div>
-              </Card>
-            ) : visibleSkills.length ? (
-              <div className="grid gap-4 lg:grid-cols-2">
-                {visibleSkills.map((skill) => (
-                  <SkillCard
-                    key={skill.id}
-                    onDelete={() => onDeleteSkill(skill)}
-                    onToggle={(enabled) => onToggleSkill(skill, enabled)}
-                    skill={skill}
-                    submitting={submitting}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="py-8 text-sm text-muted-foreground">
-                  当前没有可展示的 Skill。
-                </CardContent>
-              </Card>
-            )}
-          </section>
-
-          <aside className="min-w-0">
-            <Card className="sticky top-0">
-              <form onSubmit={submitSkill}>
-                <CardHeader>
-                  <CardTitle>新建 Skill</CardTitle>
-                  <CardDescription>
-                    字段会保存为 Markdown/YAML 描述，并在对话时注入 Agent prompt。
-                  </CardDescription>
-                  <CardAction>
-                    <Badge>YAML</Badge>
-                  </CardAction>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Field label="名称">
-                    <Input
-                      onChange={(event) => updateForm("name", event.target.value)}
-                      value={form.name}
-                    />
-                  </Field>
-                  <Field label="描述">
-                    <Textarea
-                      className="min-h-16"
-                      onChange={(event) => updateForm("description", event.target.value)}
-                      value={form.description}
-                    />
-                  </Field>
-                  <Field label="适用场景">
-                    <Textarea
-                      className="min-h-20"
-                      onChange={(event) => updateForm("applicableScenarios", event.target.value)}
-                      value={form.applicableScenarios}
-                    />
-                  </Field>
-                  <Field label="系统提示片段">
-                    <Textarea
-                      className="min-h-24"
-                      onChange={(event) => updateForm("promptSnippet", event.target.value)}
-                      value={form.promptSnippet}
-                    />
-                  </Field>
-                  <Field label="可用工具">
-                    <Input
-                      onChange={(event) => updateForm("availableTools", event.target.value)}
-                      value={form.availableTools}
-                    />
-                  </Field>
-                  <Field label="输出格式">
-                    <Textarea
-                      className="min-h-16"
-                      onChange={(event) => updateForm("outputFormat", event.target.value)}
-                      value={form.outputFormat}
-                    />
-                  </Field>
-                  <Field label="禁忌规则">
-                    <Textarea
-                      className="min-h-16"
-                      onChange={(event) => updateForm("forbiddenRules", event.target.value)}
-                      value={form.forbiddenRules}
-                    />
-                  </Field>
-                  {formError ? (
-                    <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                      {formError}
-                    </p>
-                  ) : null}
-                </CardContent>
-                <CardFooter>
-                  <Button className="w-full" disabled={submitting || !currentUser} type="submit">
-                    {submitting ? <LoaderCircle className="size-4 animate-spin" /> : <Plus />}
-                    创建并启用
-                  </Button>
-                </CardFooter>
-              </form>
-            </Card>
-          </aside>
-        </div>
-          </>
-        ) : (
-          <ToolsPanel
-            loading={loading}
-            onLogin={onLogin}
-            onToggleTool={onToggleTool}
-            submitting={submitting}
-            tools={tools}
-            user={currentUser}
-          />
-        )}
+          <TabsContent className="mt-5" value="skills">
+            <SkillsPanel
+              currentUser={currentUser}
+              filter={skillFilter}
+              loading={loading}
+              onLogin={onLogin}
+              onSetFilter={setSkillFilter}
+              onDeleteSkill={onDeleteSkill}
+              onToggleSkill={onToggleSkill}
+              skills={visibleSkills}
+              submitting={submitting}
+            />
+          </TabsContent>
+          <TabsContent className="mt-5" value="tools">
+            <ToolsPanel
+              loading={loading}
+              onLogin={onLogin}
+              onToggleTool={onToggleTool}
+              submitting={submitting}
+              tools={tools}
+              unresolvedTools={unresolvedTools}
+              user={currentUser}
+            />
+          </TabsContent>
+        </Tabs>
       </section>
+
+      <CreateSkillSheet
+        currentUser={currentUser}
+        form={form}
+        formError={formError}
+        onLogin={onLogin}
+        onOpenChange={setCreateOpen}
+        onSubmit={submitSkill}
+        onUpdateForm={updateForm}
+        open={createOpen}
+        submitting={submitting}
+      />
     </main>
   )
 }
 
-function ToolsPanel({
-  loading,
-  onLogin,
-  onToggleTool,
-  submitting,
-  tools,
-  user,
+function ConfigurationHero({
+  enabledSkills,
+  enabledTools,
+  unresolvedTools,
 }: {
-  loading: boolean
-  onLogin: () => void
-  onToggleTool: (tool: AgentToolConfig, enabled: boolean) => Promise<void> | void
-  submitting: boolean
-  tools: AgentToolConfig[]
-  user: UserProfile | null
+  enabledSkills: Skill[]
+  enabledTools: AgentToolConfig[]
+  unresolvedTools: string[]
 }) {
-  if (!user) {
-    return (
-      <Card className="mt-6 p-6 text-sm">
-        登录后可以选择 Agent 可使用的工具。
-        <Button className="ml-4" onClick={onLogin} type="button">登录</Button>
-      </Card>
-    )
-  }
-  const groups = Object.entries(
-    tools.reduce<Record<string, AgentToolConfig[]>>((result, tool) => {
-      result[tool.category] = [...(result[tool.category] ?? []), tool]
-      return result
-    }, {})
-  )
+  const status = unresolvedTools.length
+    ? "有策略缺少可用工具"
+    : enabledSkills.length
+      ? "教练策略已就绪"
+      : "尚未选择教练策略"
+  const description = unresolvedTools.length
+    ? `启用的策略需要 ${unresolvedTools.join("、")}，但工具尚未启用或未完成配置。`
+    : enabledSkills.length
+      ? "对话生成建议时，将只在这些策略允许的工具范围内工作。"
+      : "选择一个内置策略后，Agent 才能稳定地遵守您的训练偏好与安全边界。"
+
   return (
-    <div className="mt-6 grid gap-6">
-      <p className="text-sm text-muted-foreground">
-        禁用的工具不会被 Agent 调用；需要密钥但尚未配置的工具暂不可启用。
-      </p>
-      {loading && !tools.length ? <p className="text-sm">正在读取工具...</p> : null}
-      {groups.map(([category, categoryTools]) => (
-        <section className="grid gap-3" key={category}>
-          <h2 className="text-lg font-bold">{toolCategoryLabel(category)}</h2>
-          <div className="grid gap-3 lg:grid-cols-2">
-            {categoryTools.map((tool) => {
-              const unavailable = tool.requires_api_key && !tool.api_key_configured
-              return (
-                <Card className="p-4" key={tool.name}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-sm font-bold">{tool.name}</h3>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        {tool.description ?? "无描述"}
-                      </p>
-                    </div>
-                    <Badge variant={tool.enabled && !unavailable ? "secondary" : "outline"}>
-                      {unavailable ? "缺少配置" : tool.enabled ? "启用中" : "已关闭"}
-                    </Badge>
-                  </div>
-                  {tool.failure_count > 0 ? (
-                    <p className="mt-3 text-xs text-destructive">
-                      最近调用失败 {tool.failure_count} 次
-                    </p>
-                  ) : null}
-                  <Button
-                    className="mt-4"
-                    disabled={submitting || unavailable}
-                    onClick={() => onToggleTool(tool, !tool.enabled)}
-                    type="button"
-                    variant={tool.enabled ? "outline" : "default"}
-                  >
-                    {tool.enabled ? "禁用" : "启用"}
-                  </Button>
-                </Card>
-              )
-            })}
-          </div>
-        </section>
-      ))}
+    <Card className="mt-10">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-xl">
+          {unresolvedTools.length ? <AlertCircle className="size-5 text-destructive" /> : <ShieldCheck className="size-5" />}
+          {status}
+        </CardTitle>
+        <CardDescription className="max-w-xl leading-6">{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-5 rounded-xl bg-muted/45 p-5 sm:grid-cols-3">
+          <SummaryValue label="启用策略" value={`${enabledSkills.length} 个`} />
+          <SummaryValue label="可调用工具" value={`${enabledTools.length} 个`} />
+          <SummaryValue
+            label="待处理依赖"
+            value={unresolvedTools.length ? `${unresolvedTools.length} 项` : "无"}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function SkillsPanel({
+  currentUser,
+  filter,
+  loading,
+  onDeleteSkill,
+  onLogin,
+  onSetFilter,
+  onToggleSkill,
+  skills,
+  submitting,
+}: {
+  currentUser: UserProfile | null
+  filter: "all" | "active" | "custom"
+  loading: boolean
+  onDeleteSkill: (skill: Skill) => Promise<void> | void
+  onLogin: () => void
+  onSetFilter: (filter: "all" | "active" | "custom") => void
+  onToggleSkill: (skill: Skill, enabled: boolean) => Promise<void> | void
+  skills: Skill[]
+  submitting: boolean
+}) {
+  if (!currentUser) {
+    return <LoginEmpty description="登录后选择教练策略，并保存您的启用配置。" onLogin={onLogin} />
+  }
+  if (loading && !skills.length) {
+    return <LoadingEmpty label="正在读取策略" />
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex gap-1 rounded-lg bg-muted p-1">
+          {[
+            ["all", "全部"],
+            ["active", "已启用"],
+            ["custom", "自建"],
+          ].map(([value, label]) => (
+            <Button
+              className="h-8"
+              key={value}
+              onClick={() => onSetFilter(value as "all" | "active" | "custom")}
+              size="sm"
+              type="button"
+              variant={filter === value ? "secondary" : "ghost"}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">展开策略查看行为边界与依赖工具</p>
+      </div>
+      {skills.length ? (
+        <Card className="gap-0 py-0">
+          <Accordion collapsible type="single">
+            {skills.map((skill) => (
+              <SkillAccordionItem
+                key={skill.id}
+                onDelete={() => onDeleteSkill(skill)}
+                onToggle={(enabled) => onToggleSkill(skill, enabled)}
+                skill={skill}
+                submitting={submitting}
+              />
+            ))}
+          </Accordion>
+        </Card>
+      ) : (
+        <Empty className="min-h-52 border">
+          <EmptyHeader>
+            <EmptyTitle>这个筛选下没有策略</EmptyTitle>
+            <EmptyDescription>切换到全部策略，或创建一个适合自己的教练策略。</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
     </div>
   )
 }
 
-function toolCategoryLabel(category: string) {
-  return {
-    diet: "饮食",
-    fitness: "训练计算与安全",
-    fitness_knowledge: "动作知识",
-    location: "路线与位置",
-    search: "联网搜索",
-    weather: "天气建议",
-  }[category] ?? category
-}
-
-function SkillCard({
+function SkillAccordionItem({
   onDelete,
   onToggle,
   skill,
@@ -410,129 +337,347 @@ function SkillCard({
   submitting: boolean
 }) {
   return (
-    <Card className="min-h-[300px]">
-      <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-2">
-          {skill.name}
-          <Badge variant={skill.is_builtin ? "default" : "secondary"}>
-            {skill.is_builtin ? "内置" : "自建"}
-          </Badge>
-        </CardTitle>
-        <CardDescription className="line-clamp-2">
-          {skill.description ?? skill.applicable_scenarios ?? "未填写适用场景"}
-        </CardDescription>
-        <CardAction>
-          <Badge variant={skill.enabled ? "secondary" : "outline"}>
-            {skill.enabled ? "启用中" : "未启用"}
-          </Badge>
-        </CardAction>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <InfoBlock icon={SlidersHorizontal} label="策略" value={skill.prompt_snippet} />
-        <InfoBlock icon={ShieldCheck} label="禁忌" value={skill.forbidden_rules} />
-        <div className="flex flex-wrap gap-2">
-          {skill.available_tools.length ? (
-            skill.available_tools.map((tool) => (
-              <Badge className="max-w-full truncate" key={tool} title={tool} variant="outline">
-                {tool}
-              </Badge>
-            ))
-          ) : (
-            <Badge variant="outline">不限制工具</Badge>
-          )}
+    <AccordionItem className="px-5" value={`skill-${skill.id}`}>
+      <AccordionTrigger className="no-underline hover:no-underline">
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="truncate text-base">{skill.name}</span>
+            <Badge variant={skill.is_builtin ? "outline" : "secondary"}>
+              {skill.is_builtin ? "内置" : "自建"}
+            </Badge>
+            {skill.enabled ? <Badge variant="secondary">启用中</Badge> : null}
+          </span>
+          <span className="mt-1 block truncate text-sm font-normal text-muted-foreground">
+            {skill.description ?? skill.applicable_scenarios ?? "暂无适用场景说明"}
+          </span>
+        </span>
+      </AccordionTrigger>
+      <AccordionContent className="space-y-5">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <DetailBlock icon={SlidersHorizontal} label="教练会怎样建议" value={skill.prompt_snippet} />
+          <DetailBlock icon={ShieldCheck} label="安全边界" value={skill.forbidden_rules} />
         </div>
-      </CardContent>
-      <CardFooter className="mt-auto gap-2">
-        <Button
-          className="flex-1"
-          disabled={submitting}
-          onClick={() => onToggle(!skill.enabled)}
-          type="button"
-          variant={skill.enabled ? "outline" : "default"}
-        >
-          {skill.enabled ? <X /> : <Check />}
-          {skill.enabled ? "停用" : "启用"}
-        </Button>
-        {!skill.is_builtin ? (
-          <Button disabled={submitting} onClick={onDelete} type="button" variant="destructive">
-            <Trash2 />
+        <div>
+          <p className="mb-2 text-xs font-medium text-muted-foreground">依赖工具</p>
+          <div className="flex flex-wrap gap-2">
+            {skill.available_tools.length ? (
+              skill.available_tools.map((tool) => <Badge key={tool} variant="outline">{tool}</Badge>)
+            ) : (
+              <Badge variant="outline">不限制工具范围</Badge>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            disabled={submitting}
+            onClick={() => onToggle(!skill.enabled)}
+            type="button"
+            variant={skill.enabled ? "outline" : "default"}
+          >
+            {skill.enabled ? <X /> : <Check />}
+            {skill.enabled ? "停用策略" : "启用策略"}
           </Button>
-        ) : null}
-      </CardFooter>
-    </Card>
+          {!skill.is_builtin ? (
+            <Button disabled={submitting} onClick={onDelete} type="button" variant="ghost">
+              <Trash2 />
+              删除
+            </Button>
+          ) : null}
+        </div>
+      </AccordionContent>
+    </AccordionItem>
   )
 }
 
-function InfoBlock({
-  icon: Icon,
-  label,
-  value,
+function ToolsPanel({
+  loading,
+  onLogin,
+  onToggleTool,
+  submitting,
+  tools,
+  unresolvedTools,
+  user,
 }: {
-  icon: LucideIcon
-  label: string
-  value: string | null
+  loading: boolean
+  onLogin: () => void
+  onToggleTool: (tool: AgentToolConfig, enabled: boolean) => Promise<void> | void
+  submitting: boolean
+  tools: AgentToolConfig[]
+  unresolvedTools: string[]
+  user: UserProfile | null
 }) {
+  if (!user) {
+    return <LoginEmpty description="登录后管理 Agent 是否可以调用计算、知识与安全工具。" onLogin={onLogin} />
+  }
+  if (loading && !tools.length) {
+    return <LoadingEmpty label="正在读取工具" />
+  }
+
+  const groups = Object.entries(
+    tools.reduce<Record<string, AgentToolConfig[]>>((result, tool) => {
+      result[tool.category] = [...(result[tool.category] ?? []), tool]
+      return result
+    }, {})
+  )
+
   return (
-    <div className="rounded-lg border bg-muted/35 px-3 py-3">
-      <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-        <Icon className="size-3.5" />
-        {label}
-      </div>
-      <p className="mt-2 line-clamp-3 break-words text-sm leading-6">
-        {value || "未设置"}
-      </p>
+    <div className="space-y-4">
+      {unresolvedTools.length ? (
+        <div className="rounded-xl bg-destructive/8 px-4 py-3 text-sm">
+          <p className="font-medium text-destructive">有 Skill 正在等待工具修复</p>
+          <p className="mt-1 text-muted-foreground">{unresolvedTools.join("、")} 尚未启用或缺少配置。</p>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          工具只在已启用且符合 Skill 范围时被调用。缺少密钥的工具无法误启用。
+        </p>
+      )}
+      {groups.length ? (
+        <Card className="gap-0 py-0">
+          <Accordion collapsible defaultValue={groups[0]?.[0]} type="single">
+            {groups.map(([category, categoryTools]) => (
+              <AccordionItem className="px-5" key={category} value={category}>
+                <AccordionTrigger className="no-underline hover:no-underline">
+                  <span className="flex flex-1 items-center justify-between pr-3">
+                    <span className="text-base">{toolCategoryLabel(category)}</span>
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {categoryTools.filter((tool) => tool.enabled && isAvailable(tool)).length} / {categoryTools.length} 可调用
+                    </span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="divide-y">
+                    {categoryTools.map((tool) => (
+                      <ToolRow
+                        key={tool.name}
+                        onToggle={() => onToggleTool(tool, !tool.enabled)}
+                        submitting={submitting}
+                        tool={tool}
+                      />
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </Card>
+      ) : (
+        <Empty className="min-h-52 border">
+          <EmptyHeader>
+            <EmptyTitle>暂未加载任何工具</EmptyTitle>
+            <EmptyDescription>刷新后仍为空时，请检查后端工具配置。</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
     </div>
   )
 }
 
-function Field({ children, label }: { children: ReactNode; label: string }) {
+function ToolRow({
+  onToggle,
+  submitting,
+  tool,
+}: {
+  onToggle: () => Promise<void> | void
+  submitting: boolean
+  tool: AgentToolConfig
+}) {
+  const unavailable = !isAvailable(tool)
   return (
-    <label className="block space-y-1.5">
-      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
+    <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-medium">{tool.name}</p>
+          <Badge variant={unavailable ? "outline" : tool.enabled ? "secondary" : "outline"}>
+            {unavailable ? "需配置" : tool.enabled ? "可调用" : "未启用"}
+          </Badge>
+        </div>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{tool.description ?? "未提供工具说明"}</p>
+        {tool.failure_count > 0 ? (
+          <p className="mt-1 text-xs text-destructive">最近调用失败 {tool.failure_count} 次</p>
+        ) : null}
+      </div>
+      <Button
+        className="shrink-0"
+        disabled={submitting || unavailable}
+        onClick={onToggle}
+        size="sm"
+        type="button"
+        variant={tool.enabled ? "outline" : "default"}
+      >
+        {tool.enabled ? "关闭" : "启用"}
+      </Button>
+    </div>
+  )
+}
+
+function CreateSkillSheet({
+  currentUser,
+  form,
+  formError,
+  onLogin,
+  onOpenChange,
+  onSubmit,
+  onUpdateForm,
+  open,
+  submitting,
+}: {
+  currentUser: UserProfile | null
+  form: SkillForm
+  formError: string | null
+  onLogin: () => void
+  onOpenChange: (open: boolean) => void
+  onSubmit: (event: FormEvent) => void
+  onUpdateForm: (field: keyof SkillForm, value: string) => void
+  open: boolean
+  submitting: boolean
+}) {
+  return (
+    <Sheet onOpenChange={onOpenChange} open={open}>
+      <SheetContent className="w-full sm:max-w-lg">
+        <SheetHeader className="border-b px-6 py-5">
+          <SheetTitle className="text-lg">创建教练策略</SheetTitle>
+          <SheetDescription>
+            定义 Agent 应遵循的建议风格、安全边界和可用工具。保存后可随时停用。
+          </SheetDescription>
+        </SheetHeader>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="space-y-5 px-6 py-5">
+              <FormField label="策略名称">
+                <Input onChange={(event) => onUpdateForm("name", event.target.value)} value={form.name} />
+              </FormField>
+              <FormField label="用途说明">
+                <Textarea className="min-h-18" onChange={(event) => onUpdateForm("description", event.target.value)} value={form.description} />
+              </FormField>
+              <FormField label="核心策略">
+                <Textarea className="min-h-28" onChange={(event) => onUpdateForm("promptSnippet", event.target.value)} value={form.promptSnippet} />
+              </FormField>
+              <Accordion collapsible type="single">
+                <AccordionItem value="advanced">
+                  <AccordionTrigger>更多边界设置</AccordionTrigger>
+                  <AccordionContent className="space-y-4">
+                    <FormField label="适用场景">
+                      <Textarea onChange={(event) => onUpdateForm("applicableScenarios", event.target.value)} value={form.applicableScenarios} />
+                    </FormField>
+                    <FormField label="可用工具名称">
+                      <Input onChange={(event) => onUpdateForm("availableTools", event.target.value)} value={form.availableTools} />
+                    </FormField>
+                    <FormField label="输出格式">
+                      <Textarea onChange={(event) => onUpdateForm("outputFormat", event.target.value)} value={form.outputFormat} />
+                    </FormField>
+                    <FormField label="禁止行为">
+                      <Textarea onChange={(event) => onUpdateForm("forbiddenRules", event.target.value)} value={form.forbiddenRules} />
+                    </FormField>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+              {formError ? <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{formError}</p> : null}
+            </div>
+          </ScrollArea>
+          <SheetFooter className="border-t px-6 py-4">
+            {currentUser ? (
+              <Button disabled={submitting} type="submit">
+                {submitting ? <LoaderCircle className="animate-spin" /> : <Plus />}
+                保存并启用策略
+              </Button>
+            ) : (
+              <Button onClick={onLogin} type="button">登录后创建</Button>
+            )}
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function LoginEmpty({ description, onLogin }: { description: string; onLogin: () => void }) {
+  return (
+    <Empty className="min-h-56 border">
+      <EmptyHeader>
+        <EmptyMedia variant="icon"><BookOpenText /></EmptyMedia>
+        <EmptyTitle>登录后管理能力</EmptyTitle>
+        <EmptyDescription>{description}</EmptyDescription>
+      </EmptyHeader>
+      <Button onClick={onLogin} type="button">登录</Button>
+    </Empty>
+  )
+}
+
+function LoadingEmpty({ label }: { label: string }) {
+  return (
+    <Empty className="min-h-56 border">
+      <LoaderCircle className="animate-spin text-muted-foreground" />
+      <p className="text-sm text-muted-foreground">{label}</p>
+    </Empty>
+  )
+}
+
+function DetailBlock({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof ShieldCheck
+  label: string
+  value: string | null
+}) {
+  return (
+    <div className="rounded-xl bg-muted/50 p-4">
+      <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <Icon className="size-3.5" />
+        {label}
+      </p>
+      <p className="mt-2 text-sm leading-6">{value || "未设置"}</p>
+    </div>
+  )
+}
+
+function SummaryValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-2 text-xl font-medium">{value}</p>
+    </div>
+  )
+}
+
+function FormField({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-sm font-medium">{label}</span>
       {children}
     </label>
   )
 }
 
-function TabButton({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <button
-      className={cn(
-        "h-8 rounded-md px-3 text-sm font-medium transition",
-        active ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
-      )}
-      onClick={onClick}
-      type="button"
-    >
-      {label}
-    </button>
+function getUnresolvedToolDependencies(enabledSkills: Skill[], tools: AgentToolConfig[]) {
+  const toolMap = new Map(tools.map((tool) => [tool.name, tool]))
+  return Array.from(
+    new Set(
+      enabledSkills
+        .flatMap((skill) => skill.available_tools)
+        .filter((name) => {
+          const tool = toolMap.get(name)
+          return !tool || !tool.enabled || !isAvailable(tool)
+        })
+    )
   )
 }
 
-function StatPill({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon
-  label: string
-  value: number
-}) {
-  return (
-    <span className="inline-flex h-8 items-center gap-2 rounded-lg border bg-background px-3 text-sm font-medium">
-      <Icon className="size-4" />
-      {label}
-      <span className="text-muted-foreground">{value}</span>
-    </span>
-  )
+function isAvailable(tool: AgentToolConfig) {
+  return !(tool.requires_api_key && !tool.api_key_configured) && tool.health_status !== "unavailable"
+}
+
+function toolCategoryLabel(category: string) {
+  return {
+    diet: "营养与饮食",
+    fitness: "训练计算与安全",
+    fitness_knowledge: "动作知识",
+    location: "路线与位置",
+    search: "联网查询",
+    weather: "环境与天气",
+  }[category] ?? category
 }
 
 function compactOptional(value: string) {
@@ -541,8 +686,5 @@ function compactOptional(value: string) {
 }
 
 function parseTools(value: string) {
-  return value
-    .split(/[\n,，]+/)
-    .map((item) => item.trim())
-    .filter(Boolean)
+  return value.split(/[\n,，]+/).map((item) => item.trim()).filter(Boolean)
 }
