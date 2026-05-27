@@ -36,6 +36,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
+import { Separator } from "@/shared/ui/separator"
 
 type SkillPanelPageProps = {
   currentUser: UserProfile | null
@@ -158,15 +159,8 @@ export function SkillPanelPage({
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
           <div>
             <h1 className="text-3xl font-medium tracking-[-0.05em]">能力中心</h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              选择教练策略，并管理这些策略实际可以调用的工具。
-            </p>
           </div>
           <div className="flex shrink-0 gap-2">
-            <Button disabled={loading} onClick={onRefresh} size="icon" type="button" variant="ghost">
-              {loading ? <LoaderCircle className="animate-spin" /> : <RefreshCcw />}
-              <span className="sr-only">刷新能力列表</span>
-            </Button>
             <InputGroup className="w-full sm:w-64">
               <InputGroupInput
                 aria-label="搜索 Skills 或 Tools"
@@ -178,6 +172,9 @@ export function SkillPanelPage({
                 <SearchIcon />
               </InputGroupAddon>
             </InputGroup>
+            <Button disabled={loading} onClick={onRefresh} size="icon" type="button" variant="ghost" className="text-muted-foreground">
+              {loading ? <Spinner /> : <RefreshCcw />}
+            </Button>
           </div>
         </header>
 
@@ -197,10 +194,15 @@ export function SkillPanelPage({
 
             </TabsList>
             {tabValue === "skills" && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center">
+                <Button onClick={() => setCreateOpen(true)} size="default" variant="ghost">
+                  <Plus className="size-3.5" />
+                  创建策略
+                </Button>
+                <Separator orientation="vertical" className="mx-1" />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="default" type="button" variant="outline">
+                    <Button size="default" type="button" variant="ghost">
                       <Filter className="size-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -220,10 +222,7 @@ export function SkillPanelPage({
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button onClick={() => setCreateOpen(true)} size="default" variant="outline">
-                  <Plus className="size-3.5" />
-                  创建策略
-                </Button>
+
               </div>
             )}
           </div>
