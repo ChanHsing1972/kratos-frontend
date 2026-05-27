@@ -52,9 +52,7 @@ import {
   chatSessionsFromAgentSessions,
   formatTime,
   getLatestByDate,
-  isProgramPlanRequest,
   titleFromPrompt,
-  trainingPlanPayloadFromAssistantAnswer,
   trainingPlanPayloadFromAgentResult,
 } from "@/entities/kratos/lib/domain"
 import {
@@ -1144,14 +1142,7 @@ export function KratosPage() {
               }
 
               if (event.type === "final") {
-                const planFromAnswer = trainingPlanPayloadFromAssistantAnswer(
-                  event.content || message.body,
-                  body
-                )
-                const rawPlan = trainingPlanPayloadFromAgentResult(event.raw)
-                const suggestedTrainingPlan =
-                  planFromAnswer ??
-                  (isProgramPlanRequest(body) ? undefined : rawPlan)
+                const suggestedTrainingPlan = trainingPlanPayloadFromAgentResult(event.raw)
                 const generatedAlready = suggestedTrainingPlan
                   ? generatedTrainingPlanKeys.has(
                     trainingPlanDraftKey(suggestedTrainingPlan)

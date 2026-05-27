@@ -274,11 +274,7 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
         id: `run-${run.id}-assistant`,
         author: "assistant" as const,
         body: run.answer,
-        suggestedTrainingPlan:
-          trainingPlanPayloadFromAssistantAnswer(run.answer, run.user_message) ??
-          (isProgramPlanRequest(run.user_message)
-            ? undefined
-            : trainingPlanPayloadFromAgentResult(run.result_payload)),
+        suggestedTrainingPlan: trainingPlanPayloadFromAgentResult(run.result_payload),
         suggestedHealthData: pendingHealthDataFromTrace(run.trace_steps),
         time: formatStoredTime(run.created_at),
         trace: run.trace_steps
@@ -332,176 +328,6 @@ export function trainingPlanPayloadFromAgentResult(
     title,
     weekly_schedule: weeklySchedule,
   }
-}
-
-export function isProgramPlanRequest(prompt: string) {
-  return /(一周|周计划|每周|长期|周期|多周|月度).*(训练|健身|计划|安排)|(训练|健身|计划|安排).*(一周|周计划|每周|长期|周期|多周|月度)/.test(prompt)
-}
-
-export function trainingPlanPayloadFromAssistantAnswer(
-  answer: string,
-  prompt: string
-): TrainingPlanPayload | undefined {
-  const normalizedAnswer = normalizeVisiblePlanBreaks(answer)
-  const programRequested = isProgramPlanRequest(prompt)
-  const dailyRequested =
-    /(今天|今日|每日|日计划|本次).*(训练|健身|计划|安排)|(训练|健身|计划|安排).*(今天|今日|每日|日计划|本次)/.test(prompt)
-  if (!programRequested && !dailyRequested) {
-    return undefined
-  }
-
-  const sessions = programRequested
-    ? parseProgramSessionsFromAnswer(normalizedAnswer)
-    : parseDailySessionsFromAnswer(normalizedAnswer)
-  if (!sessions.length || (programRequested && sessions.length < 2)) {
-    return undefined
-  }
-
-  const title =
-    findPlanTitleInAnswer(normalizedAnswer) ??
-    (programRequested ? "一周训练计划" : "今日训练计划")
-  const durationWeeks = programRequested ? parseDurationWeeks(prompt) : null
-  return trainingPlanPayloadFromAgentResult({
-    workout_plan: {
-      duration_weeks: durationWeeks,
-      goal: "根据本次对话生成的训练安排",
-      plan_kind: programRequested ? "program" : "daily",
-      sessions,
-      title,
-    },
-  })
-}
-
-function parseProgramSessionsFromAnswer(answer: string) {
-  const sessions: Record<string, unknown>[] = []
-  for (const rawLine of answer.split(/\r?\n/)) {
-    const markdownCells = rawLine.includes("|") || (rawLine.match(/｜/g)?.length ?? 0) >= 2
-      ? rawLine.trim().replace(/^[|｜]/, "").replace(/[|｜]$/, "").split(/[|｜]/).map((cell) => cell.trim())
-      : []
-    if (markdownCells.length >= 2) {
-      const weekday = normalizeWeekday(markdownCells[0])
-      if (weekday) {
-        const details = (markdownCells.length >= 3 ? markdownCells.slice(2) : markdownCells.slice(1)).join("；")
-        sessions.push(visibleSession(weekday, markdownCells.length >= 3 ? markdownCells[1] : "训练安排", details))
-      }
-      continue
-    }
-
-    const line = rawLine.trim().replace(/^[-*•\s]+/, "")
-    const match = line.match(/^(周[一二三四五六日天](?:\/[日天])?)(?:\s*[|｜/-]\s*([^:：]+))?\s*[:：]\s*(.+)$/)
-    if (match) {
-      sessions.push(visibleSession(match[1], match[2] ?? "训练安排", match[3]))
-    }
-  }
-  return sessions
-}
-
-function parseDailySessionsFromAnswer(answer: string) {
-  const exercises = parseVisibleExercises(answer)
-  return exercises.length
-    ? [{ exercises, notes: [], title: "今日训练", weekday: weekdayLabel(new Date()) }]
-    : []
-}
-
-function visibleSession(weekday: string, title: string, details: string) {
-  const parsed = parseVisibleSessionDetails(details, title)
-  return {
-    exercises: parsed.exercises,
-    notes: parsed.note ? [parsed.note] : [],
-    schedule_line: parsed.scheduleLine,
-    title: title.trim() || "训练安排",
-    weekday,
-  }
-}
-
-function parseVisibleExercises(text: string) {
-  return splitVisiblePlanSegments(text)
-    .map(parseVisibleExercise)
-    .filter((exercise): exercise is NonNullable<typeof exercise> => Boolean(exercise))
-}
-
-function parseVisibleSessionDetails(details: string, title: string) {
-  const parsedSegments = splitVisiblePlanSegments(details).map((segment) => ({
-    exercise: parseVisibleExercise(segment),
-    segment,
-  }))
-  const exercises = parsedSegments
-    .map(({ exercise }) => exercise)
-    .filter((exercise): exercise is NonNullable<typeof exercise> => Boolean(exercise))
-  const note = parsedSegments
-    .filter(({ exercise }) => !exercise)
-    .map(({ segment }) => segment)
-    .join("；")
-  const scheduleLine = exercises.length
-    ? exercises
-      .map((exercise, index) => {
-        const trailingNote = note && index === exercises.length - 1 ? `（${note}）` : ""
-        return `${exercise.name} ${exercise.schedule_amount}${trailingNote}`
-      })
-      .join("；")
-    : `${/休息|恢复/.test(title) ? "恢复安排" : title.trim() || "训练安排"} 按需${note ? `（${note}）` : ""}`
-
-  return {
-    exercises: exercises.map((exercise, index) => ({
-      ...exercise,
-      notes: note && index === exercises.length - 1 ? note : null,
-    })),
-    note,
-    scheduleLine,
-  }
-}
-
-function splitVisiblePlanSegments(text: string) {
-  return normalizeVisiblePlanBreaks(text)
-    .split(/[；;、]\s*/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-}
-
-function parseVisibleExercise(compact: string) {
-  const amount = compact.match(/(\d+)\s*(?:组\s*[xX×*]?\s*|[xX×*])\s*(\d+(?:\s*[-~至]\s*\d+)?)(?:\s*(次|秒|分钟))?/)
-  const duration = compact.match(/(\d+(?:\s*[-~至]\s*\d+)?)\s*(分钟|秒)/)
-  const start = amount?.index ?? duration?.index
-  if (start === undefined) return null
-  const name = compact.slice(0, start).replace(/[：:,，\s]+$/, "").trim()
-  if (!name) return null
-  return {
-    duration_minutes: duration && !amount && duration[2] === "分钟" ? Number.parseInt(duration[1], 10) : null,
-    name,
-    notes: null,
-    reps: amount
-      ? `${amount[2].replace(/\s/g, "")} ${amount[3] ?? "次"}`
-      : duration
-        ? `${duration[1].replace(/\s/g, "")} ${duration[2]}`
-        : null,
-    schedule_amount: compact.slice(start).trim(),
-    sets: amount ? Number.parseInt(amount[1], 10) : null,
-  }
-}
-
-function normalizeVisiblePlanBreaks(value: string) {
-  return value
-    .replace(/<br\s*\/?>/gi, "；")
-    .replace(/&lt;br\s*\/?&gt;/gi, "；")
-}
-
-function normalizeWeekday(value: string) {
-  const match = value.match(/^(?:周|星期)[一二三四五六日天](?:\/[日天])?$/)
-  return match ? value.replace(/^星期/, "周") : null
-}
-
-function findPlanTitleInAnswer(answer: string) {
-  return answer
-    .split(/\r?\n/)
-    .map((line) => line.replace(/^#+\s*/, "").replace(/\*\*/g, "").trim())
-    .find((line) => line.includes("计划") && !line.includes("|") && line.length <= 40) ?? null
-}
-
-function parseDurationWeeks(prompt: string) {
-  const arabic = prompt.match(/(\d+)\s*周/)
-  if (arabic) return Math.max(1, Number.parseInt(arabic[1], 10))
-  if (prompt.includes("一周") || prompt.includes("周计划")) return 1
-  return 4
 }
 
 function pendingHealthDataFromTrace(traceSteps: AgentRunTraceStep[]) {
@@ -786,10 +612,16 @@ function extractGuidanceLinesFromWorkoutSessions(sessions: Record<string, unknow
 }
 
 function cleanScheduleTitle(value: string) {
-  return value
+  const cleaned = value
     .replace(/^[-\d\s.、]+/, "")
     .replace(/[：:]\s*$/, "")
-    .trim() || "训练"
+    .trim()
+
+  if (!cleaned || isPlanContextLine(cleaned) || cleaned.length > 24) {
+    return "训练安排"
+  }
+
+  return cleaned
 }
 
 function cleanWorkoutLine(value: string | null) {
@@ -797,7 +629,7 @@ function cleanWorkoutLine(value: string | null) {
     return null
   }
 
-  const compacted = value
+  const compacted = stripPlanContextPrefix(value)
     .replace(/^[-•\s]+/, "")
     .replace(/\s+/g, " ")
     .replace(/([：:])\s*\1+/g, "$1")
@@ -834,6 +666,33 @@ function isTrainingActionLine(value: string) {
 
 function isGuidanceLine(value: string) {
   return /冷身|拉伸|注意事项|注意|避免|疼痛|刺痛|头晕|不适|补充蛋白|补充水分|睡眠|恢复|风险|如有|如果|立即停止|呼吸均匀/.test(value)
+}
+
+function isPlanContextLine(value: string) {
+  return /你反馈|结合你的情况|结合.*情况|这是生成|今日计划安排|身高|体重|当前为|健身房训练|训练经验/.test(value)
+}
+
+function stripPlanContextPrefix(value: string) {
+  const firstPrescription = value.search(
+    /(\d+\s*组|\d+\s*[xX×*]\s*\d+|\d+\s*(?:次|分钟|秒)|每组|RM)/i
+  )
+  if (firstPrescription < 0) {
+    return value
+  }
+
+  const beforePrescription = value.slice(0, firstPrescription)
+  if (!isPlanContextLine(beforePrescription)) {
+    return value
+  }
+
+  const chineseColon = beforePrescription.lastIndexOf("：")
+  const asciiColon = beforePrescription.lastIndexOf(":")
+  const colon = Math.max(chineseColon, asciiColon)
+  if (colon < 0) {
+    return value
+  }
+
+  return value.slice(colon + 1).trim()
 }
 
 function uniqueLines(lines: string[]) {
