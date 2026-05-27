@@ -543,7 +543,7 @@ function buildWeeklyScheduleFromWorkoutSessions(sessions: Record<string, unknown
         isTrainingActionLine(note) || /恢复|休息|快走|拉伸|瑜伽|活动/.test(note)
       )
       const explicitScheduleLine = cleanWorkoutLine(textValue(session.schedule_line))
-      const actions = uniqueLines(fallbackNotes.length ? fallbackNotes : exercises).slice(0, 8)
+      const actions = uniqueLines(exercises.length ? exercises : fallbackNotes).slice(0, 8)
       const actionText = explicitScheduleLine ?? actions.join("；")
 
       if (!actionText && isGuidanceLine(title)) {
@@ -665,7 +665,7 @@ function isTrainingActionLine(value: string) {
 }
 
 function isGuidanceLine(value: string) {
-  return /冷身|拉伸|注意事项|注意|避免|疼痛|刺痛|头晕|不适|补充蛋白|补充水分|睡眠|恢复|风险|如有|如果|立即停止|呼吸均匀/.test(value)
+  return /热身|冷身|拉伸|动态拉伸|静态拉伸|关节活动|注意事项|注意|避免|疼痛|刺痛|头晕|不适|补充蛋白|补充水分|睡眠|恢复|风险|如有|如果|立即停止|呼吸均匀/.test(value)
 }
 
 function isPlanContextLine(value: string) {
