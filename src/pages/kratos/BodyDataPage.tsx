@@ -1,8 +1,5 @@
 import {
   Activity,
-  AlertTriangle,
-  ArrowRight,
-  CheckCircle2,
   Download,
   Dumbbell,
   Gauge,
@@ -15,13 +12,12 @@ import {
   Scale,
   Trash2,
   TrendingUp,
-  WandSparkles,
 } from "lucide-react"
+import { useState, type ReactNode } from "react"
 
 import type {
   AgentCheckin,
   BodyMetric,
-  FitnessProfile,
   OnboardingStatus,
   WorkoutLog,
 } from "@/entities/kratos/model/types"
@@ -30,18 +26,20 @@ import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
 import { Progress } from "@/shared/ui/progress"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
 
 type BodyDataPageProps = {
   bodyMetrics: BodyMetric[]
+  checkins: AgentCheckin[]
   latestCheckin: AgentCheckin | null
   latestMetric: BodyMetric | null
   onEditBodyData: () => void
   onEditBodyMetric: (metric: BodyMetric) => void
+  onDeleteCheckin: (checkin: AgentCheckin) => void
   onDeleteBodyMetric: (metric: BodyMetric) => void
   onExportBodyData: () => void
   onboarding: OnboardingStatus | null
-  profile: FitnessProfile | null
   workoutLogs: WorkoutLog[]
 }
 
@@ -52,34 +50,41 @@ type MetricPoint = {
 
 export function BodyDataPage({
   bodyMetrics,
+  checkins,
   latestCheckin,
   latestMetric,
   onEditBodyData,
   onEditBodyMetric,
+  onDeleteCheckin,
   onDeleteBodyMetric,
   onExportBodyData,
   onboarding,
-  profile,
   workoutLogs,
 }: BodyDataPageProps) {
   const weightSeries = getMetricSeries(bodyMetrics, "weight_kg")
   const bodyFatSeries = getMetricSeries(bodyMetrics, "body_fat_percentage")
   const muscleSeries = getMetricSeries(bodyMetrics, "skeletal_muscle_mass_kg")
-  const recovery = getRecoveryGuidance(latestCheckin)
-  const completedLogs = workoutLogs.filter((log) => log.completed)
+  const sleepSeries = getCheckinSeries(checkins, "sleep_hours")
+  const energySeries = getCheckinSeries(checkins, "energy_level")
+  const sorenessSeries = getCheckinSeries(checkins, "soreness_level")
+  const todayCheckin = isToday(latestCheckin?.checkin_date ?? latestCheckin?.created_at)
+    ? latestCheckin
+    : null
+  const todayMetric = isToday(latestMetric?.measured_at ?? latestMetric?.recorded_at)
+    ? latestMetric
+    : null
   const weight = latestMetric?.weight_kg ?? null
   const targetWeight = latestMetric?.target_weight_kg ?? null
   const targetProgress = calculateTargetProgress(weightSeries[0]?.value ?? null, weight, targetWeight)
 
   return (
     <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
-      <section className="mx-auto mt-16 flex min-h-full w-full max-w-[900px] flex-col px-6 pb-12 sm:px-8">
+      <section className="mx-auto mt-20 flex min-h-full w-full max-w-[900px] flex-col sm:p-8">
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
           <div>
-            <p className="text-sm text-muted-foreground">身体与恢复</p>
-            <h1 className="mt-1 text-3xl font-medium tracking-[-0.05em]">今天适合怎么练？</h1>
+            <h1 className="mt-1 text-3xl font-medium tracking-[-0.05em]">身体数据</h1>
             <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              恢复打卡决定今天的训练强度，身体趋势帮助 Kratos 调整下一周，而不是用单次数字评价您。
+              睡眠、精力与酸痛来自恢复打卡；体重与围度来自身体测量。趋势帮助 Kratos 调整下一周。
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -87,18 +92,13 @@ export function BodyDataPage({
               <Download />
               导出
             </Button>
-            <Button onClick={onEditBodyData} type="button">
-              <Plus />
-              记录今天状态
-            </Button>
           </div>
         </header>
 
-        <RecoveryHero
-          latestCheckin={latestCheckin}
-          latestMetric={latestMetric}
-          onCheckin={onEditBodyData}
-          recovery={recovery}
+        <TodayStatusHero
+          latestCheckin={todayCheckin}
+          latestMetric={todayMetric}
+          onRecord={onEditBodyData}
         />
 
         <Tabs className="mt-12" defaultValue="trend">
@@ -107,9 +107,8 @@ export function BodyDataPage({
               <TrendingUp />
               趋势
             </TabsTrigger>
-            <TabsTrigger value="training">
-              <Dumbbell />
-              训练反馈
+            <TabsTrigger value="extended">
+              更多身体指标
             </TabsTrigger>
             <TabsTrigger value="records">
               <History />
@@ -119,24 +118,30 @@ export function BodyDataPage({
 
           <TabsContent className="mt-4 space-y-4" value="trend">
             <TrendPanel
-              bodyFatSeries={bodyFatSeries}
-              latestMetric={latestMetric}
-              muscleSeries={muscleSeries}
-              profile={profile}
+              energySeries={energySeries}
+              sleepSeries={sleepSeries}
+              sorenessSeries={sorenessSeries}
               targetProgress={targetProgress}
               targetWeight={targetWeight}
               weightSeries={weightSeries}
+              workoutLogs={workoutLogs.filter((log) => log.completed)}
             />
           </TabsContent>
 
-          <TabsContent className="mt-4" value="training">
-            <TrainingFeedbackPanel logs={completedLogs} />
+          <TabsContent className="mt-4" value="extended">
+            <ExtendedTrendPanel
+              bodyFatSeries={bodyFatSeries}
+              bodyMetrics={bodyMetrics}
+              muscleSeries={muscleSeries}
+            />
           </TabsContent>
 
           <TabsContent className="mt-4 space-y-4" value="records">
             <RecordsPanel
               bodyMetrics={bodyMetrics}
+              checkins={checkins}
               latestMetric={latestMetric}
+              onDeleteCheckin={onDeleteCheckin}
               onDeleteBodyMetric={onDeleteBodyMetric}
               onEditBodyMetric={onEditBodyMetric}
               onboarding={onboarding}
@@ -148,73 +153,52 @@ export function BodyDataPage({
   )
 }
 
-function RecoveryHero({
+function TodayStatusHero({
   latestCheckin,
   latestMetric,
-  onCheckin,
-  recovery,
+  onRecord,
 }: {
   latestCheckin: AgentCheckin | null
   latestMetric: BodyMetric | null
-  onCheckin: () => void
-  recovery: RecoveryGuidance
+  onRecord: () => void
 }) {
-  const dataDate = latestCheckin?.checkin_date ?? latestCheckin?.created_at
+  const hasTodayData = Boolean(latestCheckin)
 
   return (
     <section className="mt-12">
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-        <div className="max-w-xl">
-          <div className="flex items-center gap-2">
-            <Badge className={recovery.badgeClass} variant="outline">
-              <recovery.icon className="size-3.5" />
-              {recovery.label}
-            </Badge>
-            <span className="text-xs text-muted-foreground">
-              {dataDate ? `${formatFullDate(dataDate)} 打卡` : "尚未打卡"}
-            </span>
-          </div>
-          <h2 className="mt-4 text-2xl leading-tight font-medium tracking-[-0.04em]">
-            {recovery.title}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">{recovery.description}</p>
-        </div>
-        {!latestCheckin ? (
-          <Button onClick={onCheckin} type="button" variant="outline">
-            进行恢复打卡
-            <ArrowRight />
+      <div className="mb-4 flex items-center justify-between">
+        {/* <div>
+          <h2 className="text-lg font-medium">今天的状态</h2>
+          <p className="mt-1 text-sm text-muted-foreground">睡眠与主观恢复用于训练安排，体重用于长期趋势。</p>
+        </div> */}
+        {hasTodayData ? (
+          <Button onClick={() => onRecord()} size="sm" type="button" variant="outline">
+            更新记录
           </Button>
         ) : null}
       </div>
-
-      <Card className="mt-8 gap-0 py-0">
-        <div className="grid sm:grid-cols-4">
-          <StatusMetric
-            icon={MoonStar}
-            label="睡眠"
-            note="恢复基础"
-            value={formatMetricWithUnit(latestCheckin?.sleep_hours ?? latestMetric?.sleep_hours, "h")}
-          />
-          <StatusMetric
-            icon={Activity}
-            label="精力"
-            note="主观活力"
-            value={formatScore(latestCheckin?.energy_level)}
-          />
-          <StatusMetric
-            icon={Gauge}
-            label="酸痛"
-            note="训练风险"
-            value={formatScore(latestCheckin?.soreness_level)}
-          />
-          <StatusMetric
-            icon={Scale}
-            label="体重"
-            note="低频趋势"
-            value={formatMetricWithUnit(latestMetric?.weight_kg, "kg")}
-          />
-        </div>
-      </Card>
+      {hasTodayData ? (
+        <Card className="gap-0 py-0">
+          <div className="grid sm:grid-cols-4">
+            <StatusMetric icon={MoonStar} label="睡眠" value={formatMetricWithUnit(latestCheckin?.sleep_hours, "h")} />
+            <StatusMetric icon={Activity} label="精力" value={formatScore(latestCheckin?.energy_level)} />
+            <StatusMetric icon={Gauge} label="酸痛" value={formatScore(latestCheckin?.soreness_level)} />
+            <StatusMetric icon={Scale} label="体重" value={formatMetricWithUnit(latestMetric?.weight_kg, "kg")} />
+          </div>
+        </Card>
+      ) : (
+        <Empty className="min-h-52 border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><Plus /></EmptyMedia>
+            <EmptyTitle>今天还没有状态记录</EmptyTitle>
+            <EmptyDescription>记录睡眠、精力、酸痛与体重，供训练计划页生成今天的建议。</EmptyDescription>
+          </EmptyHeader>
+          <Button onClick={() => onRecord()} type="button">
+            <Plus />
+            记录今天状态
+          </Button>
+        </Empty>
+      )}
     </section>
   )
 }
@@ -222,12 +206,10 @@ function RecoveryHero({
 function StatusMetric({
   icon: Icon,
   label,
-  note,
   value,
 }: {
   icon: typeof Activity
   label: string
-  note: string
   value: string
 }) {
   return (
@@ -236,72 +218,34 @@ function StatusMetric({
       <div>
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className="mt-1 text-xl font-medium tracking-tight">{value}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{note}</p>
       </div>
     </div>
   )
 }
 
 function TrendPanel({
-  bodyFatSeries,
-  latestMetric,
-  muscleSeries,
-  profile,
+  energySeries,
+  sleepSeries,
+  sorenessSeries,
   targetProgress,
   targetWeight,
   weightSeries,
+  workoutLogs,
 }: {
-  bodyFatSeries: MetricPoint[]
-  latestMetric: BodyMetric | null
-  muscleSeries: MetricPoint[]
-  profile: FitnessProfile | null
+  energySeries: MetricPoint[]
+  sleepSeries: MetricPoint[]
+  sorenessSeries: MetricPoint[]
   targetProgress: number | null
   targetWeight: number | null
   weightSeries: MetricPoint[]
+  workoutLogs: WorkoutLog[]
 }) {
-  const bmi = latestMetric?.bmi ?? calculateBmi(latestMetric)
-  const measurements = [
-    {
-      label: "体脂率",
-      value: formatMetricWithUnit(latestMetric?.body_fat_percentage, "%"),
-      change: formatMetricChange(bodyFatSeries, "%"),
-    },
-    {
-      label: "骨骼肌",
-      value: formatMetricWithUnit(latestMetric?.skeletal_muscle_mass_kg, "kg"),
-      change: formatMetricChange(muscleSeries, "kg"),
-    },
-    {
-      label: "BMI",
-      value: formatMetricValue(bmi),
-      change: bmi ? getBmiLevel(bmi) : "待记录",
-    },
-    {
-      label: "基础代谢",
-      value: calculateBmr(profile, latestMetric)
-        ? `${calculateBmr(profile, latestMetric)} kcal`
-        : "待补全",
-      change: "画像估算",
-    },
-  ]
-
   return (
     <>
-      <Card>
-        <CardHeader className="sm:grid-cols-[1fr_auto]">
-          <div>
-            <CardTitle>体重趋势</CardTitle>
-            <CardDescription>推荐每周固定条件记录一次，用长期方向辅助训练调整。</CardDescription>
-          </div>
-          <div className="mt-3 text-left sm:mt-0 sm:text-right">
-            <p className="text-2xl font-medium">{formatMetricWithUnit(latestMetric?.weight_kg, "kg")}</p>
-            <p className="text-xs text-muted-foreground">{formatMetricChange(weightSeries, "kg")}</p>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <LineChart series={weightSeries} unit="kg" />
+      <div className="grid gap-4 md:grid-cols-2">
+        <TrendChartCard label="体重" series={weightSeries} unit="kg">
           {typeof targetProgress === "number" ? (
-            <div className="mt-6 rounded-xl bg-muted/50 p-4">
+            <div className="mt-4 rounded-xl bg-muted/50 p-3">
               <div className="mb-3 flex items-center justify-between text-sm">
                 <span>目标体重 {formatMetricWithUnit(targetWeight, "kg")}</span>
                 <span className="text-muted-foreground">{targetProgress}%</span>
@@ -309,18 +253,86 @@ function TrendPanel({
               <Progress value={targetProgress} />
             </div>
           ) : null}
-        </CardContent>
-      </Card>
-      <div className="grid gap-3 sm:grid-cols-4">
-        {measurements.map((item) => (
-          <div className="rounded-xl bg-card px-4 py-4 ring-1 ring-foreground/10" key={item.label}>
-            <p className="text-xs text-muted-foreground">{item.label}</p>
-            <p className="mt-2 text-lg font-medium">{item.value}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{item.change}</p>
-          </div>
-        ))}
+        </TrendChartCard>
+        <TrendChartCard label="酸痛" series={sorenessSeries} unit="/10" />
+        <TrendChartCard label="精力" series={energySeries} unit="/10" />
+        <TrendChartCard label="睡眠" series={sleepSeries} unit="h" />
       </div>
+      <TrainingFeedbackPanel logs={workoutLogs} />
     </>
+  )
+}
+
+function ExtendedTrendPanel({
+  bodyFatSeries,
+  bodyMetrics,
+  muscleSeries,
+}: {
+  bodyFatSeries: MetricPoint[]
+  bodyMetrics: BodyMetric[]
+  muscleSeries: MetricPoint[]
+}) {
+  const [selectedTrend, setSelectedTrend] = useState("body-fat")
+  const trends = [
+    { id: "body-fat", label: "体脂率", unit: "%", series: bodyFatSeries },
+    { id: "muscle", label: "骨骼肌", unit: "kg", series: muscleSeries },
+    { id: "bmi", label: "BMI", unit: "", series: getBmiSeries(bodyMetrics) },
+    { id: "waist", label: "腰围", unit: "cm", series: getMetricSeries(bodyMetrics, "waist_cm") },
+    { id: "chest", label: "胸围", unit: "cm", series: getMetricSeries(bodyMetrics, "chest_cm") },
+    { id: "hip", label: "臀围", unit: "cm", series: getMetricSeries(bodyMetrics, "hip_cm") },
+  ]
+  const activeTrend = trends.find((trend) => trend.id === selectedTrend) ?? trends[0]
+
+  return (
+    <Card>
+      <CardHeader className="sm:flex sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <CardTitle>更多身体指标</CardTitle>
+          <CardDescription>选择一项低频测量指标，查看它的长期变化。</CardDescription>
+        </div>
+        <Select onValueChange={setSelectedTrend} value={selectedTrend}>
+          <SelectTrigger className="mt-3 w-40 sm:mt-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {trends.map((trend) => (
+              <SelectItem key={trend.id} value={trend.id}>{trend.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </CardHeader>
+      <CardContent>
+        <LineChart series={activeTrend.series} unit={activeTrend.unit} />
+      </CardContent>
+    </Card>
+  )
+}
+
+function TrendChartCard({
+  children,
+  label,
+  series,
+  unit,
+}: {
+  children?: ReactNode
+  label: string
+  series: MetricPoint[]
+  unit: string
+}) {
+  return (
+    <Card>
+      <CardHeader className="grid-cols-[1fr_auto]">
+        <CardTitle>{label}</CardTitle>
+        <div className="text-right">
+          <p className="font-medium">{formatSeriesLatest(series, unit)}</p>
+          <p className="text-xs text-muted-foreground">{formatMetricChange(series, unit)}</p>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <LineChart compact series={series} unit={unit} />
+        {children}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -387,13 +399,17 @@ function TrainingFeedbackPanel({ logs }: { logs: WorkoutLog[] }) {
 
 function RecordsPanel({
   bodyMetrics,
+  checkins,
   latestMetric,
+  onDeleteCheckin,
   onDeleteBodyMetric,
   onEditBodyMetric,
   onboarding,
 }: {
   bodyMetrics: BodyMetric[]
+  checkins: AgentCheckin[]
   latestMetric: BodyMetric | null
+  onDeleteCheckin: (checkin: AgentCheckin) => void
   onDeleteBodyMetric: (metric: BodyMetric) => void
   onEditBodyMetric: (metric: BodyMetric) => void
   onboarding: OnboardingStatus | null
@@ -402,8 +418,47 @@ function RecordsPanel({
     <>
       <Card>
         <CardHeader>
+          <CardTitle>恢复打卡记录</CardTitle>
+          <CardDescription>
+            Hero 中的睡眠、精力与酸痛来自这里，与体重、围度等身体测量分别保存。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {checkins.length ? (
+            <div className="divide-y">
+              {checkins.slice(0, 10).map((checkin) => (
+                <div className="flex items-center gap-4 py-4" key={checkin.id}>
+                  <div className="w-24 shrink-0 text-sm text-muted-foreground">
+                    {formatFullDate(checkin.checkin_date ?? checkin.created_at)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{formatCheckinSummary(checkin)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatMetricSource(checkin.source)}
+                      {checkin.pain_notes ? ` · ${checkin.pain_notes}` : ""}
+                    </p>
+                  </div>
+                  <Button
+                    aria-label="删除恢复打卡"
+                    onClick={() => onDeleteCheckin(checkin)}
+                    size="icon-sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="py-8 text-center text-sm text-muted-foreground">还没有恢复打卡记录。</p>
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
           <CardTitle>身体测量记录</CardTitle>
-          <CardDescription>每次录入独立保留，可修正误录；趋势只使用您确认保存的数据。</CardDescription>
+          <CardDescription>体重、体脂与围度记录存放在这里，不包含恢复打卡；每次录入均可修正或删除。</CardDescription>
         </CardHeader>
         <CardContent>
           {bodyMetrics.length ? (
@@ -494,23 +549,23 @@ function RecordLine({ label, value }: { label: string; value: string }) {
   )
 }
 
-function LineChart({ series, unit }: { series: MetricPoint[]; unit: string }) {
+function LineChart({ compact = false, series, unit }: { compact?: boolean; series: MetricPoint[]; unit: string }) {
   if (series.length < 2) {
     return (
-      <Empty className="mt-4 min-h-48 border">
+      <Empty className={compact ? "mt-4 min-h-32 border" : "mt-4 min-h-48 border"}>
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <TrendingUp />
           </EmptyMedia>
           <EmptyTitle>再记录一次即可查看趋势</EmptyTitle>
-          <EmptyDescription>至少需要两个独立时间点，才会比较变化方向。</EmptyDescription>
+          {!compact ? <EmptyDescription>至少需要两个独立时间点，才会比较变化方向。</EmptyDescription> : null}
         </EmptyHeader>
       </Empty>
     )
   }
 
   const width = 700
-  const height = 185
+  const height = compact ? 112 : 185
   const values = series.map((point) => point.value)
   const min = Math.min(...values) - 1
   const max = Math.max(...values) + 1
@@ -533,8 +588,8 @@ function LineChart({ series, unit }: { series: MetricPoint[]; unit: string }) {
           strokeDasharray="3 5"
           x1="0"
           x2={width}
-          y1={28 + line * 56}
-          y2={28 + line * 56}
+          y1={20 + line * ((height - 24) / 2)}
+          y2={20 + line * ((height - 24) / 2)}
         />
       ))}
       <path d={path} fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2.25" />
@@ -549,54 +604,12 @@ function LineChart({ series, unit }: { series: MetricPoint[]; unit: string }) {
   )
 }
 
-type RecoveryGuidance = {
-  badgeClass: string
-  description: string
-  icon: typeof CheckCircle2
-  label: string
-  title: string
-}
-
-function getRecoveryGuidance(checkin: AgentCheckin | null): RecoveryGuidance {
-  if (!checkin) {
-    return {
-      badgeClass: "text-muted-foreground",
-      description: "记录睡眠、精力与酸痛后，Kratos 才能安全地建议今天的训练强度。",
-      icon: WandSparkles,
-      label: "待打卡",
-      title: "先花 30 秒告诉教练您今天的状态",
-    }
-  }
-  if (checkin.pain_notes || (checkin.soreness_level ?? 0) >= 7 || (checkin.energy_level ?? 10) <= 3) {
-    return {
-      badgeClass: "border-destructive/30 bg-destructive/5 text-destructive",
-      description: "检测到疼痛、高酸痛或低精力信号。今天优先恢复、替换刺激动作；急性不适请停止训练并就医评估。",
-      icon: AlertTriangle,
-      label: "恢复优先",
-      title: "今天不适合盲目加量",
-    }
-  }
-  if ((checkin.sleep_hours ?? 8) < 7 || (checkin.soreness_level ?? 0) >= 5) {
-    return {
-      badgeClass: "border-amber-500/30 bg-amber-500/5 text-amber-700",
-      description: "睡眠或酸痛显示恢复尚不充分。按计划训练时保留余力，避免挑战新的最大重量。",
-      icon: Gauge,
-      label: "保守训练",
-      title: "今天建议降低一点强度",
-    }
-  }
-  return {
-    badgeClass: "border-primary/20 bg-primary/5 text-foreground",
-    description: "当前恢复信号稳定。可执行既定计划，并在训练结束后记录 RPE 供后续调整参考。",
-    icon: CheckCircle2,
-    label: "可按计划训练",
-    title: "恢复状态支持今天的安排",
-  }
-}
-
 function getMetricSeries(
   metrics: BodyMetric[],
-  key: keyof Pick<BodyMetric, "body_fat_percentage" | "skeletal_muscle_mass_kg" | "weight_kg">
+  key: keyof Pick<
+    BodyMetric,
+    "body_fat_percentage" | "chest_cm" | "hip_cm" | "skeletal_muscle_mass_kg" | "waist_cm" | "weight_kg"
+  >
 ): MetricPoint[] {
   return metrics
     .filter((metric) => metric[key] !== null && metric[key] !== undefined)
@@ -612,6 +625,35 @@ function getMetricSeries(
     }))
 }
 
+function getCheckinSeries(
+  checkins: AgentCheckin[],
+  key: keyof Pick<AgentCheckin, "energy_level" | "sleep_hours" | "soreness_level">
+): MetricPoint[] {
+  return checkins
+    .filter((checkin) => checkin[key] !== null && checkin[key] !== undefined)
+    .sort(
+      (left, right) =>
+        new Date(left.checkin_date ?? left.created_at).getTime() -
+        new Date(right.checkin_date ?? right.created_at).getTime()
+    )
+    .slice(-30)
+    .map((checkin) => ({
+      date: checkin.checkin_date ?? checkin.created_at,
+      value: Number(checkin[key]),
+    }))
+}
+
+function getBmiSeries(metrics: BodyMetric[]): MetricPoint[] {
+  return metrics
+    .map((metric) => ({
+      date: metric.measured_at ?? metric.recorded_at,
+      value: metric.bmi ?? calculateBmi(metric),
+    }))
+    .filter((point): point is MetricPoint => typeof point.value === "number")
+    .sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime())
+    .slice(-30)
+}
+
 function calculateTargetProgress(start: number | null, current: number | null, target: number | null) {
   if (start === null || current === null || target === null || Math.abs(start - target) < 0.1) {
     return null
@@ -624,24 +666,29 @@ function calculateBmi(metric: BodyMetric | null) {
   return Number((metric.weight_kg / (metric.height_cm / 100) ** 2).toFixed(1))
 }
 
-function calculateBmr(profile: FitnessProfile | null, metric: BodyMetric | null) {
-  if (!metric?.weight_kg || !metric.height_cm || !profile?.age) return null
-  const offset = profile.gender?.includes("女") ? -161 : 5
-  return Math.round(10 * metric.weight_kg + 6.25 * metric.height_cm - 5 * profile.age + offset)
-}
-
 function formatMetricSource(source: string | null | undefined) {
   if (source === "chat_confirmation") return "对话确认"
   if (source === "onboarding") return "建档录入"
   return "手动录入"
 }
 
-function formatMetricValue(value: number | null | undefined) {
-  return typeof value === "number" ? value.toFixed(1) : "暂无记录"
+function formatCheckinSummary(checkin: AgentCheckin) {
+  const parts = [
+    typeof checkin.sleep_hours === "number" ? `睡眠 ${checkin.sleep_hours.toFixed(1)} h` : null,
+    typeof checkin.energy_level === "number" ? `精力 ${checkin.energy_level}/10` : null,
+    typeof checkin.soreness_level === "number" ? `酸痛 ${checkin.soreness_level}/10` : null,
+  ].filter(Boolean)
+
+  return parts.join(" · ") || "恢复状态记录"
 }
 
 function formatMetricWithUnit(value: number | null | undefined, unit: string) {
   return typeof value === "number" ? `${value.toFixed(1)} ${unit}` : "暂无记录"
+}
+
+function formatSeriesLatest(series: MetricPoint[], unit: string) {
+  const latest = series[series.length - 1]
+  return latest ? `${latest.value.toFixed(1)}${unit ? ` ${unit}` : ""}` : "未记录"
 }
 
 function formatScore(value: number | null | undefined) {
@@ -657,6 +704,7 @@ function formatMetricChange(series: MetricPoint[], unit: string) {
 
 function formatShortDate(date: string) {
   const parsed = new Date(date)
+  if (Number.isNaN(parsed.getTime())) return "--.--"
   return `${(parsed.getMonth() + 1).toString().padStart(2, "0")}.${parsed.getDate().toString().padStart(2, "0")}`
 }
 
@@ -666,9 +714,14 @@ function formatFullDate(date: string) {
   return `${parsed.getFullYear()}.${(parsed.getMonth() + 1).toString().padStart(2, "0")}.${parsed.getDate().toString().padStart(2, "0")}`
 }
 
-function getBmiLevel(bmi: number) {
-  if (bmi < 18.5) return "偏低"
-  if (bmi < 24) return "正常"
-  if (bmi < 28) return "偏高"
-  return "较高"
+function isToday(value: string | null | undefined) {
+  if (!value) return false
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return false
+  const today = new Date()
+  return (
+    parsed.getFullYear() === today.getFullYear() &&
+    parsed.getMonth() === today.getMonth() &&
+    parsed.getDate() === today.getDate()
+  )
 }

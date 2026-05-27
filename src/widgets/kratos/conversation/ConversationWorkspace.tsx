@@ -16,6 +16,7 @@ import { ChatBubble } from "@/widgets/kratos/conversation/ChatBubble"
 import { ConversationComposer } from "@/widgets/kratos/conversation/ConversationComposer"
 import { ConversationHeader } from "@/widgets/kratos/conversation/ConversationHeader"
 import { EmptyConversation } from "@/widgets/kratos/conversation/EmptyConversation"
+import { Spinner } from "@/shared/ui/spinner"
 
 export type ConversationWorkspaceProps = {
   activeSessionTitle: string
@@ -175,9 +176,9 @@ export function ConversationWorkspace({
 
 function LoadingConversation() {
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center bg-card px-5">
-      <div className="flex items-center gap-3 rounded-[12px] border border-border bg-muted/40 px-4 py-3 text-[13px] font-semibold text-muted-foreground">
-        <LoaderCircle className="size-4 animate-spin" />
+    <div className="flex min-h-0 flex-1 items-center justify-center">
+      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        <Spinner />
         正在加载对话内容
       </div>
     </div>

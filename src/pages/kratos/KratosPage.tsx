@@ -19,6 +19,7 @@ import {
   createSkill,
   createTrainingPlan,
   createWorkoutLog,
+  deleteAgentCheckin,
   deleteAgentSession,
   deleteBodyMetric,
   deleteSkill,
@@ -51,7 +52,9 @@ import {
   chatSessionsFromAgentSessions,
   formatTime,
   getLatestByDate,
+  isProgramPlanRequest,
   titleFromPrompt,
+  trainingPlanPayloadFromAssistantAnswer,
   trainingPlanPayloadFromAgentResult,
 } from "@/entities/kratos/lib/domain"
 import {
@@ -195,9 +198,10 @@ function healthDataFromAgentRaw(raw: unknown): SuggestedHealthData | undefined {
 function bodyMetricFormFromRecord(metric: BodyMetric): BodyMetricForm {
   const measuredAt = metric.measured_at ?? metric.recorded_at
   const date = new Date(measuredAt)
-  const offset = date.getTimezoneOffset() * 60_000
+  const validDate = Number.isNaN(date.getTime()) ? new Date() : date
+  const offset = validDate.getTimezoneOffset() * 60_000
   return {
-    measuredAt: new Date(date.getTime() - offset).toISOString().slice(0, 16),
+    measuredAt: new Date(validDate.getTime() - offset).toISOString().slice(0, 16),
     bmi: metric.bmi?.toString() ?? "",
     bodyFatPercentage: metric.body_fat_percentage?.toString() ?? "",
     chestCm: metric.chest_cm?.toString() ?? "",
@@ -370,7 +374,6 @@ export function KratosPage() {
         writeCachedUser(user)
         setCurrentUser(user)
         applyDashboardSnapshot(context, plans, runs, nextSkills, nextTools)
-        setOnboardingOpen(!context?.onboarding.ready_for_agent)
         const selectedSessionId = await syncConversationSessions(
           token,
           routeFromLocation().sessionId ?? readActiveAgentSessionId()
@@ -482,7 +485,7 @@ export function KratosPage() {
       const user = await getCurrentUser(token.access_token)
       writeCachedUser(user)
       setCurrentUser(user)
-      const context = await refreshDashboard(token.access_token)
+      await refreshDashboard(token.access_token)
       const selectedSessionId = await syncConversationSessions(
         token.access_token,
         readActiveAgentSessionId()
@@ -498,9 +501,7 @@ export function KratosPage() {
       }
 
       setAuthModalOpen(false)
-      setOnboardingOpen(
-        authMode === "register" || !context?.onboarding.ready_for_agent
-      )
+      setOnboardingOpen(authMode === "register")
       sonnerToast.success(
         authMode === "register" ? "账号创建成功，请先完成建档" : `欢迎回来，${user.username}`
       )
@@ -542,8 +543,9 @@ export function KratosPage() {
       return
     }
 
+    const record = metric && typeof metric.id === "number" ? metric : null
     setBodyMetricError(null)
-    setEditingBodyMetric(metric)
+    setEditingBodyMetric(record)
     setBodyMetricModalOpen(true)
   }
 
@@ -865,6 +867,19 @@ export function KratosPage() {
     }
   }
 
+  const handleDeleteCheckin = async (checkin: AgentCheckin) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) return
+    try {
+      await deleteAgentCheckin(token, checkin.id)
+      setAgentCheckins((current) => current.filter((item) => item.id !== checkin.id))
+      await refreshDashboard(token, { preserveMessages: true })
+      sonnerToast.success("恢复打卡记录已删除")
+    } catch (error) {
+      sonnerToast.error(getErrorMessage(error), { richColors: true })
+    }
+  }
+
   const handleExportBodyData = () => {
     downloadJsonFile(
       {
@@ -970,8 +985,8 @@ export function KratosPage() {
           })
       }
 
-      const context = await refreshDashboard(token, { preserveMessages: true })
-      setOnboardingOpen(!context?.onboarding.ready_for_agent)
+      await refreshDashboard(token, { preserveMessages: true })
+      setOnboardingOpen(false)
       sonnerToast.success("建档完成，Kratos 现在更了解您了")
     } catch (error) {
       setOnboardingError(getErrorMessage(error))
@@ -1129,8 +1144,14 @@ export function KratosPage() {
               }
 
               if (event.type === "final") {
+                const planFromAnswer = trainingPlanPayloadFromAssistantAnswer(
+                  event.content || message.body,
+                  body
+                )
+                const rawPlan = trainingPlanPayloadFromAgentResult(event.raw)
                 const suggestedTrainingPlan =
-                  trainingPlanPayloadFromAgentResult(event.raw)
+                  planFromAnswer ??
+                  (isProgramPlanRequest(body) ? undefined : rawPlan)
                 const generatedAlready = suggestedTrainingPlan
                   ? generatedTrainingPlanKeys.has(
                     trainingPlanDraftKey(suggestedTrainingPlan)
@@ -1982,6 +2003,7 @@ export function KratosPage() {
       return (
         <TrainingPlanPage
           activePlan={activePlan}
+          latestCheckin={latestCheckin}
           completedExercises={completedExercises}
           dashboardLoading={dashboardLoading}
           onOpenPlanComposer={openTrainingPlanComposer}
@@ -2007,14 +2029,15 @@ export function KratosPage() {
       return (
         <BodyDataPage
           bodyMetrics={bodyMetrics}
+          checkins={agentCheckins}
           latestCheckin={latestCheckin}
           latestMetric={latestMetric}
           onEditBodyData={openBodyMetricEditor}
           onEditBodyMetric={openBodyMetricEditor}
+          onDeleteCheckin={handleDeleteCheckin}
           onDeleteBodyMetric={handleDeleteBodyMetric}
           onExportBodyData={handleExportBodyData}
           onboarding={onboardingStatus}
-          profile={fitnessProfile}
           workoutLogs={workoutLogs}
         />
       )

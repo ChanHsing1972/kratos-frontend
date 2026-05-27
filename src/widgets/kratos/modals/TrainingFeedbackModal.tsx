@@ -14,6 +14,7 @@ import {
 import { Field } from "@/shared/ui/field"
 import { Textarea } from "@/shared/ui/textarea"
 import { Input } from "@/shared/ui/input"
+import { Spinner } from "@/shared/ui/spinner"
 
 type TrainingFeedbackModalProps = {
   adjustment: TrainingPlanAdjustmentResponse | null
@@ -131,7 +132,7 @@ export function TrainingFeedbackModal({
               onClick={onApply}
               type="button"
             >
-              {loading ? <LoaderCircle className="size-4 animate-spin" /> : null}
+              {loading ? <Spinner/> : null}
               同意并更新计划
             </Button>
           ) : (
@@ -140,7 +141,7 @@ export function TrainingFeedbackModal({
               onClick={onPreview}
               type="button"
             >
-              {loading ? <LoaderCircle className="size-4 animate-spin" /> : null}
+              {loading ? <Spinner/> : null}
               生成调整建议
             </Button>
           )}

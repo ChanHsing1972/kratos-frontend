@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from "@/shared/ui/dialog"
 import { Label } from "@/shared/ui/label"
+import { Spinner } from "@/shared/ui/spinner"
 
 type TrainingPlanModalProps = {
   draft: TrainingPlanPayload | null
@@ -259,7 +260,7 @@ function TrainingPlanModalForm({
               disabled={loading}
               type="submit"
             >
-              {loading ? <LoaderCircle className="size-4 animate-spin" /> : null}
+              {loading ? <Spinner /> : null}
               保存计划
             </Button>
           </DialogFooter>

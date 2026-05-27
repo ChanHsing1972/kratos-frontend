@@ -20,6 +20,7 @@ import { Label } from "@/shared/ui/label"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/ui/input-group"
 import { Field, FieldLabel } from "@/shared/ui/field"
 import { Slider } from "@/shared/ui/slider"
+import { Spinner } from "@/shared/ui/spinner"
 
 type BodyMetricModalProps = {
   error: string | null
@@ -96,157 +97,157 @@ export function BodyMetricModal({
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit}>
           <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar">
             <div className="grid gap-5 pb-5">
-          <MetricInput
-            label="测量时间"
-            onChange={(value) => updateField("measuredAt", value)}
-            placeholder=""
-            type="datetime-local"
-            value={form.measuredAt}
-          />
-          <div className="grid gap-4 sm:grid-cols-3">
-            <MetricInput
-              label="身高"
-              onChange={(value) => updateField("heightCm", value)}
-              placeholder="175"
-              unit="cm"
-              value={form.heightCm}
-            />
-            <MetricInput
-              label="体重"
-              onChange={(value) => updateField("weightKg", value)}
-              placeholder="70"
-              unit="kg"
-              value={form.weightKg}
-            />
-            <MetricInput
-              label="目标体重"
-              onChange={(value) => updateField("targetWeightKg", value)}
-              placeholder="68"
-              unit="kg"
-              value={form.targetWeightKg}
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <RangeField
-              label="精力"
-              max={10}
-              min={1}
-              onChange={(value) => updateField("energyLevel", value)}
-              unit="/10"
-              value={form.energyLevel}
-            />
-            <RangeField
-              label="睡眠质量"
-              max={10}
-              min={1}
-              onChange={(value) => updateField("sleepQuality", value)}
-              unit="/10"
-              value={form.sleepQuality}
-            />
-            <RangeField
-              label="睡眠时长"
-              max={12}
-              onChange={(value) => updateField("sleepHours", value)}
-              step={0.5}
-              unit=" h"
-              value={form.sleepHours}
-            />
-            <RangeField
-              label="酸痛"
-              max={10}
-              min={1}
-              onChange={(value) => updateField("sorenessLevel", value)}
-              unit="/10"
-              value={form.sorenessLevel}
-            />
-          </div>
-          <MetricInput
-            label="情绪状态"
-            onChange={(value) => updateField("mood", value)}
-            placeholder="例如：平稳、压力较大"
-            type="text"
-            value={form.mood}
-          />
-          <FormTextarea
-            label="疼痛/不适说明"
-            onChange={(value) => updateField("painNotes", value)}
-            placeholder="例如：深蹲时右膝刺痛，或训练中出现头晕"
-            value={form.painNotes}
-          />
-
-          <div>
-            <Button
-              onClick={() => setMoreOpen((current) => !current)}
-              type="button"
-              variant="outline"
-            >
-              更多项目
-              <ChevronDown
-                className={cn(
-                  "size-4 text-muted-foreground transition-transform",
-                  moreOpen && "rotate-180"
-                )}
+              <MetricInput
+                label="测量时间"
+                onChange={(value) => updateField("measuredAt", value)}
+                placeholder=""
+                type="datetime-local"
+                value={form.measuredAt}
               />
-            </Button>
-            {moreOpen ? (
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <MetricInput
-                  label="体脂率"
-                  max={100}
-                  onChange={(value) => updateField("bodyFatPercentage", value)}
-                  placeholder="18.5"
-                  unit="%"
-                  value={form.bodyFatPercentage}
+                  label="身高"
+                  onChange={(value) => updateField("heightCm", value)}
+                  placeholder="175"
+                  unit="cm"
+                  value={form.heightCm}
                 />
-
                 <MetricInput
-                  label="骨骼肌"
-                  onChange={(value) => updateField("skeletalMuscleMassKg", value)}
-                  placeholder="31.2"
+                  label="体重"
+                  onChange={(value) => updateField("weightKg", value)}
+                  placeholder="70"
                   unit="kg"
-                  value={form.skeletalMuscleMassKg}
+                  value={form.weightKg}
                 />
                 <MetricInput
-                  label="BMI"
-                  max={100}
-                  onChange={(value) => updateField("bmi", value)}
-                  placeholder="23.1"
-                  value={form.bmi}
-                />
-                <MetricInput
-                  label="胸围"
-                  onChange={(value) => updateField("chestCm", value)}
-                  placeholder="92"
-                  unit="cm"
-                  value={form.chestCm}
-                />
-                <MetricInput
-                  label="腰围"
-                  onChange={(value) => updateField("waistCm", value)}
-                  placeholder="78"
-                  unit="cm"
-                  value={form.waistCm}
-                />
-                <MetricInput
-                  label="臀围"
-                  onChange={(value) => updateField("hipCm", value)}
-                  placeholder="96"
-                  unit="cm"
-                  value={form.hipCm}
+                  label="目标体重"
+                  onChange={(value) => updateField("targetWeightKg", value)}
+                  placeholder="68"
+                  unit="kg"
+                  value={form.targetWeightKg}
                 />
               </div>
-            ) : null}
-          </div>
 
-          <FormTextarea
-            label="备注"
-            onChange={(value) => updateField("notes", value)}
-            placeholder="例如 早晨空腹称重，训练后恢复良好"
-            value={form.notes}
-          />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <RangeField
+                  label="精力"
+                  max={10}
+                  min={1}
+                  onChange={(value) => updateField("energyLevel", value)}
+                  unit="/10"
+                  value={form.energyLevel}
+                />
+                <RangeField
+                  label="睡眠质量"
+                  max={10}
+                  min={1}
+                  onChange={(value) => updateField("sleepQuality", value)}
+                  unit="/10"
+                  value={form.sleepQuality}
+                />
+                <RangeField
+                  label="睡眠时长"
+                  max={12}
+                  onChange={(value) => updateField("sleepHours", value)}
+                  step={0.5}
+                  unit=" h"
+                  value={form.sleepHours}
+                />
+                <RangeField
+                  label="酸痛"
+                  max={10}
+                  min={1}
+                  onChange={(value) => updateField("sorenessLevel", value)}
+                  unit="/10"
+                  value={form.sorenessLevel}
+                />
+              </div>
+              <MetricInput
+                label="情绪状态"
+                onChange={(value) => updateField("mood", value)}
+                placeholder="例如：平稳、压力较大"
+                type="text"
+                value={form.mood}
+              />
+              <FormTextarea
+                label="疼痛/不适说明"
+                onChange={(value) => updateField("painNotes", value)}
+                placeholder="例如：深蹲时右膝刺痛，或训练中出现头晕"
+                value={form.painNotes}
+              />
 
-          {error ? <ErrorMessage message={error} /> : null}
+              <div>
+                <Button
+                  onClick={() => setMoreOpen((current) => !current)}
+                  type="button"
+                  variant="outline"
+                >
+                  更多项目
+                  <ChevronDown
+                    className={cn(
+                      "size-4 text-muted-foreground transition-transform",
+                      moreOpen && "rotate-180"
+                    )}
+                  />
+                </Button>
+                {moreOpen ? (
+                  <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                    <MetricInput
+                      label="体脂率"
+                      max={100}
+                      onChange={(value) => updateField("bodyFatPercentage", value)}
+                      placeholder="18.5"
+                      unit="%"
+                      value={form.bodyFatPercentage}
+                    />
+
+                    <MetricInput
+                      label="骨骼肌"
+                      onChange={(value) => updateField("skeletalMuscleMassKg", value)}
+                      placeholder="31.2"
+                      unit="kg"
+                      value={form.skeletalMuscleMassKg}
+                    />
+                    <MetricInput
+                      label="BMI"
+                      max={100}
+                      onChange={(value) => updateField("bmi", value)}
+                      placeholder="23.1"
+                      value={form.bmi}
+                    />
+                    <MetricInput
+                      label="胸围"
+                      onChange={(value) => updateField("chestCm", value)}
+                      placeholder="92"
+                      unit="cm"
+                      value={form.chestCm}
+                    />
+                    <MetricInput
+                      label="腰围"
+                      onChange={(value) => updateField("waistCm", value)}
+                      placeholder="78"
+                      unit="cm"
+                      value={form.waistCm}
+                    />
+                    <MetricInput
+                      label="臀围"
+                      onChange={(value) => updateField("hipCm", value)}
+                      placeholder="96"
+                      unit="cm"
+                      value={form.hipCm}
+                    />
+                  </div>
+                ) : null}
+              </div>
+
+              <FormTextarea
+                label="备注"
+                onChange={(value) => updateField("notes", value)}
+                placeholder="例如 早晨空腹称重，训练后恢复良好"
+                value={form.notes}
+              />
+
+              {error ? <ErrorMessage message={error} /> : null}
             </div>
           </div>
 
@@ -271,7 +272,7 @@ export function BodyMetricModal({
                 disabled={loading}
                 type="submit"
               >
-                {loading ? <LoaderCircle className="size-4 animate-spin" /> : null}
+                {loading ? <Spinner /> : null}
                 保存
               </Button>
             </div>

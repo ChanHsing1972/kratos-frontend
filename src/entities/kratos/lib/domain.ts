@@ -274,7 +274,11 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
         id: `run-${run.id}-assistant`,
         author: "assistant" as const,
         body: run.answer,
-        suggestedTrainingPlan: trainingPlanPayloadFromAgentResult(run.result_payload),
+        suggestedTrainingPlan:
+          trainingPlanPayloadFromAssistantAnswer(run.answer, run.user_message) ??
+          (isProgramPlanRequest(run.user_message)
+            ? undefined
+            : trainingPlanPayloadFromAgentResult(run.result_payload)),
         suggestedHealthData: pendingHealthDataFromTrace(run.trace_steps),
         time: formatStoredTime(run.created_at),
         trace: run.trace_steps
@@ -294,13 +298,17 @@ export function trainingPlanPayloadFromAgentResult(
   }
 
   const sessions = asRecordArray(workoutPlan.sessions)
-  const weeklySchedule = buildWeeklyScheduleFromWorkoutSessions(sessions)
+  const planKind =
+    textValue(workoutPlan.plan_kind) === "program" || sessions.length > 1
+      ? "program"
+      : "daily"
+  const weeklySchedule = buildWeeklyScheduleFromWorkoutSessions(sessions, planKind)
   if (!weeklySchedule) {
     return undefined
   }
 
   const title =
-    sessions.length === 1
+    planKind === "daily"
       ? normalizeDailyPlanTitle(textValue(workoutPlan.title))
       : (textValue(workoutPlan.title) ?? "Kratos 生成训练计划")
   const goal = textValue(workoutPlan.goal) ?? "基于聊天上下文生成的训练计划"
@@ -317,13 +325,183 @@ export function trainingPlanPayloadFromAgentResult(
       : "训练前充分热身，训练后完成拉伸；如出现疼痛或明显疲劳，及时降低强度。",
     start_date: localTrainingDateValue(new Date()),
     status: "draft",
-    duration_weeks: numberValue(workoutPlan.duration_weeks) ?? (sessions.length > 1 ? 4 : null),
-    plan_kind: sessions.length === 1 ? "daily" : "program",
-    schedule_json: buildStructuredSchedule(sessions),
+    duration_weeks: numberValue(workoutPlan.duration_weeks) ?? (planKind === "program" ? 4 : null),
+    plan_kind: planKind,
+    schedule_json: buildStructuredSchedule(sessions, planKind),
     summary: buildWorkoutPlanSummary(title, goal, sessions),
     title,
     weekly_schedule: weeklySchedule,
   }
+}
+
+export function isProgramPlanRequest(prompt: string) {
+  return /(一周|周计划|每周|长期|周期|多周|月度).*(训练|健身|计划|安排)|(训练|健身|计划|安排).*(一周|周计划|每周|长期|周期|多周|月度)/.test(prompt)
+}
+
+export function trainingPlanPayloadFromAssistantAnswer(
+  answer: string,
+  prompt: string
+): TrainingPlanPayload | undefined {
+  const normalizedAnswer = normalizeVisiblePlanBreaks(answer)
+  const programRequested = isProgramPlanRequest(prompt)
+  const dailyRequested =
+    /(今天|今日|每日|日计划|本次).*(训练|健身|计划|安排)|(训练|健身|计划|安排).*(今天|今日|每日|日计划|本次)/.test(prompt)
+  if (!programRequested && !dailyRequested) {
+    return undefined
+  }
+
+  const sessions = programRequested
+    ? parseProgramSessionsFromAnswer(normalizedAnswer)
+    : parseDailySessionsFromAnswer(normalizedAnswer)
+  if (!sessions.length || (programRequested && sessions.length < 2)) {
+    return undefined
+  }
+
+  const title =
+    findPlanTitleInAnswer(normalizedAnswer) ??
+    (programRequested ? "一周训练计划" : "今日训练计划")
+  const durationWeeks = programRequested ? parseDurationWeeks(prompt) : null
+  return trainingPlanPayloadFromAgentResult({
+    workout_plan: {
+      duration_weeks: durationWeeks,
+      goal: "根据本次对话生成的训练安排",
+      plan_kind: programRequested ? "program" : "daily",
+      sessions,
+      title,
+    },
+  })
+}
+
+function parseProgramSessionsFromAnswer(answer: string) {
+  const sessions: Record<string, unknown>[] = []
+  for (const rawLine of answer.split(/\r?\n/)) {
+    const markdownCells = rawLine.includes("|") || (rawLine.match(/｜/g)?.length ?? 0) >= 2
+      ? rawLine.trim().replace(/^[|｜]/, "").replace(/[|｜]$/, "").split(/[|｜]/).map((cell) => cell.trim())
+      : []
+    if (markdownCells.length >= 2) {
+      const weekday = normalizeWeekday(markdownCells[0])
+      if (weekday) {
+        const details = (markdownCells.length >= 3 ? markdownCells.slice(2) : markdownCells.slice(1)).join("；")
+        sessions.push(visibleSession(weekday, markdownCells.length >= 3 ? markdownCells[1] : "训练安排", details))
+      }
+      continue
+    }
+
+    const line = rawLine.trim().replace(/^[-*•\s]+/, "")
+    const match = line.match(/^(周[一二三四五六日天](?:\/[日天])?)(?:\s*[|｜/-]\s*([^:：]+))?\s*[:：]\s*(.+)$/)
+    if (match) {
+      sessions.push(visibleSession(match[1], match[2] ?? "训练安排", match[3]))
+    }
+  }
+  return sessions
+}
+
+function parseDailySessionsFromAnswer(answer: string) {
+  const exercises = parseVisibleExercises(answer)
+  return exercises.length
+    ? [{ exercises, notes: [], title: "今日训练", weekday: weekdayLabel(new Date()) }]
+    : []
+}
+
+function visibleSession(weekday: string, title: string, details: string) {
+  const parsed = parseVisibleSessionDetails(details, title)
+  return {
+    exercises: parsed.exercises,
+    notes: parsed.note ? [parsed.note] : [],
+    schedule_line: parsed.scheduleLine,
+    title: title.trim() || "训练安排",
+    weekday,
+  }
+}
+
+function parseVisibleExercises(text: string) {
+  return splitVisiblePlanSegments(text)
+    .map(parseVisibleExercise)
+    .filter((exercise): exercise is NonNullable<typeof exercise> => Boolean(exercise))
+}
+
+function parseVisibleSessionDetails(details: string, title: string) {
+  const parsedSegments = splitVisiblePlanSegments(details).map((segment) => ({
+    exercise: parseVisibleExercise(segment),
+    segment,
+  }))
+  const exercises = parsedSegments
+    .map(({ exercise }) => exercise)
+    .filter((exercise): exercise is NonNullable<typeof exercise> => Boolean(exercise))
+  const note = parsedSegments
+    .filter(({ exercise }) => !exercise)
+    .map(({ segment }) => segment)
+    .join("；")
+  const scheduleLine = exercises.length
+    ? exercises
+      .map((exercise, index) => {
+        const trailingNote = note && index === exercises.length - 1 ? `（${note}）` : ""
+        return `${exercise.name} ${exercise.schedule_amount}${trailingNote}`
+      })
+      .join("；")
+    : `${/休息|恢复/.test(title) ? "恢复安排" : title.trim() || "训练安排"} 按需${note ? `（${note}）` : ""}`
+
+  return {
+    exercises: exercises.map((exercise, index) => ({
+      ...exercise,
+      notes: note && index === exercises.length - 1 ? note : null,
+    })),
+    note,
+    scheduleLine,
+  }
+}
+
+function splitVisiblePlanSegments(text: string) {
+  return normalizeVisiblePlanBreaks(text)
+    .split(/[；;、]\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+function parseVisibleExercise(compact: string) {
+  const amount = compact.match(/(\d+)\s*(?:组\s*[xX×*]?\s*|[xX×*])\s*(\d+(?:\s*[-~至]\s*\d+)?)(?:\s*(次|秒|分钟))?/)
+  const duration = compact.match(/(\d+(?:\s*[-~至]\s*\d+)?)\s*(分钟|秒)/)
+  const start = amount?.index ?? duration?.index
+  if (start === undefined) return null
+  const name = compact.slice(0, start).replace(/[：:,，\s]+$/, "").trim()
+  if (!name) return null
+  return {
+    duration_minutes: duration && !amount && duration[2] === "分钟" ? Number.parseInt(duration[1], 10) : null,
+    name,
+    notes: null,
+    reps: amount
+      ? `${amount[2].replace(/\s/g, "")} ${amount[3] ?? "次"}`
+      : duration
+        ? `${duration[1].replace(/\s/g, "")} ${duration[2]}`
+        : null,
+    schedule_amount: compact.slice(start).trim(),
+    sets: amount ? Number.parseInt(amount[1], 10) : null,
+  }
+}
+
+function normalizeVisiblePlanBreaks(value: string) {
+  return value
+    .replace(/<br\s*\/?>/gi, "；")
+    .replace(/&lt;br\s*\/?&gt;/gi, "；")
+}
+
+function normalizeWeekday(value: string) {
+  const match = value.match(/^(?:周|星期)[一二三四五六日天](?:\/[日天])?$/)
+  return match ? value.replace(/^星期/, "周") : null
+}
+
+function findPlanTitleInAnswer(answer: string) {
+  return answer
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^#+\s*/, "").replace(/\*\*/g, "").trim())
+    .find((line) => line.includes("计划") && !line.includes("|") && line.length <= 40) ?? null
+}
+
+function parseDurationWeeks(prompt: string) {
+  const arabic = prompt.match(/(\d+)\s*周/)
+  if (arabic) return Math.max(1, Number.parseInt(arabic[1], 10))
+  if (prompt.includes("一周") || prompt.includes("周计划")) return 1
+  return 4
 }
 
 function pendingHealthDataFromTrace(traceSteps: AgentRunTraceStep[]) {
@@ -337,14 +515,10 @@ function pendingHealthDataFromTrace(traceSteps: AgentRunTraceStep[]) {
   return undefined
 }
 
-function buildStructuredSchedule(sessions: Record<string, unknown>[]): TrainingSchedule | null {
+function buildStructuredSchedule(sessions: Record<string, unknown>[], planKind: "daily" | "program"): TrainingSchedule | null {
   if (!sessions.length) {
     return null
   }
-  const weekDays =
-    sessions.length === 1
-      ? [weekdayLabel(new Date())]
-      : ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
   const structuredSessions = sessions.map((session, index) => ({
     exercises: asRecordArray(session.exercises).map((exercise, exerciseIndex) => ({
       id: `agent-exercise-${index}-${exerciseIndex}`,
@@ -358,7 +532,7 @@ function buildStructuredSchedule(sessions: Record<string, unknown>[]): TrainingS
     })),
     id: `agent-session-${index}`,
     title: textValue(session.title) ?? textValue(session.focus) ?? `训练 ${index + 1}`,
-    weekday: weekDays[index % weekDays.length],
+    weekday: workoutSessionWeekday(session, index, planKind),
   }))
   return {
     version: 1,
@@ -526,11 +700,7 @@ function localTrainingDateValue(date: Date) {
   return `${year}-${month}-${day}`
 }
 
-function buildWeeklyScheduleFromWorkoutSessions(sessions: Record<string, unknown>[]) {
-  const weekDays =
-    sessions.length === 1
-      ? [weekdayLabel(new Date())]
-      : ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+function buildWeeklyScheduleFromWorkoutSessions(sessions: Record<string, unknown>[], planKind: "daily" | "program") {
   const lines = sessions
     .map((session, index) => {
       const title = cleanScheduleTitle(
@@ -543,19 +713,29 @@ function buildWeeklyScheduleFromWorkoutSessions(sessions: Record<string, unknown
       const notes = stringArray(session.notes)
         .map(cleanWorkoutLine)
         .filter((item): item is string => Boolean(item))
-        .filter(isTrainingActionLine)
-      const actions = uniqueLines(exercises.length ? exercises : notes).slice(0, 8)
-      const actionText = actions.join("；")
+      const fallbackNotes = notes.filter((note) =>
+        isTrainingActionLine(note) || /恢复|休息|快走|拉伸|瑜伽|活动/.test(note)
+      )
+      const explicitScheduleLine = cleanWorkoutLine(textValue(session.schedule_line))
+      const actions = uniqueLines(fallbackNotes.length ? fallbackNotes : exercises).slice(0, 8)
+      const actionText = explicitScheduleLine ?? actions.join("；")
 
-      if (!actionText || isGuidanceLine(title)) {
+      if (!actionText && isGuidanceLine(title)) {
         return null
       }
 
-      return `${weekDays[index % weekDays.length]}｜${title}：${actionText}`
+      return `${workoutSessionWeekday(session, index, planKind)}｜${title}${actionText ? `：${actionText}` : ""}`
     })
     .filter(Boolean)
 
   return lines.join("\n")
+}
+
+function workoutSessionWeekday(session: Record<string, unknown>, index: number, planKind: "daily" | "program") {
+  const storedWeekday = textValue(session.weekday)
+  if (storedWeekday) return storedWeekday
+  if (planKind === "daily") return weekdayLabel(new Date())
+  return ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][index % 7]
 }
 
 function weekdayLabel(date: Date) {
@@ -592,17 +772,12 @@ function formatWorkoutExercise(exercise: Record<string, unknown>) {
 
 function extractGuidanceLinesFromWorkoutSessions(sessions: Record<string, unknown>[]) {
   return sessions.flatMap((session) => {
-    const sessionTitle = textValue(session.title) ?? textValue(session.focus)
     const notes = stringArray(session.notes)
     const exerciseNotes = asRecordArray(session.exercises)
-      .flatMap((exercise) => [
-        textValue(exercise.name),
-        textValue(exercise.title),
-        textValue(exercise.notes),
-      ])
+      .map((exercise) => textValue(exercise.notes))
       .filter((item): item is string => Boolean(item))
 
-    return [sessionTitle, ...notes, ...exerciseNotes]
+    return [...notes, ...exerciseNotes]
       .filter((line): line is string => Boolean(line))
       .map(cleanWorkoutLine)
       .filter((line): line is string => Boolean(line))
@@ -654,7 +829,7 @@ function isTrainingActionLine(value: string) {
     return false
   }
 
-  return /(\d+\s*组|\d+\s*(次|分钟|秒)|每组|RM|递增|递减|力竭)/i.test(line)
+  return /(\d+\s*组|\d+\s*[x×*]\s*\d+|\d+\s*(次|分钟|秒)|每组|RM|递增|递减|力竭)/i.test(line)
 }
 
 function isGuidanceLine(value: string) {

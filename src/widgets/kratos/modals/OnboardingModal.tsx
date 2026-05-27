@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog"
+import { Spinner } from "@/shared/ui/spinner"
 
 type OnboardingModalProps = {
   bodyMetric: BodyMetric | null
@@ -444,7 +445,7 @@ export function OnboardingModal({
                 variant="default"
               >
                 {loading ? (
-                  <LoaderCircle className="size-4 animate-spin" />
+                  <Spinner/>
                 ) : null}
                 {currentStep < STEPS.length - 1 ? (
                   <>

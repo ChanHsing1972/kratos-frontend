@@ -1,13 +1,16 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react"
 import {
-  AlertCircle,
+  BadgeCheck,
   BookOpenText,
   Check,
+  Filter,
   LoaderCircle,
   Plus,
   RefreshCcw,
+  SearchIcon,
   ShieldCheck,
   SlidersHorizontal,
+  ToolCase,
   Trash2,
   WandSparkles,
   Wrench,
@@ -18,13 +21,21 @@ import type { AgentToolConfig, Skill, SkillPayload, UserProfile } from "@/entiti
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/shared/ui/accordion"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Card } from "@/shared/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
 import { Input } from "@/shared/ui/input"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/shared/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
 import { Textarea } from "@/shared/ui/textarea"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/ui/input-group"
+import { Spinner } from "@/shared/ui/spinner"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu"
 
 type SkillPanelPageProps = {
   currentUser: UserProfile | null
@@ -76,17 +87,38 @@ export function SkillPanelPage({
   submitting,
 }: SkillPanelPageProps) {
   const [skillFilter, setSkillFilter] = useState<"all" | "active" | "custom">("all")
+  const [searchQuery, setSearchQuery] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
+  const [tabValue, setTabValue] = useState<"skills" | "tools">("skills")
   const [form, setForm] = useState<SkillForm>(defaultForm)
   const [formError, setFormError] = useState<string | null>(null)
   const enabledSkills = skills.filter((skill) => skill.enabled)
-  const enabledTools = tools.filter((tool) => tool.enabled && isAvailable(tool))
   const unresolvedTools = useMemo(() => getUnresolvedToolDependencies(enabledSkills, tools), [enabledSkills, tools])
+  const normalizedQuery = normalizeQuery(searchQuery)
+  // const skillFilterLabel = getSkillFilterLabel(skillFilter)
   const visibleSkills = skills.filter((skill) => {
     if (skillFilter === "active") return skill.enabled
     if (skillFilter === "custom") return !skill.is_builtin
     return true
-  })
+  }).filter((skill) =>
+    matchesQuery(
+      normalizedQuery,
+      skill.name,
+      skill.description,
+      skill.applicable_scenarios,
+      skill.prompt_snippet,
+      skill.available_tools.join(" ")
+    )
+  )
+  const visibleTools = tools.filter((tool) =>
+    matchesQuery(
+      normalizedQuery,
+      tool.name,
+      tool.description,
+      tool.category,
+      toolCategoryLabel(tool.category)
+    )
+  )
 
   const updateForm = (field: keyof SkillForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }))
@@ -114,7 +146,7 @@ export function SkillPanelPage({
         forbidden_rules: compactOptional(form.forbiddenRules),
       })
       setCreateOpen(false)
-      setSkillFilter("active")
+      setSkillFilter("all")
     } catch {
       // App owns API error feedback.
     }
@@ -122,48 +154,82 @@ export function SkillPanelPage({
 
   return (
     <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
-      <section className="mx-auto mt-16 flex min-h-full w-full max-w-[900px] flex-col px-6 pb-12 sm:px-8">
+      <section className="mx-auto mt-20 flex min-h-full w-full max-w-[900px] flex-col sm:p-8">
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
           <div>
-            <p className="text-sm text-muted-foreground">Agent 配置</p>
-            <h1 className="mt-1 text-3xl font-medium tracking-[-0.05em]">能力中心</h1>
+            <h1 className="text-3xl font-medium tracking-[-0.05em]">能力中心</h1>
             <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              Skill 决定教练的策略边界，Tool 提供计算或查询能力。只启用您真正希望 Agent 使用的能力。
+              选择教练策略，并管理这些策略实际可以调用的工具。
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
-            <Button disabled={loading} onClick={onRefresh} type="button" variant="ghost">
+            <Button disabled={loading} onClick={onRefresh} size="icon" type="button" variant="ghost">
               {loading ? <LoaderCircle className="animate-spin" /> : <RefreshCcw />}
-              刷新
+              <span className="sr-only">刷新能力列表</span>
             </Button>
-            <Button onClick={() => setCreateOpen(true)} type="button">
-              <Plus />
-              创建策略
-            </Button>
+            <InputGroup className="w-full sm:w-64">
+              <InputGroupInput
+                aria-label="搜索 Skills 或 Tools"
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="搜索 Skills / Tools"
+                value={searchQuery}
+              />
+              <InputGroupAddon>
+                <SearchIcon />
+              </InputGroupAddon>
+            </InputGroup>
           </div>
         </header>
 
-        <ConfigurationHero
-          enabledSkills={enabledSkills}
-          enabledTools={enabledTools}
-          unresolvedTools={unresolvedTools}
-        />
-
         {error ? <p className="mt-5 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p> : null}
 
-        <Tabs className="mt-10" defaultValue="skills">
-          <TabsList aria-label="能力中心分类" variant="line">
-            <TabsTrigger value="skills">
-              <WandSparkles />
-              Skills
-            </TabsTrigger>
-            <TabsTrigger value="tools">
-              <Wrench />
-              Tools
-            </TabsTrigger>
-          </TabsList>
+        <Tabs className="mt-8" value={tabValue} onValueChange={(value) => setTabValue(value as "skills" | "tools")}>
+          <div className="flex items-center justify-between">
+            <TabsList aria-label="能力中心分类" variant="line">
+              <TabsTrigger value="skills">
+                <WandSparkles />
+                Skills
+              </TabsTrigger>
+              <TabsTrigger value="tools">
+                <Wrench />
+                Tools
+              </TabsTrigger>
 
-          <TabsContent className="mt-5" value="skills">
+            </TabsList>
+            {tabValue === "skills" && (
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="default" type="button" variant="outline">
+                      <Filter className="size-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-32">
+                    {[
+                      ["all", "全部"],
+                      ["active", "已启用"],
+                      ["custom", "自建"],
+                    ].map(([value, label]) => (
+                      <DropdownMenuItem
+                        key={value}
+                        onClick={() => setSkillFilter(value as "all" | "active" | "custom")}
+                      >
+                        <Check className={skillFilter === value ? "opacity-100" : "opacity-0"} />
+                        {label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button onClick={() => setCreateOpen(true)} size="default" variant="outline">
+                  <Plus className="size-3.5" />
+                  创建策略
+                </Button>
+              </div>
+            )}
+          </div>
+
+
+          <TabsContent className="mt-3" value="skills">
             <SkillsPanel
               currentUser={currentUser}
               filter={skillFilter}
@@ -172,22 +238,27 @@ export function SkillPanelPage({
               onSetFilter={setSkillFilter}
               onDeleteSkill={onDeleteSkill}
               onToggleSkill={onToggleSkill}
+              onCreateOpen={() => setCreateOpen(true)}
+              searchQuery={searchQuery}
               skills={visibleSkills}
               submitting={submitting}
             />
           </TabsContent>
-          <TabsContent className="mt-5" value="tools">
+          <TabsContent className="mt-3" value="tools">
             <ToolsPanel
               loading={loading}
               onLogin={onLogin}
               onToggleTool={onToggleTool}
               submitting={submitting}
-              tools={tools}
+              searchQuery={searchQuery}
+              tools={visibleTools}
               unresolvedTools={unresolvedTools}
               user={currentUser}
             />
           </TabsContent>
+
         </Tabs>
+
       </section>
 
       <CreateSkillSheet
@@ -205,57 +276,13 @@ export function SkillPanelPage({
   )
 }
 
-function ConfigurationHero({
-  enabledSkills,
-  enabledTools,
-  unresolvedTools,
-}: {
-  enabledSkills: Skill[]
-  enabledTools: AgentToolConfig[]
-  unresolvedTools: string[]
-}) {
-  const status = unresolvedTools.length
-    ? "有策略缺少可用工具"
-    : enabledSkills.length
-      ? "教练策略已就绪"
-      : "尚未选择教练策略"
-  const description = unresolvedTools.length
-    ? `启用的策略需要 ${unresolvedTools.join("、")}，但工具尚未启用或未完成配置。`
-    : enabledSkills.length
-      ? "对话生成建议时，将只在这些策略允许的工具范围内工作。"
-      : "选择一个内置策略后，Agent 才能稳定地遵守您的训练偏好与安全边界。"
-
-  return (
-    <Card className="mt-10">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl">
-          {unresolvedTools.length ? <AlertCircle className="size-5 text-destructive" /> : <ShieldCheck className="size-5" />}
-          {status}
-        </CardTitle>
-        <CardDescription className="max-w-xl leading-6">{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-5 rounded-xl bg-muted/45 p-5 sm:grid-cols-3">
-          <SummaryValue label="启用策略" value={`${enabledSkills.length} 个`} />
-          <SummaryValue label="可调用工具" value={`${enabledTools.length} 个`} />
-          <SummaryValue
-            label="待处理依赖"
-            value={unresolvedTools.length ? `${unresolvedTools.length} 项` : "无"}
-          />
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
 function SkillsPanel({
   currentUser,
-  filter,
   loading,
   onDeleteSkill,
   onLogin,
-  onSetFilter,
   onToggleSkill,
+  searchQuery,
   skills,
   submitting,
 }: {
@@ -266,6 +293,8 @@ function SkillsPanel({
   onLogin: () => void
   onSetFilter: (filter: "all" | "active" | "custom") => void
   onToggleSkill: (skill: Skill, enabled: boolean) => Promise<void> | void
+  onCreateOpen: () => void
+  searchQuery: string
   skills: Skill[]
   submitting: boolean
 }) {
@@ -277,47 +306,26 @@ function SkillsPanel({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex gap-1 rounded-lg bg-muted p-1">
-          {[
-            ["all", "全部"],
-            ["active", "已启用"],
-            ["custom", "自建"],
-          ].map(([value, label]) => (
-            <Button
-              className="h-8"
-              key={value}
-              onClick={() => onSetFilter(value as "all" | "active" | "custom")}
-              size="sm"
-              type="button"
-              variant={filter === value ? "secondary" : "ghost"}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground">展开策略查看行为边界与依赖工具</p>
-      </div>
+    <div>
       {skills.length ? (
-        <Card className="gap-0 py-0">
-          <Accordion collapsible type="single">
-            {skills.map((skill) => (
-              <SkillAccordionItem
-                key={skill.id}
-                onDelete={() => onDeleteSkill(skill)}
-                onToggle={(enabled) => onToggleSkill(skill, enabled)}
-                skill={skill}
-                submitting={submitting}
-              />
-            ))}
-          </Accordion>
-        </Card>
+        <Accordion className="divide-y" collapsible type="single">
+          {skills.map((skill) => (
+            <SkillAccordionItem
+              key={skill.id}
+              onDelete={() => onDeleteSkill(skill)}
+              onToggle={(enabled) => onToggleSkill(skill, enabled)}
+              skill={skill}
+              submitting={submitting}
+            />
+          ))}
+        </Accordion>
       ) : (
         <Empty className="min-h-52 border">
           <EmptyHeader>
-            <EmptyTitle>这个筛选下没有策略</EmptyTitle>
-            <EmptyDescription>切换到全部策略，或创建一个适合自己的教练策略。</EmptyDescription>
+            <EmptyTitle>{searchQuery.trim() ? "没有匹配的 Skill" : "这个筛选下没有策略"}</EmptyTitle>
+            <EmptyDescription>
+              {searchQuery.trim() ? "尝试更换关键词，或清空搜索后查看全部策略。" : "切换到全部策略，或创建一个适合自己的教练策略。"}
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}
@@ -337,12 +345,12 @@ function SkillAccordionItem({
   submitting: boolean
 }) {
   return (
-    <AccordionItem className="px-5" value={`skill-${skill.id}`}>
+    <AccordionItem value={`skill-${skill.id}`}>
       <AccordionTrigger className="no-underline hover:no-underline">
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             <span className="truncate text-base">{skill.name}</span>
-            <Badge variant={skill.is_builtin ? "outline" : "secondary"}>
+            <Badge variant="outline">
               {skill.is_builtin ? "内置" : "自建"}
             </Badge>
             {skill.enabled ? <Badge variant="secondary">启用中</Badge> : null}
@@ -352,13 +360,13 @@ function SkillAccordionItem({
           </span>
         </span>
       </AccordionTrigger>
-      <AccordionContent className="space-y-5">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <DetailBlock icon={SlidersHorizontal} label="教练会怎样建议" value={skill.prompt_snippet} />
+      <AccordionContent className="space-y-5 overflow-hidden pb-6">
+        <div className="mt-3 grid gap-10 sm:grid-cols-2">
+          <DetailBlock icon={SlidersHorizontal} label="核心策略" value={skill.prompt_snippet} />
           <DetailBlock icon={ShieldCheck} label="安全边界" value={skill.forbidden_rules} />
         </div>
         <div>
-          <p className="mb-2 text-xs font-medium text-muted-foreground">依赖工具</p>
+          {/* <p className="text-sm font-medium text-muted-foreground">依赖工具</p> */}
           <div className="flex flex-wrap gap-2">
             {skill.available_tools.length ? (
               skill.available_tools.map((tool) => <Badge key={tool} variant="outline">{tool}</Badge>)
@@ -395,7 +403,7 @@ function ToolsPanel({
   onToggleTool,
   submitting,
   tools,
-  unresolvedTools,
+  searchQuery,
   user,
 }: {
   loading: boolean
@@ -403,6 +411,7 @@ function ToolsPanel({
   onToggleTool: (tool: AgentToolConfig, enabled: boolean) => Promise<void> | void
   submitting: boolean
   tools: AgentToolConfig[]
+  searchQuery: string
   unresolvedTools: string[]
   user: UserProfile | null
 }) {
@@ -413,6 +422,8 @@ function ToolsPanel({
     return <LoadingEmpty label="正在读取工具" />
   }
 
+  const [pendingToolName, setPendingToolName] = useState<string | null>(null)
+
   const groups = Object.entries(
     tools.reduce<Record<string, AgentToolConfig[]>>((result, tool) => {
       result[tool.category] = [...(result[tool.category] ?? []), tool]
@@ -422,7 +433,7 @@ function ToolsPanel({
 
   return (
     <div className="space-y-4">
-      {unresolvedTools.length ? (
+      {/* {unresolvedTools.length ? (
         <div className="rounded-xl bg-destructive/8 px-4 py-3 text-sm">
           <p className="font-medium text-destructive">有 Skill 正在等待工具修复</p>
           <p className="mt-1 text-muted-foreground">{unresolvedTools.join("、")} 尚未启用或缺少配置。</p>
@@ -431,41 +442,49 @@ function ToolsPanel({
         <p className="text-sm text-muted-foreground">
           工具只在已启用且符合 Skill 范围时被调用。缺少密钥的工具无法误启用。
         </p>
-      )}
+      )} */}
       {groups.length ? (
-        <Card className="gap-0 py-0">
-          <Accordion collapsible defaultValue={groups[0]?.[0]} type="single">
-            {groups.map(([category, categoryTools]) => (
-              <AccordionItem className="px-5" key={category} value={category}>
-                <AccordionTrigger className="no-underline hover:no-underline">
-                  <span className="flex flex-1 items-center justify-between pr-3">
-                    <span className="text-base">{toolCategoryLabel(category)}</span>
-                    <span className="text-xs font-normal text-muted-foreground">
-                      {categoryTools.filter((tool) => tool.enabled && isAvailable(tool)).length} / {categoryTools.length} 可调用
-                    </span>
+        <Accordion collapsible type="single">
+          {groups.map(([category, categoryTools]) => (
+            <AccordionItem key={category} value={category}>
+              <AccordionTrigger className="no-underline hover:no-underline">
+                <span className="flex flex-1 items-center justify-between pr-3">
+                  <span className="text-base">{toolCategoryLabel(category)}</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {categoryTools.length}
                   </span>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="divide-y">
-                    {categoryTools.map((tool) => (
-                      <ToolRow
-                        key={tool.name}
-                        onToggle={() => onToggleTool(tool, !tool.enabled)}
-                        submitting={submitting}
-                        tool={tool}
-                      />
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </Card>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="divide-y px-6">
+                  {categoryTools.map((tool) => (
+                    <ToolRow
+                      key={tool.name}
+                      onToggle={async () => {
+                        setPendingToolName(tool.name)
+                        try {
+                          await onToggleTool(tool, !tool.enabled)
+                        } finally {
+                          setPendingToolName(null)
+                        }
+                      }}
+                      pending={pendingToolName === tool.name}
+                      submitting={submitting}
+                      tool={tool}
+                    />
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
       ) : (
         <Empty className="min-h-52 border">
           <EmptyHeader>
-            <EmptyTitle>暂未加载任何工具</EmptyTitle>
-            <EmptyDescription>刷新后仍为空时，请检查后端工具配置。</EmptyDescription>
+            <EmptyTitle>{searchQuery.trim() ? "没有匹配的 Tool" : "暂未加载任何工具"}</EmptyTitle>
+            <EmptyDescription>
+              {searchQuery.trim() ? "尝试使用工具名称、说明或分类进行搜索。" : "刷新后仍为空时，请检查后端工具配置。"}
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}
@@ -475,37 +494,41 @@ function ToolsPanel({
 
 function ToolRow({
   onToggle,
-  submitting,
+  pending,
   tool,
 }: {
   onToggle: () => Promise<void> | void
+  pending: boolean
   submitting: boolean
   tool: AgentToolConfig
 }) {
   const unavailable = !isAvailable(tool)
   return (
-    <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
+    <div className="flex flex-col py-4 sm:flex-row sm:items-center">
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-start gap-3">
           <p className="font-medium">{tool.name}</p>
-          <Badge variant={unavailable ? "outline" : tool.enabled ? "secondary" : "outline"}>
-            {unavailable ? "需配置" : tool.enabled ? "可调用" : "未启用"}
+          <Badge
+            variant={unavailable ? "destructive" : tool.enabled ? "outline" : "default"}
+          >
+            {tool.enabled ? <Check data-icon="inline-start" /> : <X data-icon="inline-start" />}
+            {unavailable ? "需配置" : tool.enabled ? "已启用" : "未启用"}
           </Badge>
         </div>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">{tool.description ?? "未提供工具说明"}</p>
+        <p className="-mt-3 text-sm leading-5 text-muted-foreground">{tool.description ?? "未提供工具说明"}</p>
         {tool.failure_count > 0 ? (
           <p className="mt-1 text-xs text-destructive">最近调用失败 {tool.failure_count} 次</p>
         ) : null}
       </div>
       <Button
-        className="shrink-0"
-        disabled={submitting || unavailable}
+        disabled={pending || unavailable}
         onClick={onToggle}
         size="sm"
         type="button"
-        variant={tool.enabled ? "outline" : "default"}
+        variant={tool.enabled ? " ghost" : "default"}
       >
-        {tool.enabled ? "关闭" : "启用"}
+        {pending && <Spinner />}
+        {tool.enabled ? "禁用" : "启用"}
       </Button>
     </div>
   )
@@ -535,15 +558,15 @@ function CreateSkillSheet({
   return (
     <Sheet onOpenChange={onOpenChange} open={open}>
       <SheetContent className="w-full sm:max-w-lg">
-        <SheetHeader className="border-b px-6 py-5">
-          <SheetTitle className="text-lg">创建教练策略</SheetTitle>
+        <SheetHeader>
+          <SheetTitle>创建教练策略</SheetTitle>
           <SheetDescription>
             定义 Agent 应遵循的建议风格、安全边界和可用工具。保存后可随时停用。
           </SheetDescription>
         </SheetHeader>
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
           <ScrollArea className="min-h-0 flex-1">
-            <div className="space-y-5 px-6 py-5">
+            <div className="space-y-5 px-6">
               <FormField label="策略名称">
                 <Input onChange={(event) => onUpdateForm("name", event.target.value)} value={form.name} />
               </FormField>
@@ -575,10 +598,10 @@ function CreateSkillSheet({
               {formError ? <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{formError}</p> : null}
             </div>
           </ScrollArea>
-          <SheetFooter className="border-t px-6 py-4">
+          <SheetFooter>
             {currentUser ? (
               <Button disabled={submitting} type="submit">
-                {submitting ? <LoaderCircle className="animate-spin" /> : <Plus />}
+                {submitting ? <Spinner /> : <Plus />}
                 保存并启用策略
               </Button>
             ) : (
@@ -623,21 +646,12 @@ function DetailBlock({
   value: string | null
 }) {
   return (
-    <div className="rounded-xl bg-muted/50 p-4">
-      <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+    <div className="">
+      <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
         <Icon className="size-3.5" />
         {label}
       </p>
-      <p className="mt-2 text-sm leading-6">{value || "未设置"}</p>
-    </div>
-  )
-}
-
-function SummaryValue({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-2 text-xl font-medium">{value}</p>
+      <p className="-mt-2 text-sm leading-6">{value || "未设置"}</p>
     </div>
   )
 }
@@ -680,9 +694,26 @@ function toolCategoryLabel(category: string) {
   }[category] ?? category
 }
 
+function getSkillFilterLabel(filter: "all" | "active" | "custom") {
+  return {
+    all: "全部策略",
+    active: "已启用",
+    custom: "自建策略",
+  }[filter]
+}
+
 function compactOptional(value: string) {
   const trimmed = value.trim()
   return trimmed ? trimmed : null
+}
+
+function normalizeQuery(value: string) {
+  return value.trim().toLocaleLowerCase()
+}
+
+function matchesQuery(query: string, ...fields: Array<string | null | undefined>) {
+  if (!query) return true
+  return fields.some((field) => field?.toLocaleLowerCase().includes(query))
 }
 
 function parseTools(value: string) {

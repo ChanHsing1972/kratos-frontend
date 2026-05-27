@@ -47,7 +47,7 @@ export function createTrainingPlanWeeklyScheduleAction(): TrainingPlanWeeklySche
 export function parseTrainingPlanWeeklySchedule(
     value: string
 ): TrainingPlanWeeklyScheduleDay[] {
-    const parsedDays = value
+    const parsedDays = normalizeScheduleBreaks(value)
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean)
@@ -101,13 +101,31 @@ function parseTrainingPlanWeeklyScheduleLine(
     const weekday = normalizeWeekday(line.slice(0, separatorIndex).trim())
     const theme = line.slice(separatorIndex + 1, colonIndex).trim()
     const actionText = line.slice(colonIndex + 1).trim()
-    const actions = actionText
+    const parsedActions = actionText
         ? actionText
             .split(/[；;]+/)
             .map((segment) => segment.trim())
             .filter(Boolean)
             .map(parseTrainingPlanWeeklyScheduleAction)
         : []
+    const actions = parsedActions.reduce<TrainingPlanWeeklyScheduleAction[]>(
+        (resolved, action) => {
+            if (!hasTrainingAmount(action) && resolved.length) {
+                const previous = resolved[resolved.length - 1]
+                const appendedNote = [action.name, action.amount]
+                    .filter(Boolean)
+                    .join(" ")
+                resolved[resolved.length - 1] = {
+                    ...previous,
+                    note: [previous.note, appendedNote].filter(Boolean).join("；"),
+                }
+                return resolved
+            }
+            resolved.push(action)
+            return resolved
+        },
+        []
+    )
 
     if (actions.length === 0 || actions[actions.length - 1].name !== "" || actions[actions.length - 1].amount !== "") {
         actions.push(createTrainingPlanWeeklyScheduleAction())
@@ -128,7 +146,12 @@ function parseTrainingPlanWeeklyScheduleAction(
     const noteMatch = trimmed.match(/^(.*?)[（(]([^（）()]*)[）)]$/)
     const body = noteMatch ? noteMatch[1].trim() : trimmed
     const note = noteMatch ? noteMatch[2].trim() : ""
-    const separatorIndex = body.search(/\s/)
+    const prescriptionIndex = body.search(
+        /(?:\d+(?:\s*[-~至]\s*\d+)?\s*(?:组|次|秒|分钟|轮)|按需)/
+    )
+    const splitAtPrescription = prescriptionIndex > 0
+    const separatorIndex =
+        splitAtPrescription ? prescriptionIndex : body.search(/\s/)
 
     if (separatorIndex < 0) {
         return {
@@ -142,9 +165,19 @@ function parseTrainingPlanWeeklyScheduleAction(
     return {
         id: createScheduleId(),
         name: body.slice(0, separatorIndex).trim(),
-        amount: body.slice(separatorIndex + 1).trim(),
+        amount: body.slice(separatorIndex + (splitAtPrescription ? 0 : 1)).trim(),
         note,
     }
+}
+
+function hasTrainingAmount(action: TrainingPlanWeeklyScheduleAction) {
+    return /(?:\d|组|次|秒|分钟|轮|按需)/.test(action.amount)
+}
+
+function normalizeScheduleBreaks(value: string) {
+    return value
+        .replace(/<br\s*\/?>/gi, "；")
+        .replace(/&lt;br\s*\/?&gt;/gi, "；")
 }
 
 function serializeTrainingPlanWeeklyScheduleAction(

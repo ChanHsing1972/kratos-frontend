@@ -62,6 +62,7 @@ import {
 } from "@/entities/kratos/lib/domain"
 import { cn } from "@/shared/lib/utils"
 import type {
+  AgentCheckin,
   TrainingPlan,
   TrainingPlanPayload,
   WorkoutLog,
@@ -72,6 +73,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 
 type TrainingPlanPageProps = {
   activePlan: TrainingPlan | null
+  latestCheckin: AgentCheckin | null
   completedExercises: string[]
   dashboardLoading: boolean
   onDeletePlan: (plan: TrainingPlan) => void
@@ -102,6 +104,7 @@ type TrainingPlanPageProps = {
 
 export function TrainingPlanPage({
   activePlan,
+  latestCheckin,
   completedExercises,
   dashboardLoading,
   onDeletePlan,
@@ -244,7 +247,7 @@ export function TrainingPlanPage({
   const planGoal =
     activePlan?.goal ??
     "从模板创建或自定义撰写一份计划后，这里会展示后端同步的真实训练安排。"
-  const dailySuggestion = buildDailySuggestion(activePlan, workoutLogs)
+  const dailySuggestion = buildDailySuggestion(activePlan, workoutLogs, latestCheckin)
   const trainingStreak = calculateTrainingStreak(
     workoutLogs,
     activePlan?.id ?? null
@@ -280,6 +283,7 @@ export function TrainingPlanPage({
           anotherTrainingActive={anotherTrainingActive}
           dashboardLoading={dashboardLoading}
           dailySuggestion={dailySuggestion}
+          hasActivePlan={Boolean(activePlan)}
           onCompleteTrainingDay={onCompleteTrainingDay}
           onOpenPlanComposer={onOpenPlanComposer}
           onPauseTraining={onPauseTraining}
@@ -956,6 +960,7 @@ function TodayTrainingHero({
   completedExercises,
   dailySuggestion,
   dashboardLoading,
+  hasActivePlan,
   onCompleteTrainingDay,
   onOpenPlanComposer,
   onPauseTraining,
@@ -976,6 +981,7 @@ function TodayTrainingHero({
   completedExercises: string[]
   dailySuggestion: string
   dashboardLoading: boolean
+  hasActivePlan: boolean
   onCompleteTrainingDay: TrainingPlanPageProps["onCompleteTrainingDay"]
   onOpenPlanComposer: TrainingPlanPageProps["onOpenPlanComposer"]
   onPauseTraining: () => void
@@ -1099,7 +1105,7 @@ function TodayTrainingHero({
             Kratos 建议
           </div>
           <p className="mt-1 text-[13px] leading-5">
-            {hasTraining ? dailySuggestion : planGoal}
+            {hasActivePlan ? dailySuggestion : planGoal}
           </p>
         </div>
 
@@ -1950,8 +1956,22 @@ function planStatusLabel(status: string) {
 
 function buildDailySuggestion(
   plan: TrainingPlan | null,
-  workoutLogs: WorkoutLog[]
+  workoutLogs: WorkoutLog[],
+  latestCheckin: AgentCheckin | null
 ) {
+  const todayCheckin = latestCheckin && isCurrentDate(
+    latestCheckin.checkin_date ?? latestCheckin.created_at
+  )
+    ? latestCheckin
+    : null
+  if (todayCheckin?.pain_notes || (todayCheckin?.soreness_level ?? 0) >= 7 || (todayCheckin?.energy_level ?? 10) <= 3) {
+    return "今天的恢复打卡出现疼痛、高酸痛或低精力信号，不适合盲目加量。建议降低强度或停止引发不适的动作；急性不适请及时就医评估。"
+  }
+
+  if (todayCheckin && ((todayCheckin.sleep_hours ?? 8) < 7 || (todayCheckin.soreness_level ?? 0) >= 5)) {
+    return "今天睡眠或酸痛提示恢复不足，建议按计划保守训练，降低训练量并避免挑战新的最大重量。"
+  }
+
   const latestLog = [...workoutLogs].sort(
     (left, right) =>
       new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
@@ -1974,4 +1994,13 @@ function buildDailySuggestion(
   }
 
   return "完成训练后填写反馈，Kratos 会在这里给出下一次训练的动态建议。"
+}
+
+function isCurrentDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return false
+  const today = new Date()
+  return date.getFullYear() === today.getFullYear()
+    && date.getMonth() === today.getMonth()
+    && date.getDate() === today.getDate()
 }

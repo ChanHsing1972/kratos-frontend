@@ -18,12 +18,13 @@ export function TrainingPlanSuggestionCard({
   plan,
 }: TrainingPlanSuggestionCardProps) {
   const isProgram = plan.plan_kind === "program"
+  const sessionCount = plan.schedule_json?.weeks[0]?.sessions.length ?? 0
   const scheduleLines =
     plan.weekly_schedule
       ?.split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean)
-      .slice(0, 3) ?? []
+      .slice(0, isProgram ? 7 : 3) ?? []
 
   return (
     <section className="mt-4 rounded-[12px] border border-border bg-muted/40 p-4 shadow-[0_10px_24px_rgba(17,17,17,0.04)]">
@@ -40,9 +41,11 @@ export function TrainingPlanSuggestionCard({
               {plan.goal}
             </p>
           ) : null}
-          {isProgram && plan.duration_weeks ? (
+          {isProgram && (plan.duration_weeks || sessionCount) ? (
             <p className="mt-1 text-[12px] text-muted-foreground">
-              周期：{plan.duration_weeks} 周
+              {plan.duration_weeks ? `周期：${plan.duration_weeks} 周` : null}
+              {plan.duration_weeks && sessionCount ? " · " : null}
+              {sessionCount ? `每周 ${sessionCount} 项安排` : null}
             </p>
           ) : null}
         </div>
