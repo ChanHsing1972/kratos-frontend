@@ -155,11 +155,9 @@ export function SkillPanelPage({
 
   return (
     <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
-      <section className="mx-auto mt-20 flex min-h-full w-full max-w-[900px] flex-col sm:p-8">
+      <section className="mx-auto mt-20 flex min-h-full w-full max-w-[900px] flex-col px-6 pt-8 pb-16 sm:px-8">
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
-          <div>
-            <h1 className="text-3xl font-medium tracking-[-0.05em]">能力中心</h1>
-          </div>
+          <h1 className="text-3xl font-medium tracking-[-0.05em]">工具技能</h1>
           <div className="flex shrink-0 gap-2">
             <InputGroup className="w-full sm:w-64">
               <InputGroupInput
@@ -182,7 +180,7 @@ export function SkillPanelPage({
 
         <Tabs className="mt-8" value={tabValue} onValueChange={(value) => setTabValue(value as "skills" | "tools")}>
           <div className="flex items-center justify-between">
-            <TabsList aria-label="能力中心分类" variant="line">
+            <TabsList aria-label="工具技能分类" variant="line">
               <TabsTrigger value="skills">
                 <WandSparkles />
                 Skills

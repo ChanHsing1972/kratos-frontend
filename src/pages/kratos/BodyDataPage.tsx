@@ -1,22 +1,21 @@
 import {
   Activity,
+  ChevronDown,
   Download,
   Dumbbell,
   Flame,
   Gauge,
-  History,
-  Info,
   MoonStar,
   Pencil,
   Plus,
-  Ruler,
   Scale,
   Timer,
   Trash2,
   TrendingUp,
   Trophy,
+  type LucideIcon,
 } from "lucide-react"
-import { useState, type ReactNode } from "react"
+import { Fragment, useState, type ReactNode } from "react"
 import {
   CartesianGrid,
   Line,
@@ -28,7 +27,6 @@ import {
 import type {
   AgentCheckin,
   BodyMetric,
-  OnboardingStatus,
   WorkoutLog,
 } from "@/entities/kratos/model/types"
 import { Badge } from "@/shared/ui/badge"
@@ -47,14 +45,7 @@ import {
   EmptyTitle,
 } from "@/shared/ui/empty"
 import { Progress } from "@/shared/ui/progress"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
+import { Separator } from "@/shared/ui/separator"
 
 type BodyDataPageProps = {
   bodyMetrics: BodyMetric[]
@@ -65,8 +56,11 @@ type BodyDataPageProps = {
   onEditBodyMetric: (metric: BodyMetric) => void
   onDeleteCheckin: (checkin: AgentCheckin) => void
   onDeleteBodyMetric: (metric: BodyMetric) => void
+  onDeleteBodyDataRecord: (record: {
+    checkin: AgentCheckin | null
+    metric: BodyMetric | null
+  }) => void
   onExportBodyData: () => void
-  onboarding: OnboardingStatus | null
   workoutLogs: WorkoutLog[]
 }
 
@@ -76,10 +70,18 @@ type MetricPoint = {
 }
 
 type TrendOption = {
+  icon: LucideIcon
   id: string
   label: string
   series: MetricPoint[]
   unit: string
+}
+
+type BodyDataRecord = {
+  checkin: AgentCheckin | null
+  id: string
+  metric: BodyMetric | null
+  sortTime: number
 }
 
 export function BodyDataPage({
@@ -91,8 +93,8 @@ export function BodyDataPage({
   onEditBodyMetric,
   onDeleteCheckin,
   onDeleteBodyMetric,
+  onDeleteBodyDataRecord,
   onExportBodyData,
-  onboarding,
   workoutLogs,
 }: BodyDataPageProps) {
   const weightSeries = getMetricSeries(bodyMetrics, "weight_kg")
@@ -119,28 +121,73 @@ export function BodyDataPage({
   )
 
   const coreTrends: TrendOption[] = [
-    { id: "weight", label: "体重", unit: "kg", series: weightSeries },
-    { id: "soreness", label: "酸痛", unit: "/10", series: sorenessSeries },
-    { id: "sleep", label: "睡眠", unit: "h", series: sleepSeries },
-    { id: "energy", label: "精力", unit: "/10", series: energySeries },
+    {
+      icon: Scale,
+      id: "weight",
+      label: "体重",
+      unit: "kg",
+      series: weightSeries,
+    },
+    {
+      icon: Gauge,
+      id: "soreness",
+      label: "酸痛",
+      unit: "/10",
+      series: sorenessSeries,
+    },
+    {
+      icon: MoonStar,
+      id: "sleep",
+      label: "睡眠",
+      unit: "h",
+      series: sleepSeries,
+    },
+    {
+      icon: Activity,
+      id: "energy",
+      label: "精力",
+      unit: "/10",
+      series: energySeries,
+    },
   ]
   const additionalTrends: TrendOption[] = [
-    { id: "body-fat", label: "体脂率", unit: "%", series: bodyFatSeries },
-    { id: "muscle", label: "骨骼肌", unit: "kg", series: muscleSeries },
-    { id: "bmi", label: "BMI", unit: "", series: getBmiSeries(bodyMetrics) },
     {
+      icon: TrendingUp,
+      id: "body-fat",
+      label: "体脂率",
+      unit: "%",
+      series: bodyFatSeries,
+    },
+    {
+      icon: TrendingUp,
+      id: "muscle",
+      label: "骨骼肌",
+      unit: "kg",
+      series: muscleSeries,
+    },
+    {
+      icon: TrendingUp,
+      id: "bmi",
+      label: "BMI",
+      unit: "",
+      series: getBmiSeries(bodyMetrics),
+    },
+    {
+      icon: TrendingUp,
       id: "waist",
       label: "腰围",
       unit: "cm",
       series: getMetricSeries(bodyMetrics, "waist_cm"),
     },
     {
+      icon: TrendingUp,
       id: "chest",
       label: "胸围",
       unit: "cm",
       series: getMetricSeries(bodyMetrics, "chest_cm"),
     },
     {
+      icon: TrendingUp,
       id: "hip",
       label: "臀围",
       unit: "cm",
@@ -149,135 +196,41 @@ export function BodyDataPage({
   ]
 
   return (
-    <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-background">
+    <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
       <section className="mx-auto mt-20 flex min-h-full w-full max-w-[900px] flex-col px-6 pt-8 pb-16 sm:px-8">
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
-          <div>
-            <h1 className="text-3xl font-medium tracking-[-0.05em]">
-              身体数据
-            </h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              从今天的恢复状态开始，观察训练负荷与身体趋势如何共同变化。
-            </p>
-          </div>
+          <h1 className="text-3xl font-medium tracking-[-0.05em]">
+            数据中心
+          </h1>
           <Button onClick={onExportBodyData} type="button" variant="ghost">
             <Download />
             导出
           </Button>
         </header>
 
-        <TodayRecoveryStatus
-          latestCheckin={todayCheckin}
-          latestMetric={todayMetric}
-          onRecord={onEditBodyData}
-        />
-
         <WeeklyTrainingStats logs={completedWorkoutLogs} />
 
-        <Tabs className="mt-14" defaultValue="trend">
-          <TabsList aria-label="身体数据查看范围" variant="line">
-            <TabsTrigger value="trend">
-              <TrendingUp />
-              趋势
-            </TabsTrigger>
-            <TabsTrigger value="records">
-              <History />
-              历史记录
-            </TabsTrigger>
-          </TabsList>
+        <TrendPanel
+          additionalTrends={additionalTrends}
+          coreTrends={coreTrends}
+          latestMetric={latestMetric}
+          onRecord={onEditBodyData}
+          targetProgress={targetProgress}
+          todayCheckin={todayCheckin}
+          todayMetric={todayMetric}
+        />
 
-          <TabsContent className="mt-8" value="trend">
-            <TrendPanel
-              additionalTrends={additionalTrends}
-              coreTrends={coreTrends}
-              latestMetric={latestMetric}
-              targetProgress={targetProgress}
-            />
-          </TabsContent>
-
-          <TabsContent className="mt-8 space-y-12" value="records">
-            <TrainingFeedbackPanel logs={completedWorkoutLogs} />
-            <RecordsPanel
-              bodyMetrics={bodyMetrics}
-              checkins={checkins}
-              latestMetric={latestMetric}
-              onDeleteCheckin={onDeleteCheckin}
-              onDeleteBodyMetric={onDeleteBodyMetric}
-              onEditBodyMetric={onEditBodyMetric}
-              onboarding={onboarding}
-            />
-          </TabsContent>
-        </Tabs>
+        <HistoryPanel
+          bodyMetrics={bodyMetrics}
+          checkins={checkins}
+          logs={completedWorkoutLogs}
+          onDeleteCheckin={onDeleteCheckin}
+          onDeleteBodyDataRecord={onDeleteBodyDataRecord}
+          onDeleteBodyMetric={onDeleteBodyMetric}
+          onEditBodyMetric={onEditBodyMetric}
+        />
       </section>
     </main>
-  )
-}
-
-function TodayRecoveryStatus({
-  latestCheckin,
-  latestMetric,
-  onRecord,
-}: {
-  latestCheckin: AgentCheckin | null
-  latestMetric: BodyMetric | null
-  onRecord: () => void
-}) {
-  const hasTodayData = Boolean(latestCheckin || latestMetric)
-
-  return (
-    <section className="mt-12">
-      <SectionHeading
-        action={
-          hasTodayData ? (
-            <Button onClick={onRecord} size="sm" type="button" variant="ghost">
-              更新记录
-            </Button>
-          ) : null
-        }
-        description="睡眠、精力与酸痛将帮助调整今天的训练强度。"
-        title="今日恢复状态"
-      />
-      {hasTodayData ? (
-        <div className="mt-8 grid gap-x-8 gap-y-7 sm:grid-cols-4">
-          <StatusMetric
-            icon={MoonStar}
-            label="睡眠"
-            value={formatMetricWithUnit(latestCheckin?.sleep_hours, "h")}
-          />
-          <StatusMetric
-            icon={Activity}
-            label="精力"
-            value={formatScore(latestCheckin?.energy_level)}
-          />
-          <StatusMetric
-            icon={Gauge}
-            label="酸痛"
-            value={formatScore(latestCheckin?.soreness_level)}
-          />
-          <StatusMetric
-            icon={Scale}
-            label="体重"
-            value={formatMetricWithUnit(latestMetric?.weight_kg, "kg")}
-          />
-        </div>
-      ) : (
-        <Empty className="mt-6 min-h-44 bg-muted/30">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Plus />
-            </EmptyMedia>
-            <EmptyTitle>今天还没有状态记录</EmptyTitle>
-            <EmptyDescription>
-              记录睡眠、精力、酸痛与体重，获得更贴合今天的训练建议。
-            </EmptyDescription>
-          </EmptyHeader>
-          <Button onClick={onRecord} type="button">
-            <Plus />
-            记录今天状态
-          </Button>
-        </Empty>
-      )}
-    </section>
   )
 }
 
@@ -293,7 +246,7 @@ function StatusMetric({
   return (
     <div className="flex gap-3">
       <Icon
-        className="mt-1 size-4 shrink-0 text-muted-foreground"
+        className="size-4 shrink-0 text-muted-foreground"
         strokeWidth={1.8}
       />
       <div>
@@ -330,7 +283,7 @@ function WeeklyTrainingStats({ logs }: { logs: WorkoutLog[] }) {
     {
       icon: Flame,
       label: "训练消耗",
-      value: `${weekCalories} kcal`,
+      value: `${weekCalories} 千卡`,
     },
     {
       icon: Trophy,
@@ -340,14 +293,22 @@ function WeeklyTrainingStats({ logs }: { logs: WorkoutLog[] }) {
   ]
 
   return (
-    <section className="mt-14">
+    <section className="mt-10">
       <SectionHeading
-        description={`本周 ${formatWeekRange(weekStart)} · 来自已完成的训练记录`}
-        title="本周训练统计"
+        description={`${formatWeekRange(weekStart)}`}
+        title="本周统计"
       />
-      <div className="mt-8 grid gap-x-8 gap-y-7 sm:grid-cols-4">
-        {stats.map(({ icon: Icon, label, value }) => (
-          <StatusMetric icon={Icon} key={label} label={label} value={value} />
+      <div className="mt-5 grid gap-6 sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] sm:items-center sm:gap-x-4">
+        {stats.map(({ icon: Icon, label, value }, index) => (
+          <Fragment key={label}>
+            <StatusMetric icon={Icon} label={label} value={value} />
+            {index < stats.length - 1 ? (
+              <Separator
+                className="hidden h-12 sm:block"
+                orientation="vertical"
+              />
+            ) : null}
+          </Fragment>
         ))}
       </div>
     </section>
@@ -358,119 +319,217 @@ function TrendPanel({
   additionalTrends,
   coreTrends,
   latestMetric,
+  onRecord,
   targetProgress,
+  todayCheckin,
+  todayMetric,
 }: {
   additionalTrends: TrendOption[]
   coreTrends: TrendOption[]
   latestMetric: BodyMetric | null
+  onRecord: () => void
   targetProgress: number | null
+  todayCheckin: AgentCheckin | null
+  todayMetric: BodyMetric | null
 }) {
-  const [selectedTrend, setSelectedTrend] = useState(additionalTrends[0].id)
-  const activeTrend =
-    additionalTrends.find((trend) => trend.id === selectedTrend) ??
-    additionalTrends[0]
+  const [additionalOpen, setAdditionalOpen] = useState(false)
+  const hasTodayData = Boolean(todayCheckin || todayMetric)
 
   return (
-    <section>
-      <div>
-        <h2 className="text-xl font-medium tracking-[-0.03em]">变化趋势</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          先查看恢复与训练判断最相关的四项指标，最多展示最近 30 个时间点。
-        </p>
-      </div>
+    <section className="mt-10">
+      <SectionHeading
+        action={
+          <Button onClick={onRecord} size="sm" type="button" variant="outline">
+            {hasTodayData ? "更新记录" : "记录今日状态"}
+          </Button>
+        }
+        description=""
+        title="今日状态"
+      />
 
-      <div className="mt-9 grid gap-x-10 gap-y-12 md:grid-cols-2">
-        {coreTrends.map((trend) => (
-          <CoreTrendChart
-            key={trend.id}
-            latestMetric={latestMetric}
-            targetProgress={targetProgress}
-            trend={trend}
-          />
-        ))}
-      </div>
+      {hasTodayData ? (
+        null
+        // <div className="mt-5 grid gap-y-6 sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] sm:items-center sm:gap-x-4">
+        //   <StatusMetric
+        //     icon={MoonStar}
+        //     label="睡眠"
+        //     value={formatMetricWithUnit(todayCheckin?.sleep_hours, "小时")}
+        //   />
+        //   <Separator
+        //     className="hidden h-12 sm:block"
+        //     orientation="vertical"
+        //   />
+        //   <StatusMetric
+        //     icon={Activity}
+        //     label="精力"
+        //     value={formatScore(todayCheckin?.energy_level)}
+        //   />
+        //   <Separator
+        //     className="hidden h-12 sm:block"
+        //     orientation="vertical"
+        //   />
+        //   <StatusMetric
+        //     icon={Gauge}
+        //     label="酸痛"
+        //     value={formatScore(todayCheckin?.soreness_level)}
+        //   />
+        //   <Separator
+        //     className="hidden h-12 sm:block"
+        //     orientation="vertical"
+        //   />
+        //   <StatusMetric
+        //     icon={Scale}
+        //     label="体重"
+        //     value={formatMetricWithUnit(todayMetric?.weight_kg, "千克")}
+        //   />
+        // </div>
+      ) : (
+        <Empty className="mt-5 min-h-50 border border-dashed">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Plus />
+            </EmptyMedia>
+            <EmptyTitle>今天还没有状态记录</EmptyTitle>
+            <EmptyDescription>
+              记录睡眠、精力、酸痛与体重，获得更贴合今日状态的训练建议。
+            </EmptyDescription>
+          </EmptyHeader>
+          <Button onClick={onRecord} type="button">
+            记录今日状态
+          </Button>
+        </Empty>
+      )}
 
-      <section className="mt-16">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-          <div>
-            <h3 className="text-xl font-medium tracking-[-0.03em]">更多指标</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              选择一项身体测量指标，查看长期变化。
-            </p>
-          </div>
-          <Select onValueChange={setSelectedTrend} value={selectedTrend}>
-            <SelectTrigger className="w-44 border-0 bg-muted/45 shadow-none">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {additionalTrends.map((trend) => (
-                <SelectItem key={trend.id} value={trend.id}>
-                  {trend.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="mt-5 space-y-12">
+        {coreTrends
+          .filter((trend) => trend.id === "weight")
+          .map((trend) => (
+            <CoreTrendChart
+              emphasis="primary"
+              key={trend.id}
+              latestMetric={latestMetric}
+              targetProgress={targetProgress}
+              trend={trend}
+            />
+          ))}
 
-        <div className="mt-9 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">{activeTrend.label}</p>
-            <p className="mt-1 text-3xl font-medium tracking-[-0.04em]">
-              {formatSeriesLatest(activeTrend.series, activeTrend.unit)}
-            </p>
-          </div>
-          <p className="pb-1 text-sm text-muted-foreground">
-            {formatMetricChange(activeTrend.series, activeTrend.unit)}
-          </p>
-        </div>
-
-        <MetricChart
-          label={activeTrend.label}
-          series={activeTrend.series}
-          unit={activeTrend.unit}
-        />
-
-        <section className="mt-14">
-          <h3 className="text-base font-medium">指标概览</h3>
-          <div className="mt-6 grid gap-x-8 gap-y-7 sm:grid-cols-3">
-            {additionalTrends.map((trend) => (
-              <button
-                className="text-left transition-opacity hover:opacity-60"
+        <div className="grid gap-x-8 gap-y-12 md:grid-cols-3">
+          {coreTrends
+            .filter((trend) => trend.id !== "weight")
+            .map((trend) => (
+              <CoreTrendChart
                 key={trend.id}
-                onClick={() => setSelectedTrend(trend.id)}
-                type="button"
-              >
-                <p className="text-xs text-muted-foreground">{trend.label}</p>
-                <p className="mt-1 font-medium">
-                  {formatSeriesLatest(trend.series, trend.unit)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatMetricChange(trend.series, trend.unit)}
-                </p>
-              </button>
+                latestMetric={latestMetric}
+                targetProgress={targetProgress}
+                trend={trend}
+              />
+            ))}
+        </div>
+      </div>
+
+      <section className="mt-4">
+        <Button
+          aria-expanded={additionalOpen}
+          onClick={() => setAdditionalOpen((current) => !current)}
+          type="button"
+          variant="ghost"
+        >
+          更多指标
+          <ChevronDown
+            className={
+              additionalOpen
+                ? "size-4 rotate-180 transition-transform"
+                : "size-4 transition-transform"
+            }
+          />
+        </Button>
+
+        {additionalOpen ? (
+          <div className="mt-8 grid gap-x-8 gap-y-12 md:grid-cols-3">
+            {additionalTrends.map((trend) => (
+              <CoreTrendChart
+                key={trend.id}
+                latestMetric={latestMetric}
+                targetProgress={targetProgress}
+                trend={trend}
+              />
             ))}
           </div>
-        </section>
+        ) : null}
       </section>
     </section>
   )
 }
 
+function HistoryPanel({
+  bodyMetrics,
+  checkins,
+  logs,
+  onDeleteCheckin,
+  onDeleteBodyDataRecord,
+  onDeleteBodyMetric,
+  onEditBodyMetric,
+}: {
+  bodyMetrics: BodyMetric[]
+  checkins: AgentCheckin[]
+  logs: WorkoutLog[]
+  onDeleteCheckin: (checkin: AgentCheckin) => void
+  onDeleteBodyDataRecord: (record: {
+    checkin: AgentCheckin | null
+    metric: BodyMetric | null
+  }) => void
+  onDeleteBodyMetric: (metric: BodyMetric) => void
+  onEditBodyMetric: (metric: BodyMetric) => void
+}) {
+  return (
+    <section className="mt-10">
+      <SectionHeading
+        description=""
+        title="历史记录"
+      />
+      <div className="mt-6 grid gap-12 lg:grid-cols-2">
+        <TrainingFeedbackPanel logs={logs} />
+        <RecordsPanel
+          bodyMetrics={bodyMetrics}
+          checkins={checkins}
+          onDeleteCheckin={onDeleteCheckin}
+          onDeleteBodyDataRecord={onDeleteBodyDataRecord}
+          onDeleteBodyMetric={onDeleteBodyMetric}
+          onEditBodyMetric={onEditBodyMetric}
+        />
+      </div>
+    </section>
+  )
+}
+
 function CoreTrendChart({
+  emphasis = "secondary",
   latestMetric,
   targetProgress,
   trend,
 }: {
+  emphasis?: "primary" | "secondary"
   latestMetric: BodyMetric | null
   targetProgress: number | null
   trend: TrendOption
 }) {
+  const isPrimary = emphasis === "primary"
+  const TrendIcon = trend.icon
   return (
-    <section>
+    <section className={isPrimary ? "max-w-none" : undefined}>
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-sm text-muted-foreground">{trend.label}</p>
-          <p className="mt-1 text-2xl font-medium tracking-[-0.03em]">
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <span>{trend.label}</span>
+            <TrendIcon className="size-3.5" strokeWidth={1.8} />
+          </div>
+          <p
+            className={
+              isPrimary
+                ? "mt-1 text-xl font-medium tracking-[-0.03em]"
+                : "mt-1 text-xl font-medium tracking-[-0.03em]"
+            }
+          >
             {formatSeriesLatest(trend.series, trend.unit)}
           </p>
         </div>
@@ -479,7 +538,7 @@ function CoreTrendChart({
         </p>
       </div>
       <MetricChart
-        compact
+        compact={!isPrimary}
         label={trend.label}
         series={trend.series}
         unit={trend.unit}
@@ -499,7 +558,6 @@ function CoreTrendChart({
     </section>
   )
 }
-
 function MetricChart({
   compact = false,
   label,
@@ -515,17 +573,17 @@ function MetricChart({
     return (
       <Empty
         className={
-          compact ? "mt-5 min-h-40 bg-muted/25" : "mt-7 min-h-56 bg-muted/25"
+          compact ? "mt-5 min-h-40 border border-dashed" : "mt-7 min-h-56 border border-dashed"
         }
       >
         <EmptyHeader>
-          <EmptyMedia variant="icon">
+          {!compact ? (<EmptyMedia variant="icon">
             <TrendingUp />
-          </EmptyMedia>
-          <EmptyTitle>再记录一次即可查看趋势</EmptyTitle>
+          </EmptyMedia>) : null}
+          <EmptyTitle>无数据</EmptyTitle>
           {!compact ? (
             <EmptyDescription>
-              至少需要两个独立时间点，才会比较变化方向。
+              再记录一次即可查看趋势。
             </EmptyDescription>
           ) : null}
         </EmptyHeader>
@@ -610,10 +668,8 @@ function TrainingFeedbackPanel({ logs }: { logs: WorkoutLog[] }) {
 
   return (
     <section>
-      <SectionHeading
-        description="完成情况与主观强度帮助 Kratos 调整下一次安排。"
-        title="训练反馈"
-      />
+      <h2 className="font-medium tracking-[-0.03em]">训练反馈</h2>
+
       {!logs.length ? (
         <Empty className="mt-6 min-h-48 bg-muted/25">
           <EmptyHeader>
@@ -663,144 +719,90 @@ function TrainingFeedbackPanel({ logs }: { logs: WorkoutLog[] }) {
 function RecordsPanel({
   bodyMetrics,
   checkins,
-  latestMetric,
   onDeleteCheckin,
+  onDeleteBodyDataRecord,
   onDeleteBodyMetric,
   onEditBodyMetric,
-  onboarding,
 }: {
   bodyMetrics: BodyMetric[]
   checkins: AgentCheckin[]
-  latestMetric: BodyMetric | null
   onDeleteCheckin: (checkin: AgentCheckin) => void
+  onDeleteBodyDataRecord: (record: {
+    checkin: AgentCheckin | null
+    metric: BodyMetric | null
+  }) => void
   onDeleteBodyMetric: (metric: BodyMetric) => void
   onEditBodyMetric: (metric: BodyMetric) => void
-  onboarding: OnboardingStatus | null
 }) {
-  return (
-    <>
-      <RecordSection
-        description="睡眠、精力与酸痛来自每日恢复打卡。"
-        title="恢复打卡记录"
-      >
-        {checkins.length ? (
-          <div className="mt-6 space-y-5">
-            {checkins.slice(0, 10).map((checkin) => (
-              <div className="flex items-center gap-4" key={checkin.id}>
-                <div className="w-24 shrink-0 text-sm text-muted-foreground">
-                  {formatFullDate(checkin.checkin_date ?? checkin.created_at)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{formatCheckinSummary(checkin)}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formatMetricSource(checkin.source)}
-                    {checkin.pain_notes ? ` · ${checkin.pain_notes}` : ""}
-                  </p>
-                </div>
-                <Button
-                  aria-label="删除恢复打卡"
-                  onClick={() => onDeleteCheckin(checkin)}
-                  size="icon-sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  <Trash2 />
-                </Button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-8 text-sm text-muted-foreground">
-            还没有恢复打卡记录。
-          </p>
-        )}
-      </RecordSection>
+  const records = getBodyDataRecords(bodyMetrics, checkins).slice(0, 10)
 
-      <RecordSection
-        description="体重、体脂与围度分别保存，每次录入均可修正或删除。"
-        title="身体测量记录"
-      >
-        {bodyMetrics.length ? (
-          <div className="mt-6 space-y-5">
-            {bodyMetrics.slice(0, 10).map((metric) => (
-              <div className="flex items-center gap-4" key={metric.id}>
-                <div className="w-24 shrink-0 text-sm text-muted-foreground">
-                  {formatFullDate(metric.measured_at ?? metric.recorded_at)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">
-                    {formatMetricWithUnit(metric.weight_kg, "kg")}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formatMetricSource(metric.source)}
-                  </p>
-                </div>
+  return (
+    <RecordSection
+      title="数据历史"
+    >
+      {records.length ? (
+        <div className="mt-6 space-y-6">
+          {records.map((record) => (
+            <div className="flex items-center gap-1" key={record.id}>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm">
+                  {formatBodyDataRecordSummary(record)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatFullDate(getBodyDataRecordDate(record))} · {formatBodyDataRecordMeta(record)}
+                </p>
+              </div>
+              {record.metric ? (
                 <Button
-                  aria-label="编辑测量记录"
-                  onClick={() => onEditBodyMetric(metric)}
+                  aria-label="编辑身体数据记录"
+                  onClick={() => onEditBodyMetric(record.metric!)}
                   size="icon-sm"
                   type="button"
                   variant="ghost"
                 >
                   <Pencil />
                 </Button>
+              ) : null}
+              {record.metric && record.checkin ? (
                 <Button
-                  aria-label="删除测量记录"
-                  onClick={() => onDeleteBodyMetric(metric)}
+                  aria-label="删除身体数据记录"
+                  onClick={() => onDeleteBodyDataRecord(record)}
                   size="icon-sm"
                   type="button"
                   variant="ghost"
                 >
                   <Trash2 />
                 </Button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-8 text-sm text-muted-foreground">
-            还没有身体测量记录。
-          </p>
-        )}
-      </RecordSection>
-
-      <div className="grid gap-10 pt-2 sm:grid-cols-2">
-        <section>
-          <h3 className="flex items-center gap-2 font-medium">
-            <Ruler className="size-4 text-muted-foreground" />
-            最近围度
-          </h3>
-          <div className="mt-5 space-y-3 text-sm">
-            <RecordLine
-              label="胸围"
-              value={formatMetricWithUnit(latestMetric?.chest_cm, "cm")}
-            />
-            <RecordLine
-              label="腰围"
-              value={formatMetricWithUnit(latestMetric?.waist_cm, "cm")}
-            />
-            <RecordLine
-              label="臀围"
-              value={formatMetricWithUnit(latestMetric?.hip_cm, "cm")}
-            />
-          </div>
-        </section>
-        <section>
-          <h3 className="flex items-center gap-2 font-medium">
-            <Info className="size-4 text-muted-foreground" />
-            数据用途
-          </h3>
-          <div className="mt-5 text-sm leading-6 text-muted-foreground">
-            <p>
-              身体数据用于观察趋势和解释训练调整依据。对话识别的数据需您确认后才会保存。
-            </p>
-            <p className="mt-3">
-              {onboarding?.next_steps?.[0] ??
-                "您可以随时修正、删除或导出这些记录。"}
-            </p>
-          </div>
-        </section>
-      </div>
-    </>
+              ) : record.metric ? (
+                <Button
+                  aria-label="删除测量记录"
+                  onClick={() => onDeleteBodyMetric(record.metric!)}
+                  size="icon-sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <Trash2 />
+                </Button>
+              ) : record.checkin ? (
+                <Button
+                  aria-label="删除恢复打卡"
+                  onClick={() => onDeleteCheckin(record.checkin!)}
+                  size="icon-sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <Trash2 />
+                </Button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-8 text-sm text-muted-foreground">
+          还没有身体数据记录。
+        </p>
+      )}
+    </RecordSection>
   )
 }
 
@@ -817,8 +819,8 @@ function SectionHeading({
     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
       <div>
         <h2 className="text-xl font-medium tracking-[-0.03em]">{title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
+      <p className="text-sm text-muted-foreground">{description}</p>
       {action}
     </div>
   )
@@ -826,19 +828,166 @@ function SectionHeading({
 
 function RecordSection({
   children,
-  description,
   title,
 }: {
   children: ReactNode
-  description: string
   title: string
 }) {
   return (
     <section>
-      <SectionHeading description={description} title={title} />
+      <h2 className="font-medium tracking-[-0.03em]">{title}</h2>
       {children}
     </section>
   )
+}
+
+const BODY_DATA_PAIR_WINDOW_MS = 10 * 60 * 1000
+
+function getBodyDataRecords(
+  bodyMetrics: BodyMetric[],
+  checkins: AgentCheckin[]
+): BodyDataRecord[] {
+  const unpairedMetrics = [...bodyMetrics].sort(
+    (left, right) => getMetricSortTime(right) - getMetricSortTime(left)
+  )
+  const records: BodyDataRecord[] = []
+
+  for (const checkin of [...checkins].sort(
+    (left, right) => getCheckinSortTime(right) - getCheckinSortTime(left)
+  )) {
+    const matchIndex = findPairedMetricIndex(checkin, unpairedMetrics)
+    const metric =
+      matchIndex >= 0 ? unpairedMetrics.splice(matchIndex, 1)[0] : null
+
+    records.push({
+      checkin,
+      id: bodyDataRecordId(metric, checkin),
+      metric,
+      sortTime: Math.max(
+        metric ? getMetricSortTime(metric) : Number.NEGATIVE_INFINITY,
+        getCheckinSortTime(checkin)
+      ),
+    })
+  }
+
+  for (const metric of unpairedMetrics) {
+    records.push({
+      checkin: null,
+      id: bodyDataRecordId(metric, null),
+      metric,
+      sortTime: getMetricSortTime(metric),
+    })
+  }
+
+  return records.sort((left, right) => right.sortTime - left.sortTime)
+}
+
+function findPairedMetricIndex(
+  checkin: AgentCheckin,
+  metrics: BodyMetric[]
+) {
+  const checkinDate = dateKey(localDate(checkin.checkin_date ?? checkin.created_at))
+  const checkinTime = dateTime(checkin.created_at)
+  let closestIndex = -1
+  let closestDistance = Number.POSITIVE_INFINITY
+
+  metrics.forEach((metric, index) => {
+    const metricDate = dateKey(localDate(metric.measured_at ?? metric.recorded_at))
+    if (metricDate !== checkinDate) {
+      return
+    }
+
+    const distance = Math.abs(dateTime(metric.recorded_at) - checkinTime)
+    if (distance <= BODY_DATA_PAIR_WINDOW_MS && distance < closestDistance) {
+      closestDistance = distance
+      closestIndex = index
+    }
+  })
+
+  return closestIndex
+}
+
+function bodyDataRecordId(
+  metric: BodyMetric | null,
+  checkin: AgentCheckin | null
+) {
+  return `body-data-${metric?.id ?? "none"}-${checkin?.id ?? "none"}`
+}
+
+function getBodyDataRecordDate(record: BodyDataRecord) {
+  return (
+    record.metric?.measured_at ??
+    record.metric?.recorded_at ??
+    record.checkin?.checkin_date ??
+    record.checkin?.created_at ??
+    ""
+  )
+}
+
+function getMetricSortTime(metric: BodyMetric) {
+  return dateTime(metric.measured_at ?? metric.recorded_at)
+}
+
+function getCheckinSortTime(checkin: AgentCheckin) {
+  return dateTime(checkin.created_at)
+}
+
+function formatBodyDataRecordSummary(record: BodyDataRecord) {
+  return [
+    record.metric ? formatBodyMetricSummary(record.metric) : null,
+    record.checkin ? formatCheckinSummary(record.checkin) : null,
+  ]
+    .filter(Boolean)
+    .join("，")
+}
+
+function formatBodyMetricSummary(metric: BodyMetric) {
+  const parts = [
+    typeof metric.weight_kg === "number"
+      ? `体重 ${metric.weight_kg.toFixed(1)} kg`
+      : null,
+    typeof metric.body_fat_percentage === "number"
+      ? `体脂 ${metric.body_fat_percentage.toFixed(1)}%`
+      : null,
+    typeof metric.skeletal_muscle_mass_kg === "number"
+      ? `骨骼肌 ${metric.skeletal_muscle_mass_kg.toFixed(1)} kg`
+      : null,
+    typeof metric.waist_cm === "number"
+      ? `腰围 ${metric.waist_cm.toFixed(1)} cm`
+      : null,
+    typeof metric.chest_cm === "number"
+      ? `胸围 ${metric.chest_cm.toFixed(1)} cm`
+      : null,
+    typeof metric.hip_cm === "number"
+      ? `臀围 ${metric.hip_cm.toFixed(1)} cm`
+      : null,
+  ].filter(Boolean)
+
+  return parts.join("，") || "身体测量记录"
+}
+
+function formatBodyDataRecordMeta(record: BodyDataRecord) {
+  const sources = Array.from(
+    new Set(
+      [record.metric?.source, record.checkin?.source]
+        .filter(Boolean)
+        .map((source) => formatMetricSource(source))
+    )
+  )
+  const recordType =
+    record.metric && record.checkin
+      ? "恢复 + 测量"
+      : record.metric
+        ? "测量"
+        : "恢复"
+  const details = [
+    ...sources,
+    recordType,
+    record.metric?.notes,
+    record.checkin?.pain_notes,
+  ].filter(Boolean)
+
+  return details.join(" · ")
 }
 
 function SummaryValue({ label, value }: { label: string; value: string }) {
@@ -846,15 +995,6 @@ function SummaryValue({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-2 text-xl font-medium">{value}</p>
-    </div>
-  )
-}
-
-function RecordLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-4">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
     </div>
   )
 }
@@ -1018,8 +1158,8 @@ function formatScore(value: number | null | undefined) {
 function formatMetricChange(series: MetricPoint[], unit: string) {
   if (series.length < 2) return "暂无周期变化"
   const change = series[series.length - 1].value - series[0].value
-  if (Math.abs(change) < 0.05) return `持平 0.0${unit ? ` ${unit}` : ""}`
-  return `${change > 0 ? "上升" : "下降"} ${Math.abs(change).toFixed(1)}${unit ? ` ${unit}` : ""}`
+  if (Math.abs(change) < 0.05) return `持平`
+  return `${change > 0 ? "↑" : "↓"} ${Math.abs(change).toFixed(1)}${unit ? ` ${unit}` : ""}`
 }
 
 function formatShortDate(date: string) {

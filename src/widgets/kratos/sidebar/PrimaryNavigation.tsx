@@ -25,8 +25,8 @@ type PrimaryNavigationProps = {
 const primaryNavItems = [
   { id: "new", label: "新建对话", icon: MessageCirclePlus },
   { id: "训练计划", label: "训练计划", icon: CalendarDays },
-  { id: "身体数据", label: "身体数据", icon: Activity },
-  { id: "能力中心", label: "能力中心", icon: BrainCircuit },
+  { id: "数据中心", label: "数据中心", icon: Activity },
+  { id: "工具技能", label: "工具技能", icon: BrainCircuit },
   { id: "评估平台", label: "评估平台", icon: BarChart3, external: true },
 ]
 

@@ -35,7 +35,10 @@ export function trainingPlanPayloadFromPlan(
   return {
     end_date: plan.end_date,
     goal: plan.goal,
+    duration_weeks: plan.duration_weeks,
     nutrition_guidance: plan.nutrition_guidance,
+    plan_kind: plan.plan_kind,
+    schedule_json: plan.schedule_json,
     recovery_guidance: plan.recovery_guidance,
     start_date: plan.start_date,
     status: plan.status,

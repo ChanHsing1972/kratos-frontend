@@ -285,7 +285,8 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
 }
 
 export function trainingPlanPayloadFromAgentResult(
-  raw: unknown
+  raw: unknown,
+  answerText = ""
 ): TrainingPlanPayload | undefined {
   const result = asRecord(raw)
   const workoutPlan = asRecord(result?.workout_plan)
@@ -295,7 +296,9 @@ export function trainingPlanPayloadFromAgentResult(
 
   const sessions = asRecordArray(workoutPlan.sessions)
   const planKind =
-    textValue(workoutPlan.plan_kind) === "program" || sessions.length > 1
+    textValue(workoutPlan.plan_kind) === "program" ||
+      sessions.length > 1 ||
+      isProgramPlanText(workoutPlan, answerText)
       ? "program"
       : "daily"
   const weeklySchedule = buildWeeklyScheduleFromWorkoutSessions(sessions, planKind)
@@ -303,10 +306,15 @@ export function trainingPlanPayloadFromAgentResult(
     return undefined
   }
 
+  const startDate = localTrainingDateValue(new Date())
+  const durationWeeks =
+    numberValue(workoutPlan.duration_weeks) ??
+    inferDurationWeeks(workoutPlan, answerText) ??
+    (planKind === "program" ? 4 : null)
   const title =
     planKind === "daily"
       ? normalizeDailyPlanTitle(textValue(workoutPlan.title))
-      : (textValue(workoutPlan.title) ?? "Kratos 生成训练计划")
+      : normalizeProgramPlanTitle(textValue(workoutPlan.title), answerText)
   const goal = textValue(workoutPlan.goal) ?? "基于聊天上下文生成的训练计划"
   const precautions = uniqueLines([
     ...stringArray(workoutPlan.precautions),
@@ -319,9 +327,13 @@ export function trainingPlanPayloadFromAgentResult(
     recovery_guidance: precautions.length
       ? precautions.join("\n")
       : "训练前充分热身，训练后完成拉伸；如出现疼痛或明显疲劳，及时降低强度。",
-    start_date: localTrainingDateValue(new Date()),
+    start_date: startDate,
+    end_date:
+      planKind === "program" && durationWeeks
+        ? addDaysToDateValue(startDate, durationWeeks * 7 - 1)
+        : null,
     status: "draft",
-    duration_weeks: numberValue(workoutPlan.duration_weeks) ?? (planKind === "program" ? 4 : null),
+    duration_weeks: durationWeeks,
     plan_kind: planKind,
     schedule_json: buildStructuredSchedule(sessions, planKind),
     summary: buildWorkoutPlanSummary(title, goal, sessions),
@@ -577,6 +589,77 @@ function normalizeDailyPlanTitle(title: string | null) {
   return /今日|今天|每日|单日/.test(title) ? title : `今日${title}`
 }
 
+function normalizeProgramPlanTitle(title: string | null, answerText: string) {
+  const heading = extractMarkdownHeading(answerText)
+  if (!title || title === "训练计划" || title === "Kratos 生成训练计划") {
+    return heading ?? "Kratos 生成训练计划"
+  }
+
+  return title
+}
+
+function extractMarkdownHeading(value: string) {
+  const heading = value
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^#+\s*/, "").trim())
+    .find((line) => line && /训练计划|周训练|每日训练/.test(line))
+
+  return heading && heading.length <= 80 ? heading : null
+}
+
+function isProgramPlanText(
+  workoutPlan: Record<string, unknown>,
+  answerText: string
+) {
+  return /一周|每周|周训练|周期|program|weekly/i.test(
+    [
+      textValue(workoutPlan.title),
+      textValue(workoutPlan.goal),
+      textValue(workoutPlan.summary),
+      answerText,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  )
+}
+
+function inferDurationWeeks(
+  workoutPlan: Record<string, unknown>,
+  answerText: string
+) {
+  const source = [
+    textValue(workoutPlan.title),
+    textValue(workoutPlan.summary),
+    textValue(workoutPlan.goal),
+    answerText,
+  ]
+    .filter(Boolean)
+    .join(" ")
+
+  if (/一周|1\s*周/.test(source)) {
+    return 1
+  }
+
+  const matched = source.match(/(\d+)\s*周/)
+  if (!matched) {
+    return null
+  }
+
+  const weeks = Number.parseInt(matched[1], 10)
+  return Number.isFinite(weeks) && weeks > 0 ? weeks : null
+}
+
+function addDaysToDateValue(value: string, days: number) {
+  const [yearText, monthText, dayText] = value.split("-")
+  const date = new Date(
+    Number(yearText),
+    Number(monthText) - 1,
+    Number(dayText)
+  )
+  date.setDate(date.getDate() + days)
+  return localTrainingDateValue(date)
+}
+
 function formatWorkoutExercise(exercise: Record<string, unknown>) {
   const name = cleanWorkoutLine(textValue(exercise.name) ?? textValue(exercise.title))
   if (!name) {
@@ -587,13 +670,15 @@ function formatWorkoutExercise(exercise: Record<string, unknown>) {
   const reps = cleanWorkoutLine(textValue(exercise.reps))
   const duration = numberValue(exercise.duration_minutes)
   const notes = cleanExerciseNotes(name, textValue(exercise.notes))
+  const repsAlreadyIncludeSets = reps ? hasSetRepPattern(reps) : false
   const prescription = [
-    sets ? `${sets} 组` : null,
+    sets && !repsAlreadyIncludeSets ? `${sets} 组` : null,
     reps ? normalizeRepsText(reps) : null,
     duration ? `${duration} 分钟` : null,
   ].filter(Boolean)
 
-  return [name, prescription.join(" x "), notes].filter(Boolean).join("，")
+  const amount = prescription.join(" x ")
+  return `${name}${amount ? ` ${amount}` : ""}${notes ? `（${notes}）` : ""}`
 }
 
 function extractGuidanceLinesFromWorkoutSessions(sessions: Record<string, unknown>[]) {
@@ -607,7 +692,7 @@ function extractGuidanceLinesFromWorkoutSessions(sessions: Record<string, unknow
       .filter((line): line is string => Boolean(line))
       .map(cleanWorkoutLine)
       .filter((line): line is string => Boolean(line))
-      .filter(isGuidanceLine)
+      .filter(isRecoveryGuidanceLine)
   })
 }
 
@@ -655,6 +740,10 @@ function normalizeRepsText(value: string) {
   return /次|分钟|秒/.test(value) ? value : `${value} 次`
 }
 
+function hasSetRepPattern(value: string) {
+  return /\d+\s*(?:组|轮)?\s*[xX×*]\s*\d+/.test(value)
+}
+
 function isTrainingActionLine(value: string) {
   const line = value.trim()
   if (!line || isGuidanceLine(line)) {
@@ -666,6 +755,27 @@ function isTrainingActionLine(value: string) {
 
 function isGuidanceLine(value: string) {
   return /热身|冷身|拉伸|动态拉伸|静态拉伸|关节活动|注意事项|注意|避免|疼痛|刺痛|头晕|不适|补充蛋白|补充水分|睡眠|恢复|风险|如有|如果|立即停止|呼吸均匀/.test(value)
+}
+
+function isRecoveryGuidanceLine(value: string) {
+  const line = value.trim()
+  if (!isGuidanceLine(line)) {
+    return false
+  }
+
+  if (/^\|/.test(line) || /^(每天训练结构|每日训练结构|主训练|热身|拉伸|冷身)[：:（(]/.test(line)) {
+    return false
+  }
+
+  if (/(周[一二三四五六日天]|第\s*\d+\s*天)/.test(line)) {
+    return false
+  }
+
+  if (isTrainingActionLine(line)) {
+    return false
+  }
+
+  return true
 }
 
 function isPlanContextLine(value: string) {

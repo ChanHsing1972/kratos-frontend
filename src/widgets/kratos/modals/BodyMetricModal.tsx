@@ -84,18 +84,19 @@ export function BodyMetricModal({
         }
       }}
     >
-      <DialogContent className="flex max-h-[90svh] flex-col overflow-hidden sm:max-w-lg no-scrollbar">
+      <DialogContent className="flex max-h-[90svh] flex-col sm:max-w-lg no-scrollbar">
         <DialogHeader>
           <DialogTitle>
             身体数据
           </DialogTitle>
           <DialogDescription>
-            记录将作为独立时间点保存并自动标记来源，用于趋势与训练调整。身体及恢复信息仅在您确认后记录，您可在身体数据页修正或删除误录。
+            记录身体数据，获得更个性化的训练建议。<br />
+            只需记录您关心的项目，其他项可以留空。
           </DialogDescription>
         </DialogHeader>
 
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit}>
-          <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar">
+          <div className="min-h-0 no-scrollbar">
             <div className="grid gap-5 pb-5">
               <MetricInput
                 label="测量时间"
@@ -138,6 +139,14 @@ export function BodyMetricModal({
                   value={form.energyLevel}
                 />
                 <RangeField
+                  label="酸痛"
+                  max={10}
+                  min={1}
+                  onChange={(value) => updateField("sorenessLevel", value)}
+                  unit="/10"
+                  value={form.sorenessLevel}
+                />
+                <RangeField
                   label="睡眠质量"
                   max={10}
                   min={1}
@@ -153,28 +162,7 @@ export function BodyMetricModal({
                   unit=" h"
                   value={form.sleepHours}
                 />
-                <RangeField
-                  label="酸痛"
-                  max={10}
-                  min={1}
-                  onChange={(value) => updateField("sorenessLevel", value)}
-                  unit="/10"
-                  value={form.sorenessLevel}
-                />
               </div>
-              <MetricInput
-                label="情绪状态"
-                onChange={(value) => updateField("mood", value)}
-                placeholder="例如：平稳、压力较大"
-                type="text"
-                value={form.mood}
-              />
-              <FormTextarea
-                label="疼痛/不适说明"
-                onChange={(value) => updateField("painNotes", value)}
-                placeholder="例如：深蹲时右膝刺痛，或训练中出现头晕"
-                value={form.painNotes}
-              />
 
               <div>
                 <Button
@@ -238,6 +226,7 @@ export function BodyMetricModal({
                     />
                   </div>
                 ) : null}
+
               </div>
 
               <FormTextarea

@@ -52,8 +52,10 @@ import {
   chatSessionsFromAgentSessions,
   formatTime,
   getLatestByDate,
+  stripTrainingPlanJsonContract,
   titleFromPrompt,
   trainingPlanPayloadFromAgentResult,
+  withTrainingPlanJsonContract,
 } from "@/entities/kratos/lib/domain"
 import {
   loadDashboardSnapshot,
@@ -160,8 +162,8 @@ function routeFromLocation() {
     return { nav: decodeURIComponent(chatMatch[1]), sessionId: decodeURIComponent(chatMatch[1]) }
   }
   if (path === "/training") return { nav: "训练计划", sessionId: null }
-  if (path === "/body") return { nav: "身体数据", sessionId: null }
-  if (path === "/capabilities") return { nav: "能力中心", sessionId: null }
+  if (path === "/body") return { nav: "数据中心", sessionId: null }
+  if (path === "/capabilities") return { nav: "工具技能", sessionId: null }
   return { nav: "new", sessionId: null }
 }
 
@@ -584,9 +586,9 @@ export function KratosPage() {
     pushWorkspacePath(
       label === "训练计划"
         ? "/training"
-        : label === "身体数据"
+        : label === "数据中心"
           ? "/body"
-          : label === "能力中心"
+          : label === "工具技能"
             ? "/capabilities"
             : "/chat/new"
     )
@@ -831,9 +833,14 @@ export function KratosPage() {
       }
 
       if (bodyPayload.hasCheckinData) {
+        const measuredDate = form.measuredAt ? new Date(form.measuredAt) : null
+        const checkinDate =
+          measuredDate && !Number.isNaN(measuredDate.getTime())
+            ? localDateValue(measuredDate)
+            : localDateValue(new Date())
         const checkin = await createAgentCheckin(token, {
           ...bodyPayload.checkin,
-          checkin_date: localDateValue(new Date()),
+          checkin_date: checkinDate,
           source: "manual",
           summary: "手动记录恢复状态",
           training_plan_id: activePlan?.id ?? null,
@@ -849,6 +856,36 @@ export function KratosPage() {
       setBodyMetricError(getErrorMessage(error))
     } finally {
       setBodyMetricSubmitting(false)
+    }
+  }
+
+  const handleDeleteBodyDataRecord = async (record: {
+    checkin: AgentCheckin | null
+    metric: BodyMetric | null
+  }) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) return
+    try {
+      if (record.metric) {
+        await deleteBodyMetric(token, record.metric.id)
+      }
+      if (record.checkin) {
+        await deleteAgentCheckin(token, record.checkin.id)
+      }
+      if (record.metric) {
+        setBodyMetrics((current) =>
+          current.filter((item) => item.id !== record.metric?.id)
+        )
+      }
+      if (record.checkin) {
+        setAgentCheckins((current) =>
+          current.filter((item) => item.id !== record.checkin?.id)
+        )
+      }
+      await refreshDashboard(token, { preserveMessages: true })
+      sonnerToast.success("身体数据记录已删除")
+    } catch (error) {
+      sonnerToast.error(getErrorMessage(error), { richColors: true })
     }
   }
 
@@ -975,12 +1012,12 @@ export function KratosPage() {
       }
       if (bodyPayload.hasCheckinData) {
         await createAgentCheckin(token, {
-            ...bodyPayload.checkin,
-            checkin_date: localDateValue(new Date()),
-            source: "onboarding",
-            summary: "新用户引导恢复状态记录",
-            training_plan_id: activePlan?.id ?? null,
-          })
+          ...bodyPayload.checkin,
+          checkin_date: localDateValue(new Date()),
+          source: "onboarding",
+          summary: "新用户引导恢复状态记录",
+          training_plan_id: activePlan?.id ?? null,
+        })
       }
 
       await refreshDashboard(token, { preserveMessages: true })
@@ -1066,11 +1103,12 @@ export function KratosPage() {
     setComposerValue("")
 
     let handledStreamSessionId: string | null = null
+    const agentMessage = withTrainingPlanJsonContract(body)
 
     try {
       await streamAgentChat({
         clientTurnId,
-        message: body,
+        message: agentMessage,
         onEvent: (event) => {
           if (event.session_id && event.session_id !== handledStreamSessionId) {
             handledStreamSessionId = event.session_id
@@ -1116,7 +1154,7 @@ export function KratosPage() {
               if (event.type === "done") {
                 return {
                   ...message,
-                  body: event.answer ?? message.body,
+                  body: stripTrainingPlanJsonContract(event.answer ?? message.body),
                   completedAt: Date.now(),
                   streaming: false,
                   suggestedHealthData,
@@ -1126,7 +1164,9 @@ export function KratosPage() {
               if (event.type === "answer_delta") {
                 return {
                   ...message,
-                  body: `${message.body}${event.delta ?? ""}`,
+                  body: stripTrainingPlanJsonContract(
+                    `${message.body}${event.delta ?? ""}`
+                  ),
                 }
               }
 
@@ -1142,7 +1182,10 @@ export function KratosPage() {
               }
 
               if (event.type === "final") {
-                const suggestedTrainingPlan = trainingPlanPayloadFromAgentResult(event.raw)
+                const suggestedTrainingPlan = trainingPlanPayloadFromAgentResult(
+                  event.raw,
+                  event.answer ?? message.body
+                )
                 const generatedAlready = suggestedTrainingPlan
                   ? generatedTrainingPlanKeys.has(
                     trainingPlanDraftKey(suggestedTrainingPlan)
@@ -2016,7 +2059,7 @@ export function KratosPage() {
       )
     }
 
-    if (activeNav === "身体数据") {
+    if (activeNav === "数据中心") {
       return (
         <BodyDataPage
           bodyMetrics={bodyMetrics}
@@ -2026,15 +2069,15 @@ export function KratosPage() {
           onEditBodyData={openBodyMetricEditor}
           onEditBodyMetric={openBodyMetricEditor}
           onDeleteCheckin={handleDeleteCheckin}
+          onDeleteBodyDataRecord={handleDeleteBodyDataRecord}
           onDeleteBodyMetric={handleDeleteBodyMetric}
           onExportBodyData={handleExportBodyData}
-          onboarding={onboardingStatus}
           workoutLogs={workoutLogs}
         />
       )
     }
 
-    if (activeNav === "能力中心") {
+    if (activeNav === "工具技能") {
       return (
         <SkillPanelPage
           currentUser={currentUser}

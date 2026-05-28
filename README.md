@@ -42,7 +42,7 @@ src/
 - `NewConversationPage.tsx`：新建对话页面。
 - `ConversationDetailPage.tsx`：某个历史对话的详情页面。
 - `TrainingPlanPage.tsx`：训练计划页面。
-- `BodyDataPage.tsx`：身体数据页面。
+- `BodyDataPage.tsx`：数据中心页面。
 - `SkillPanelPage.tsx`：Skill 管理面板。
 - `EvaluationPage.tsx`：评估平台入口页面。
 
@@ -50,7 +50,7 @@ src/
 
 - `sidebar/`：Kratos 侧边栏壳、主导航、历史对话列表和历史对话行。
 - `conversation/`：对话工作区、顶部通知、消息气泡、思考轨迹、空状态、输入框和训练计划建议卡片。
-- `modals/`：认证、建档、身体数据、训练计划、训练反馈和详情弹窗；共享表单控件放在 `ModalFormFields.tsx`。
+- `modals/`：认证、建档、数据中心、训练计划、训练反馈和详情弹窗；共享表单控件放在 `ModalFormFields.tsx`。
 - `layout/`：Kratos 页面内共享布局组件。
 
 `src/features/kratos/profile` 放个人资料入口和编辑弹窗。侧边栏只接收 footer slot，不直接知道个人资料 dialog 的状态和表单细节。

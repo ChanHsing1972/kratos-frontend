@@ -147,7 +147,7 @@ function parseTrainingPlanWeeklyScheduleAction(
     const body = noteMatch ? noteMatch[1].trim() : trimmed
     const note = noteMatch ? noteMatch[2].trim() : ""
     const prescriptionIndex = body.search(
-        /(?:\d+(?:\s*[-~至]\s*\d+)?\s*(?:组|次|秒|分钟|轮)|按需)/
+        /(?:\d+\s*(?:组|轮)?\s*[xX×*]\s*\d+(?:\s*[-~至]\s*\d+)?(?:\s*\/\s*[^，,；;\s]+)?\s*(?:次|秒|分钟)?|\d+(?:\s*[-~至]\s*\d+)?\s*(?:组|次|秒|分钟|轮)|按需)/
     )
     const splitAtPrescription = prescriptionIndex > 0
     const separatorIndex =
