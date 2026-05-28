@@ -231,12 +231,39 @@ export type TrainingPlanPayload = {
 export type TrainingScheduleExercise = {
   id: string
   name: string
+  media?: TrainingExerciseMedia | null
   target_sets?: number | null
   target_reps?: string | null
   target_weight_kg?: number | null
   target_rpe?: number | null
   rest_seconds?: number | null
   notes?: string | null
+}
+
+export type TrainingExerciseMedia = {
+  action_name?: string | null
+  exercise_id?: string | null
+  exercise_name?: string | null
+  image_url?: string | null
+  media_url?: string | null
+  query?: string | null
+  source?: string | null
+  teaching_videos?: TrainingExerciseVideo[]
+  video_url?: string | null
+}
+
+export type TrainingExerciseVideo = {
+  author?: string | null
+  confidence?: number | null
+  duration_seconds?: number | null
+  embed_url?: string | null
+  external_id?: string | null
+  search_query?: string | null
+  source: string
+  status?: string | null
+  thumbnail_url?: string | null
+  title: string
+  url: string
 }
 
 export type TrainingScheduleSession = {

@@ -1,7 +1,19 @@
+import type { TrainingExerciseMedia } from "@/entities/kratos/model/types"
+
 import { useExerciseMedia } from "../hooks/useExerciseMedia"
 
-export function ActionImage({ actionName, className }: { actionName: string; className?: string }) {
-  const { media, mediaUrl, loading } = useExerciseMedia(actionName)
+export function ActionImage({
+  actionName,
+  className,
+  media: embeddedMedia,
+}: {
+  actionName: string
+  className?: string
+  media?: TrainingExerciseMedia | null
+}) {
+  const { media: fetchedMedia, mediaUrl: fetchedMediaUrl, loading } = useExerciseMedia(actionName)
+  const media = embeddedMedia?.media_url ? embeddedMedia : fetchedMedia
+  const mediaUrl = media?.media_url ?? fetchedMediaUrl
 
   if (!mediaUrl) {
     return (

@@ -295,10 +295,13 @@ export function trainingPlanPayloadFromAgentResult(
   }
 
   const sessions = asRecordArray(workoutPlan.sessions)
+  const requestedPlanKind = textValue(workoutPlan.plan_kind)
   const planKind =
-    textValue(workoutPlan.plan_kind) === "program" ||
-      sessions.length > 1 ||
-      isProgramPlanText(workoutPlan, answerText)
+    requestedPlanKind === "daily"
+      ? "daily"
+      : requestedPlanKind === "program" ||
+        sessions.length > 1 ||
+        isProgramPlanText(workoutPlan, answerText)
       ? "program"
       : "daily"
   const weeklySchedule = buildWeeklyScheduleFromWorkoutSessions(sessions, planKind)
@@ -360,6 +363,7 @@ function buildStructuredSchedule(sessions: Record<string, unknown>[], planKind: 
   const structuredSessions = sessions.map((session, index) => ({
     exercises: asRecordArray(session.exercises).map((exercise, exerciseIndex) => ({
       id: `agent-exercise-${index}-${exerciseIndex}`,
+      media: asRecord(exercise.media),
       name: textValue(exercise.name) ?? textValue(exercise.title) ?? `动作 ${exerciseIndex + 1}`,
       notes: textValue(exercise.notes),
       rest_seconds: null,

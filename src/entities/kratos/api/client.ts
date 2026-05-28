@@ -566,6 +566,19 @@ export type ExerciseMediaResponse = {
   media_url: string | null
   query: string | null
   source: string
+  teaching_videos?: Array<{
+    author?: string | null
+    confidence?: number | null
+    duration_seconds?: number | null
+    embed_url?: string | null
+    external_id?: string | null
+    search_query?: string | null
+    source: string
+    status?: string | null
+    thumbnail_url?: string | null
+    title: string
+    url: string
+  }>
   video_url: string | null
 }
 
