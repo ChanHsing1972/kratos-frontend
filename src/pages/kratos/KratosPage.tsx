@@ -52,10 +52,8 @@ import {
   chatSessionsFromAgentSessions,
   formatTime,
   getLatestByDate,
-  stripTrainingPlanJsonContract,
   titleFromPrompt,
   trainingPlanPayloadFromAgentResult,
-  withTrainingPlanJsonContract,
 } from "@/entities/kratos/lib/domain"
 import {
   loadDashboardSnapshot,

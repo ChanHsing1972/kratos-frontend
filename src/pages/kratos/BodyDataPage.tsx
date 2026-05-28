@@ -17,9 +17,10 @@ import {
 } from "lucide-react"
 import { Fragment, useState, type ReactNode } from "react"
 import {
+  Area,
+  AreaChart as RechartsAreaChart,
   CartesianGrid,
   Line,
-  LineChart as RechartsLineChart,
   XAxis,
   YAxis,
 } from "recharts"
@@ -602,6 +603,9 @@ function MetricChart({
     },
   } satisfies ChartConfig
 
+  const yAxisDomain = getMetricChartDomain(series, unit)
+  const yAxisTicks = getMetricChartTicks(yAxisDomain, unit)
+
   return (
     <ChartContainer
       className={
@@ -614,38 +618,109 @@ function MetricChart({
         compact ? { height: 160, width: 390 } : { height: 256, width: 820 }
       }
     >
-      <RechartsLineChart
+      <RechartsAreaChart
         accessibilityLayer
         data={chartData}
-        margin={{ bottom: 0, left: -18, right: 12, top: 10 }}
+        margin={{ bottom: 0, left: compact ? 0 : -14, right: 12, top: 10 }}
       >
-        <CartesianGrid strokeDasharray="3 6" vertical={false} />
+        <defs>
+          <linearGradient id={`metric-fill-${label}`} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.1} />
+            <stop offset="90%" stopColor="var(--color-value)" stopOpacity={0.0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid
+          stroke="hsl(var(--muted-foreground) / 0.16)"
+          strokeDasharray="3 8"
+          vertical={false}
+        />
         <XAxis
           axisLine={false}
           dataKey="date"
+          minTickGap={compact ? 18 : 36}
+          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
           tickLine={false}
           tickMargin={12}
         />
         <YAxis
+          allowDecimals={unit !== "/10"}
           axisLine={false}
+          domain={yAxisDomain}
+          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
           tickFormatter={(value: number) => `${value}${unit}`}
           tickLine={false}
-          width={64}
+          ticks={yAxisTicks}
+          width={compact ? 42 : 64}
         />
         <ChartTooltip
-          content={<ChartTooltipContent indicator="line" />}
-          cursor={false}
+          content={<ChartTooltipContent indicator="dot" />}
+          cursor={{ stroke: "hsl(var(--muted-foreground) / 0.22)", strokeWidth: 1 }}
         />
-        <Line
-          activeDot={{ r: 4 }}
+        <Area
           dataKey="value"
-          dot={false}
-          stroke="var(--color-value)"
-          strokeWidth={2.25}
+          fill={`url(#metric-fill-${label})`}
+          fillOpacity={1}
+          stroke="none"
+          tooltipType="none"
           type="monotone"
         />
-      </RechartsLineChart>
+        <Line
+          activeDot={{ r: 5, strokeWidth: 2 }}
+          dataKey="value"
+          dot={{ r: compact ? 2.5 : 3, strokeWidth: 2 }}
+          stroke="var(--color-value)"
+          strokeLinecap="round"
+          strokeWidth={compact ? 2 : 2.4}
+          type="monotone"
+        />
+      </RechartsAreaChart>
     </ChartContainer>
+  )
+}
+
+function getMetricChartDomain(series: MetricPoint[], unit: string): [number, number] {
+  if (unit === "/10") {
+    return [0, 10]
+  }
+
+  if (unit === "h") {
+    return [0, 12]
+  }
+
+  const values = series.map((point) => point.value)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return [0, 1]
+  }
+
+  const range = Math.max(max - min, 1)
+  const padding = Math.max(range * 0.35, unit === "kg" ? 1 : range * 0.2)
+  const lower = Math.max(0, Math.floor((min - padding) * 10) / 10)
+  const upper = Math.ceil((max + padding) * 10) / 10
+
+  if (upper <= lower) {
+    return [Math.max(0, lower - 1), lower + 1]
+  }
+
+  return [lower, upper]
+}
+
+function getMetricChartTicks(domain: [number, number], unit: string) {
+  if (unit === "/10") {
+    return [0, 3, 6, 9, 10]
+  }
+
+  if (unit === "h") {
+    return [0, 3, 6, 9, 12]
+  }
+
+  const [min, max] = domain
+  const step = (max - min) / 4
+
+  return Array.from({ length: 5 }, (_, index) =>
+    Number((min + step * index).toFixed(1))
   )
 }
 
@@ -684,19 +759,19 @@ function TrainingFeedbackPanel({ logs }: { logs: WorkoutLog[] }) {
         </Empty>
       ) : (
         <>
-          <div className="mt-7 grid gap-x-8 gap-y-6 sm:grid-cols-3">
+          <div className="mt-6 grid gap-x-8 gap-y-6 sm:grid-cols-3">
             <SummaryValue label="已完成训练" value={`${logs.length} 次`} />
             <SummaryValue label="累计训练时长" value={`${totalMinutes} 分钟`} />
             <SummaryValue label="已记录组次" value={`${setCount} 组`} />
           </div>
-          <div className="mt-8 space-y-5">
+          <div className="mt-6 space-y-5">
             {sortedLogs.slice(0, 5).map((log) => (
               <div
                 className="flex items-center justify-between gap-4"
                 key={log.id}
               >
                 <div className="min-w-0">
-                  <p className="truncate font-medium">
+                  <p className="truncate text-sm">
                     {log.title ?? "训练记录"}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -994,7 +1069,7 @@ function SummaryValue({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-2 text-xl font-medium">{value}</p>
+      <p className="mt-1 text-xl">{value}</p>
     </div>
   )
 }
