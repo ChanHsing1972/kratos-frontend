@@ -1,7 +1,14 @@
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react"
 import {
   ChevronDown,
   Edit3,
+  ImageUp,
   LoaderCircle,
   LogIn,
   LogOut,
@@ -10,6 +17,7 @@ import {
 } from "lucide-react"
 
 import { profileFormFromUser } from "@/entities/kratos/lib/domain"
+import { absoluteApiUrl } from "@/entities/kratos/api/client"
 import type {
   FitnessProfile,
   ProfileForm,
@@ -46,6 +54,7 @@ type ProfileMenuProps = {
   onEditBodyData: () => void
   onLogin: () => void
   onLogout: () => void
+  onAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void
   onProfileSubmit: (form: ProfileForm) => void
   onRegister: () => void
   onToggleMenu: (open: boolean) => void
@@ -61,6 +70,7 @@ export function ProfileMenu({
   onEditBodyData,
   onLogin,
   onLogout,
+  onAvatarChange,
   onProfileSubmit,
   onRegister,
   onToggleMenu,
@@ -138,6 +148,8 @@ export function ProfileMenu({
     )
   }
 
+  const avatarSrc = user.avatar_url ? absoluteApiUrl(user.avatar_url) : undefined
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -145,7 +157,7 @@ export function ProfileMenu({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton size="lg" tooltip={user.username} type="button">
               <Avatar>
-                <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
+                <AvatarImage src={avatarSrc} alt={user.username} />
                 <AvatarFallback>{getUserInitials(user.username)}</AvatarFallback>
                 <AvatarBadge className="bg-green-600 dark:bg-green-800" />
               </Avatar>
@@ -161,7 +173,7 @@ export function ProfileMenu({
           <DropdownMenuContent align="end" side="right">
             <DropdownMenuItem>
               <Avatar>
-                <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
+                <AvatarImage src={avatarSrc} alt={user.username} />
                 <AvatarFallback>{getUserInitials(user.username)}</AvatarFallback>
                 <AvatarBadge className="bg-green-600 dark:bg-green-800" />
               </Avatar>
@@ -170,6 +182,18 @@ export function ProfileMenu({
               </div>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
+              <label className="flex w-full cursor-pointer items-center gap-2">
+                <ImageUp className="size-4" />
+                上传头像
+                <input
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={onAvatarChange}
+                  type="file"
+                />
+              </label>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openProfileDialog("personal")}>
               <User />
               个人信息

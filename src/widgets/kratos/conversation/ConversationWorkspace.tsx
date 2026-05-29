@@ -4,7 +4,6 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
 } from "react"
-import { LoaderCircle } from "lucide-react"
 
 import type {
   ChatMessage,

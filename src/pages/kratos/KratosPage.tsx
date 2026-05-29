@@ -44,6 +44,9 @@ import {
   updateSkillBinding,
   updateMyFitnessProfile,
   updateTrainingPlan,
+  uploadAttachment,
+  uploadAvatar,
+  absoluteApiUrl,
 } from "@/entities/kratos/api/client"
 import {
   buildPlanPanel,
@@ -191,6 +194,16 @@ function healthDataFromAgentRaw(raw: unknown): SuggestedHealthData | undefined {
   return pending && typeof pending === "object"
     ? (pending as SuggestedHealthData)
     : undefined
+}
+
+function withTrainingPlanJsonContract(message: string) {
+  return message
+}
+
+function stripTrainingPlanJsonContract(message: string) {
+  return message
+    .replace(/```json\s*\{[\s\S]*?"workout_plan"[\s\S]*?\}\s*```/g, "")
+    .trim()
 }
 
 function bodyMetricFormFromRecord(metric: BodyMetric): BodyMetricForm {
@@ -372,20 +385,35 @@ export function KratosPage() {
         writeCachedUser(user)
         setCurrentUser(user)
         applyDashboardSnapshot(context, plans, runs, nextSkills, nextTools)
+        const route = routeFromLocation()
+        const preferredSessionId =
+          route.sessionId ?? (route.nav === "new" ? null : readActiveAgentSessionId())
         const selectedSessionId = await syncConversationSessions(
           token,
-          routeFromLocation().sessionId ?? readActiveAgentSessionId()
+          preferredSessionId,
+          { selectFirst: false }
         )
 
-        if (!selectedSessionId) {
+        if (route.nav === "new" && !route.sessionId) {
           setMessages(initialMessages)
           setActiveSessionId(null)
           setActiveNav("new")
+          writeActiveAgentSessionId(null)
           replaceWorkspacePath("/chat/new")
           return
         }
 
-        if (routeFromLocation().nav === "new" || routeFromLocation().sessionId) {
+        if (!selectedSessionId) {
+          if (route.nav !== "训练计划" && route.nav !== "数据中心" && route.nav !== "工具技能") {
+            setMessages(initialMessages)
+            setActiveSessionId(null)
+            setActiveNav("new")
+            replaceWorkspacePath("/chat/new")
+          }
+          return
+        }
+
+        if (route.sessionId) {
           await loadConversationSession(token, selectedSessionId)
         }
       })
@@ -595,7 +623,8 @@ export function KratosPage() {
 
   const syncConversationSessions = async (
     token: string,
-    preferredSessionId: string | null = activeSessionId
+    preferredSessionId: string | null = activeSessionId,
+    options: { selectFirst?: boolean } = {}
   ) => {
     const sessions = await listAgentSessions(token, {
       includeArchived: true,
@@ -611,7 +640,9 @@ export function KratosPage() {
       preferredSessionId &&
         nextSessions.some((session) => session.id === preferredSessionId)
         ? preferredSessionId
-        : nextSessions[0]?.id ?? null
+        : options.selectFirst === false
+          ? null
+          : nextSessions[0]?.id ?? null
 
     setActiveSessionId(nextActiveSessionId)
     writeActiveAgentSessionId(nextActiveSessionId)
@@ -1341,11 +1372,62 @@ export function KratosPage() {
   }
 
   const handleAttachment = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      sonnerToast.success(`已选择 ${file.name}`)
-    }
+    const files = Array.from(event.target.files ?? [])
     event.target.value = ""
+    if (!files.length) {
+      return
+    }
+
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      sonnerToast.info("登录后可以上传文件给 Agent")
+      return
+    }
+
+    void Promise.all(files.map((file) => uploadAttachment(token, file)))
+      .then((uploads) => {
+        const attachmentText = uploads
+          .map((upload) => {
+            const url = absoluteApiUrl(upload.url)
+            return upload.content_type.startsWith("image/")
+              ? `![${upload.filename}](${url})`
+              : `[${upload.filename}](${url})`
+          })
+          .join("\n")
+        setComposerValue((current) =>
+          [current.trimEnd(), attachmentText].filter(Boolean).join("\n")
+        )
+        sonnerToast.success(`已上传 ${uploads.length} 个附件`)
+      })
+      .catch((error) => {
+        sonnerToast.error(getErrorMessage(error), { richColors: true })
+      })
+  }
+
+  const handleAvatarUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file) {
+      return
+    }
+
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token || !currentUser) {
+      openAuth("login")
+      return
+    }
+
+    void uploadAvatar(token, file)
+      .then((upload) => {
+        const nextUser = { ...currentUser, avatar_url: upload.url }
+        setCurrentUser(nextUser)
+        writeCachedUser(nextUser)
+        sonnerToast.success("头像已更新")
+      })
+      .catch((error) => {
+        sonnerToast.error(getErrorMessage(error), { richColors: true })
+      })
   }
 
   const toggleExercise = (title: string) => {
@@ -2165,6 +2247,7 @@ export function KratosPage() {
               onEditBodyData={openBodyMetricEditor}
               onLogin={() => openAuth("login")}
               onLogout={handleLogout}
+              onAvatarChange={handleAvatarUpload}
               onProfileSubmit={handleProfileSubmit}
               onRegister={() => openAuth("register")}
               onToggleMenu={setProfileMenuOpen}

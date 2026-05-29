@@ -95,7 +95,13 @@ export function ConversationComposer({
           variant="outline"
         >
           <label className="cursor-pointer">
-            <input className="hidden" onChange={onAttachment} type="file" />
+            <input
+              accept="image/*,.csv,.doc,.docx,.json,.pdf,.txt,.xls,.xlsx"
+              className="hidden"
+              multiple
+              onChange={onAttachment}
+              type="file"
+            />
             <Plus className="size-3.5" />
           </label>
         </InputGroupButton>

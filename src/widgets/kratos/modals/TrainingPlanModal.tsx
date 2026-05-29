@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react"
-import { CalendarIcon, LoaderCircle } from "lucide-react"
+import { CalendarIcon } from "lucide-react"
 import { type DateRange } from "react-day-picker"
 import { Calendar as DateCalendar } from "@/shared/ui/calendar"
 import { Field } from "@/shared/ui/field"

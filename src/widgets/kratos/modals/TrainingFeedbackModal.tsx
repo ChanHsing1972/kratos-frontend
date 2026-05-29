@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react"
-import { Check, CircleAlert, LoaderCircle } from "lucide-react"
+import { Check, CircleAlert } from "lucide-react"
 
 import type { TrainingPlanAdjustmentResponse } from "@/entities/kratos/model/types"
 import { Button } from "@/shared/ui/button"

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react"
-import { ChevronDown, LoaderCircle, RotateCcw } from "lucide-react"
+import { ChevronDown, RotateCcw } from "lucide-react"
 
 import type { BodyMetricForm } from "@/entities/kratos/model/types"
 import {

@@ -47,6 +47,7 @@ export function readCachedUser(): UserProfile | null {
       typeof user.created_at === "string"
       ? {
           created_at: user.created_at,
+          avatar_url: typeof user.avatar_url === "string" ? user.avatar_url : null,
           id: user.id,
           username: user.username,
         }

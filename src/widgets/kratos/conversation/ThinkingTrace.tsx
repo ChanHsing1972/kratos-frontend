@@ -35,7 +35,12 @@ export function ThinkingCard({
               <h3 className="text-[13px] leading-5 font-bold">
                 思考过程 · {elapsedSeconds}s
               </h3>
-              <p className="thinking-status-sweep mt-1 text-[12px] text-muted-foreground">
+              <p
+                className={cn(
+                  "mt-1 text-[12px] text-muted-foreground",
+                  streaming && "thinking-status-sweep"
+                )}
+              >
                 {streaming
                   ? "正在读取资料、规划工具和组织回答"
                   : `${visibleSteps.length} 条推理事件`}

@@ -31,6 +31,13 @@ export const API_BASE_URL =
 
 export const AUTH_TOKEN_KEY = "kratos-auth-token"
 
+export type UploadResponse = {
+  content_type: string
+  filename: string
+  size: number
+  url: string
+}
+
 export async function registerUser(payload: UserRegisterPayload) {
   return requestJson<UserProfile>("/auth/register", {
     body: JSON.stringify(payload),
@@ -61,6 +68,14 @@ export async function updateCurrentUser(token: string, payload: UserUpdatePayloa
     },
     method: "PUT",
   })
+}
+
+export async function uploadAttachment(token: string, file: File) {
+  return uploadFile(token, "/uploads/attachments", file)
+}
+
+export async function uploadAvatar(token: string, file: File) {
+  return uploadFile(token, "/uploads/avatar", file)
 }
 
 export async function listTrainingPlans(token: string) {
@@ -601,4 +616,53 @@ export async function getExerciseMedia(actionName: string, token?: string | null
   }
 
   return response.json() as Promise<ExerciseMediaResponse>
+}
+
+export function absoluteApiUrl(path: string) {
+  if (/^https?:\/\//i.test(path)) {
+    return path
+  }
+
+  const apiRoot = API_BASE_URL.replace(/\/api\/v1\/?$/, "")
+  return `${apiRoot}${path.startsWith("/") ? path : `/${path}`}`
+}
+
+export function proxiedBilibiliImageUrl(url: string | null | undefined) {
+  if (!url) {
+    return null
+  }
+
+  const normalized = url.startsWith("//") ? `https:${url}` : url
+  try {
+    const host = new URL(normalized).hostname.toLowerCase()
+    if (!host.endsWith("hdslb.com") && !host.endsWith("biliimg.com")) {
+      return normalized
+    }
+  } catch {
+    return normalized
+  }
+
+  const proxyUrl = new URL(`${API_BASE_URL.replace(/\/$/, "")}/plans/media/proxy-image`)
+  proxyUrl.searchParams.set("url", normalized)
+  return proxyUrl.toString()
+}
+
+async function uploadFile(token: string, path: string, file: File) {
+  const formData = new FormData()
+  formData.set("file", file)
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    body: formData,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: "POST",
+  })
+
+  const payload = await response.json().catch(() => null as unknown)
+  if (!response.ok) {
+    throw new Error(extractApiError(payload) ?? `上传失败：${response.status}`)
+  }
+
+  return payload as UploadResponse
 }

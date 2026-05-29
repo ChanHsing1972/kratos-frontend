@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react"
-import { LoaderCircle, ChevronRight, ChevronLeft } from "lucide-react"
+import { ChevronRight, ChevronLeft } from "lucide-react"
 
 import { profileFormFromUser } from "@/entities/kratos/lib/domain"
 import type {

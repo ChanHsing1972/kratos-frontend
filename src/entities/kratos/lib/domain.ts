@@ -263,25 +263,41 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
       (left, right) =>
         new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
     )
-    .flatMap((run) => [
-      {
-        id: `run-${run.id}-user`,
-        author: "user" as const,
-        body: run.user_message,
-        time: formatStoredTime(run.created_at),
-      },
-      {
-        id: `run-${run.id}-assistant`,
-        author: "assistant" as const,
-        body: run.answer,
-        suggestedTrainingPlan: trainingPlanPayloadFromAgentResult(run.result_payload),
-        suggestedHealthData: pendingHealthDataFromTrace(run.trace_steps),
-        time: formatStoredTime(run.created_at),
-        trace: run.trace_steps
-          .sort((left, right) => left.position - right.position)
-          .map(traceStepFromRun),
-      },
-    ])
+    .flatMap((run) => {
+      const orderedTraceSteps = [...run.trace_steps].sort(
+        (left, right) => left.position - right.position
+      )
+      const trace = orderedTraceSteps.map(traceStepFromRun)
+      const traceTimes = orderedTraceSteps
+        .map((step) => new Date(step.created_at).getTime())
+        .filter((value) => Number.isFinite(value))
+      const runCreatedAt = new Date(run.created_at).getTime()
+      const fallbackStartedAt = Number.isFinite(runCreatedAt)
+        ? runCreatedAt
+        : traceTimes[0]
+      const startedAt = traceTimes[0] ?? fallbackStartedAt
+      const completedAt = traceTimes[traceTimes.length - 1] ?? fallbackStartedAt
+
+      return [
+        {
+          id: `run-${run.id}-user`,
+          author: "user" as const,
+          body: run.user_message,
+          time: formatStoredTime(run.created_at),
+        },
+        {
+          id: `run-${run.id}-assistant`,
+          author: "assistant" as const,
+          body: run.answer,
+          completedAt,
+          startedAt,
+          suggestedTrainingPlan: trainingPlanPayloadFromAgentResult(run.result_payload),
+          suggestedHealthData: pendingHealthDataFromTrace(run.trace_steps),
+          time: formatStoredTime(run.created_at),
+          trace,
+        },
+      ]
+    })
 }
 
 export function trainingPlanPayloadFromAgentResult(

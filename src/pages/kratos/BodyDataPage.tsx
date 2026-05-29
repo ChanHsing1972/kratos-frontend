@@ -1226,10 +1226,6 @@ function formatSeriesLatest(series: MetricPoint[], unit: string) {
     : "未记录"
 }
 
-function formatScore(value: number | null | undefined) {
-  return typeof value === "number" ? `${value}/10` : "暂无记录"
-}
-
 function formatMetricChange(series: MetricPoint[], unit: string) {
   if (series.length < 2) return "暂无周期变化"
   const change = series[series.length - 1].value - series[0].value

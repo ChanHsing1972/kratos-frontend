@@ -1,5 +1,6 @@
 import { Check, ChevronRight, ExternalLink, PencilLine, Play } from "lucide-react"
 
+import { proxiedBilibiliImageUrl } from "@/entities/kratos/api/client"
 import type { TrainingPlanPayload } from "@/entities/kratos/model/types"
 import { ActionImage } from "@/shared/ui/ActionImage"
 
@@ -35,6 +36,7 @@ export function TrainingPlanSuggestionCard({
         return video
           ? {
           ...video,
+          thumbnail_url: proxiedBilibiliImageUrl(video.thumbnail_url),
           exerciseName: exercise.name,
           }
           : null

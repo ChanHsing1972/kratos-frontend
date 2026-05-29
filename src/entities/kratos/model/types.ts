@@ -83,6 +83,7 @@ export type AgentConversationSession = {
 export type UserProfile = {
   id: number
   username: string
+  avatar_url?: string | null
   created_at: string
 }
 

@@ -1,6 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react"
 import {
-  BadgeCheck,
   BookOpenText,
   Check,
   Filter,
@@ -10,7 +9,6 @@ import {
   SearchIcon,
   ShieldCheck,
   SlidersHorizontal,
-  ToolCase,
   Trash2,
   WandSparkles,
   Wrench,
@@ -21,7 +19,6 @@ import type { AgentToolConfig, Skill, SkillPayload, UserProfile } from "@/entiti
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/shared/ui/accordion"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
-import { Card } from "@/shared/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
 import { Input } from "@/shared/ui/input"
 import { ScrollArea } from "@/shared/ui/scroll-area"
@@ -522,7 +519,7 @@ function ToolRow({
         onClick={onToggle}
         size="sm"
         type="button"
-        variant={tool.enabled ? " ghost" : "default"}
+        variant={tool.enabled ? "ghost" : "default"}
       >
         {pending && <Spinner />}
         {tool.enabled ? "禁用" : "启用"}
@@ -689,14 +686,6 @@ function toolCategoryLabel(category: string) {
     search: "联网查询",
     weather: "环境与天气",
   }[category] ?? category
-}
-
-function getSkillFilterLabel(filter: "all" | "active" | "custom") {
-  return {
-    all: "全部策略",
-    active: "已启用",
-    custom: "自建策略",
-  }[filter]
 }
 
 function compactOptional(value: string) {
