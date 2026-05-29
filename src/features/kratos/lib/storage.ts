@@ -1,9 +1,42 @@
 import { clearInitialAuthSnapshot } from "@/entities/kratos/api/dashboard"
-import type { UserProfile } from "@/entities/kratos/model/types"
+import type {
+  AgentCheckin,
+  AgentToolConfig,
+  BodyMetric,
+  ChatMessage,
+  ChatSession,
+  FitnessContext,
+  FitnessProfile,
+  NotificationItem,
+  Skill,
+  TrainingPlan,
+  UserProfile,
+  WorkoutLog,
+} from "@/entities/kratos/model/types"
 
 const ACTIVE_AGENT_SESSION_KEY = "kratos-active-agent-session-id"
 const GENERATED_TRAINING_PLAN_KEY = "kratos-generated-training-plan-keys"
 const AUTH_USER_CACHE_KEY = "kratos-auth-user"
+const WORKSPACE_CACHE_KEY = "kratos-workspace-cache-v1"
+
+export type KratosWorkspaceSnapshot = {
+  activeNav: string
+  activeSessionId: string | null
+  agentCheckins: AgentCheckin[]
+  bodyMetrics: BodyMetric[]
+  chatSessions: ChatSession[]
+  composerValue: string
+  fitnessContext: FitnessContext | null
+  fitnessProfile: FitnessProfile | null
+  messages: ChatMessage[]
+  notifications: NotificationItem[]
+  skills: Skill[]
+  timestamp: number
+  tools: AgentToolConfig[]
+  trainingPlans: TrainingPlan[]
+  user: UserProfile | null
+  workoutLogs: WorkoutLog[]
+}
 
 export function readActiveAgentSessionId(): string | null {
   try {
@@ -63,7 +96,53 @@ export function writeCachedUser(user: UserProfile) {
 
 export function clearCachedUser() {
   localStorage.removeItem(AUTH_USER_CACHE_KEY)
+  localStorage.removeItem(WORKSPACE_CACHE_KEY)
   clearInitialAuthSnapshot()
+}
+
+export function readWorkspaceSnapshot(): KratosWorkspaceSnapshot | null {
+  try {
+    const raw = localStorage.getItem(WORKSPACE_CACHE_KEY)
+    if (!raw) {
+      return null
+    }
+
+    const parsed = JSON.parse(raw) as Partial<KratosWorkspaceSnapshot>
+    if (!parsed || typeof parsed !== "object") {
+      return null
+    }
+
+    return {
+      activeNav: typeof parsed.activeNav === "string" ? parsed.activeNav : "new",
+      activeSessionId:
+        typeof parsed.activeSessionId === "string" ? parsed.activeSessionId : null,
+      agentCheckins: Array.isArray(parsed.agentCheckins) ? parsed.agentCheckins : [],
+      bodyMetrics: Array.isArray(parsed.bodyMetrics) ? parsed.bodyMetrics : [],
+      chatSessions: Array.isArray(parsed.chatSessions) ? parsed.chatSessions : [],
+      composerValue:
+        typeof parsed.composerValue === "string" ? parsed.composerValue : "",
+      fitnessContext: parsed.fitnessContext ?? null,
+      fitnessProfile: parsed.fitnessProfile ?? null,
+      messages: Array.isArray(parsed.messages) ? parsed.messages : [],
+      notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
+      skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+      timestamp: typeof parsed.timestamp === "number" ? parsed.timestamp : 0,
+      tools: Array.isArray(parsed.tools) ? parsed.tools : [],
+      trainingPlans: Array.isArray(parsed.trainingPlans) ? parsed.trainingPlans : [],
+      user: parsed.user ?? null,
+      workoutLogs: Array.isArray(parsed.workoutLogs) ? parsed.workoutLogs : [],
+    }
+  } catch {
+    return null
+  }
+}
+
+export function writeWorkspaceSnapshot(snapshot: KratosWorkspaceSnapshot) {
+  try {
+    localStorage.setItem(WORKSPACE_CACHE_KEY, JSON.stringify(snapshot))
+  } catch {
+    // localStorage can be full or disabled; the app can still run without a snapshot.
+  }
 }
 
 export function readGeneratedTrainingPlanKeys() {

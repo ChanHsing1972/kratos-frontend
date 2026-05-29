@@ -1,7 +1,8 @@
-import type { ComponentProps, FormEvent } from "react"
-import { LoaderCircle } from "lucide-react"
+import type { ChangeEvent, ComponentProps, FormEvent } from "react"
+import { ImageUp, LoaderCircle } from "lucide-react"
 
-import type { ProfileForm } from "@/entities/kratos/model/types"
+import { absoluteApiUrl } from "@/entities/kratos/api/client"
+import type { ProfileForm, UserProfile } from "@/entities/kratos/model/types"
 import { Button } from "@/shared/ui/button"
 import {
   Dialog,
@@ -15,28 +16,37 @@ import { Field, FieldGroup } from "@/shared/ui/field"
 import { Input } from "@/shared/ui/input"
 import { Label } from "@/shared/ui/label"
 import { Textarea } from "@/shared/ui/textarea"
+import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/avatar"
 
 export type ProfileDialogMode = "personal" | "training" | null
 
 type ProfileEditDialogProps = {
   activeDialog: ProfileDialogMode
+  avatarUploading: boolean
   form: ProfileForm
   loading: boolean
+  onAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void
   onClose: () => void
   onFieldChange: (field: keyof ProfileForm, value: string) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   profileError: string | null
+  user: UserProfile | null
 }
 
 export function ProfileEditDialog({
   activeDialog,
+  avatarUploading,
   form,
   loading,
+  onAvatarChange,
   onClose,
   onFieldChange,
   onSubmit,
   profileError,
+  user,
 }: ProfileEditDialogProps) {
+  const avatarSrc = user?.avatar_url ? absoluteApiUrl(user.avatar_url) : undefined
+
   return (
     <>
       <Dialog
@@ -55,6 +65,39 @@ export function ProfileEditDialog({
 
           <form id="sidebar-personal-form" onSubmit={onSubmit}>
             <FieldGroup>
+              <div className="flex items-center gap-4 rounded-lg border border-border bg-muted/40 p-3">
+                <Avatar data-size="lg">
+                  <AvatarImage src={avatarSrc} alt={user?.username ?? "avatar"} />
+                  <AvatarFallback>{getUserInitials(user?.username ?? "")}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground">头像</p>
+                  <p className="text-xs text-muted-foreground">支持 JPG、PNG、WebP，最大 5MB。</p>
+                </div>
+                <Button
+                  asChild
+                  disabled={avatarUploading}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <label className="cursor-pointer">
+                    {avatarUploading ? (
+                      <LoaderCircle className="animate-spin" />
+                    ) : (
+                      <ImageUp />
+                    )}
+                    上传头像
+                    <input
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      disabled={avatarUploading}
+                      onChange={onAvatarChange}
+                      type="file"
+                    />
+                  </label>
+                </Button>
+              </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <ProfileInput
                   label="性别"
@@ -208,6 +251,10 @@ export function ProfileEditDialog({
       </Dialog>
     </>
   )
+}
+
+function getUserInitials(username: string) {
+  return username.trim().slice(0, 2).toUpperCase() || "KR"
 }
 
 function ProfileDialogFooter({

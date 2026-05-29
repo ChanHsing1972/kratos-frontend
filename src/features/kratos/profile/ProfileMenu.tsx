@@ -8,7 +8,6 @@ import {
 import {
   ChevronDown,
   Edit3,
-  ImageUp,
   LoaderCircle,
   LogIn,
   LogOut,
@@ -50,6 +49,7 @@ import {
 
 type ProfileMenuProps = {
   authLoading: boolean
+  avatarUploading: boolean
   menuOpen: boolean
   onEditBodyData: () => void
   onLogin: () => void
@@ -66,6 +66,7 @@ type ProfileMenuProps = {
 
 export function ProfileMenu({
   authLoading,
+  avatarUploading,
   menuOpen,
   onEditBodyData,
   onLogin,
@@ -182,18 +183,6 @@ export function ProfileMenu({
               </div>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
-              <label className="flex w-full cursor-pointer items-center gap-2">
-                <ImageUp className="size-4" />
-                上传头像
-                <input
-                  accept="image/png,image/jpeg,image/webp"
-                  className="hidden"
-                  onChange={onAvatarChange}
-                  type="file"
-                />
-              </label>
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openProfileDialog("personal")}>
               <User />
               个人信息
@@ -219,14 +208,17 @@ export function ProfileMenu({
 
         <ProfileEditDialog
           activeDialog={activeDialog}
+          avatarUploading={avatarUploading}
           form={form}
           loading={profileSubmitting}
+          onAvatarChange={onAvatarChange}
           onClose={() => setActiveDialog(null)}
           onFieldChange={(field, value) =>
             setForm((current) => ({ ...current, [field]: value }))
           }
           onSubmit={submitProfile}
           profileError={profileError}
+          user={user}
         />
       </SidebarMenuItem>
     </SidebarMenu>

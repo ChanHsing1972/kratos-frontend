@@ -79,9 +79,11 @@ import {
   readActiveAgentSessionId,
   readCachedUser,
   readGeneratedTrainingPlanKeys,
+  readWorkspaceSnapshot,
   writeCachedUser,
   writeActiveAgentSessionId,
   writeGeneratedTrainingPlanKeys,
+  writeWorkspaceSnapshot,
 } from "@/features/kratos/lib/storage"
 import { ProfileMenu } from "@/features/kratos/profile/ProfileMenu"
 import {
@@ -234,25 +236,39 @@ function bodyMetricFormFromRecord(metric: BodyMetric): BodyMetricForm {
 
 export function KratosPage() {
   const { setTheme, theme } = useTheme()
-  const [activeNav, setActiveNav] = useState(() => routeFromLocation().nav)
+  const cachedWorkspaceRef = useRef(readWorkspaceSnapshot())
+  const [activeNav, setActiveNav] = useState(() => {
+    const route = routeFromLocation()
+    return window.location.pathname === "/"
+      ? cachedWorkspaceRef.current?.activeNav ?? route.nav
+      : route.nav
+  })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
   const [conversationLoading, setConversationLoading] = useState(false)
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>(
+    () => cachedWorkspaceRef.current?.chatSessions ?? []
+  )
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() =>
-    routeFromLocation().sessionId ?? readActiveAgentSessionId()
+    routeFromLocation().sessionId ??
+    (routeFromLocation().nav === "new"
+      ? null
+      : cachedWorkspaceRef.current?.activeSessionId ?? readActiveAgentSessionId())
   )
   const [authMode, setAuthMode] = useState<AuthMode>("login")
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [authLoading, setAuthLoading] = useState(
-    () => Boolean(localStorage.getItem(AUTH_TOKEN_KEY)) && !readCachedUser()
+    () =>
+      Boolean(localStorage.getItem(AUTH_TOKEN_KEY)) &&
+      !(readCachedUser() ?? cachedWorkspaceRef.current?.user)
   )
   const [authSubmitting, setAuthSubmitting] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() =>
-    readCachedUser()
+    readCachedUser() ?? cachedWorkspaceRef.current?.user ?? null
   )
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
   const [profileSubmitting, setProfileSubmitting] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
@@ -281,28 +297,61 @@ export function KratosPage() {
     Set<string>
   >(() => readGeneratedTrainingPlanKeys())
   const [thinkingExpanded, setThinkingExpanded] = useState(true)
-  const [composerValue, setComposerValue] = useState("")
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
+  const [composerValue, setComposerValue] = useState(
+    () => {
+      const route = routeFromLocation()
+      return !route.sessionId && route.nav === "new"
+        ? ""
+        : cachedWorkspaceRef.current?.composerValue ?? ""
+    }
+  )
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    () => {
+      const route = routeFromLocation()
+      if (!route.sessionId && route.nav === "new") {
+        return initialMessages
+      }
+      return cachedWorkspaceRef.current?.messages?.length
+      ? cachedWorkspaceRef.current.messages
+      : initialMessages
+    }
+  )
   const [agentStreaming, setAgentStreaming] = useState(false)
   const [dashboardLoading, setDashboardLoading] = useState(false)
-  const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>([])
-  const [skills, setSkills] = useState<Skill[]>([])
-  const [tools, setTools] = useState<AgentToolConfig[]>([])
+  const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>(
+    () => cachedWorkspaceRef.current?.trainingPlans ?? []
+  )
+  const [skills, setSkills] = useState<Skill[]>(
+    () => cachedWorkspaceRef.current?.skills ?? []
+  )
+  const [tools, setTools] = useState<AgentToolConfig[]>(
+    () => cachedWorkspaceRef.current?.tools ?? []
+  )
   const [skillSubmitting, setSkillSubmitting] = useState(false)
   const [skillError, setSkillError] = useState<string | null>(null)
   const [confirmingHealthDataId, setConfirmingHealthDataId] = useState<string | null>(null)
   const [fitnessContext, setFitnessContext] = useState<FitnessContext | null>(
-    null
+    () => cachedWorkspaceRef.current?.fitnessContext ?? null
   )
   const [fitnessProfile, setFitnessProfile] = useState<FitnessProfile | null>(
-    null
+    () => cachedWorkspaceRef.current?.fitnessProfile ?? null
   )
-  const [bodyMetrics, setBodyMetrics] = useState<BodyMetric[]>([])
-  const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>([])
-  const [agentCheckins, setAgentCheckins] = useState<AgentCheckin[]>([])
+  const [bodyMetrics, setBodyMetrics] = useState<BodyMetric[]>(
+    () => cachedWorkspaceRef.current?.bodyMetrics ?? []
+  )
+  const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>(
+    () => cachedWorkspaceRef.current?.workoutLogs ?? []
+  )
+  const [agentCheckins, setAgentCheckins] = useState<AgentCheckin[]>(
+    () => cachedWorkspaceRef.current?.agentCheckins ?? []
+  )
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifications, setNotifications] =
-    useState<NotificationItem[]>(initialNotifications)
+    useState<NotificationItem[]>(
+      () => cachedWorkspaceRef.current?.notifications?.length
+        ? cachedWorkspaceRef.current.notifications
+        : initialNotifications
+    )
   const [detailPanel, setDetailPanel] = useState<DetailPanel | null>(null)
   const [completedExercises, setCompletedExercises] = useState<string[]>([])
   const [trainingStarted, setTrainingStarted] = useState(false)
@@ -362,6 +411,47 @@ export function KratosPage() {
     fitnessContext?.onboarding ?? null
 
   useEffect(() => {
+    if (!currentUser) {
+      return
+    }
+
+    writeWorkspaceSnapshot({
+      activeNav,
+      activeSessionId,
+      agentCheckins,
+      bodyMetrics,
+      chatSessions,
+      composerValue,
+      fitnessContext,
+      fitnessProfile,
+      messages,
+      notifications,
+      skills,
+      timestamp: Date.now(),
+      tools,
+      trainingPlans,
+      user: currentUser,
+      workoutLogs,
+    })
+  }, [
+    activeNav,
+    activeSessionId,
+    agentCheckins,
+    bodyMetrics,
+    chatSessions,
+    composerValue,
+    currentUser,
+    fitnessContext,
+    fitnessProfile,
+    messages,
+    notifications,
+    skills,
+    tools,
+    trainingPlans,
+    workoutLogs,
+  ])
+
+  useEffect(() => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       clearCachedUser()
@@ -373,8 +463,22 @@ export function KratosPage() {
       return
     }
 
-    setAuthLoading(!readCachedUser())
-    setDashboardLoading(true)
+    const cachedWorkspace = cachedWorkspaceRef.current
+    const hasCachedUser = Boolean(readCachedUser() ?? cachedWorkspace?.user)
+    setAuthLoading(!hasCachedUser)
+    setDashboardLoading(!cachedWorkspace)
+
+    const route = routeFromLocation()
+    const cacheMatchesRoute =
+      cachedWorkspace &&
+      hasCachedUser &&
+      (!route.sessionId || route.sessionId === cachedWorkspace.activeSessionId)
+    if (cacheMatchesRoute) {
+      setAuthLoading(false)
+      setDashboardLoading(false)
+      return
+    }
+
     let ignore = false
 
     loadInitialAuthSnapshot(token)
@@ -385,7 +489,6 @@ export function KratosPage() {
         writeCachedUser(user)
         setCurrentUser(user)
         applyDashboardSnapshot(context, plans, runs, nextSkills, nextTools)
-        const route = routeFromLocation()
         const preferredSessionId =
           route.sessionId ?? (route.nav === "new" ? null : readActiveAgentSessionId())
         const selectedSessionId = await syncConversationSessions(
@@ -414,16 +517,22 @@ export function KratosPage() {
         }
 
         if (route.sessionId) {
-          await loadConversationSession(token, selectedSessionId)
+          await loadConversationSession(token, selectedSessionId, {
+            silent: Boolean(cachedWorkspace),
+          })
         }
       })
-      .catch(() => {
+      .catch((error) => {
         if (ignore) {
           return
         }
-        localStorage.removeItem(AUTH_TOKEN_KEY)
-        clearCachedUser()
-        setCurrentUser(null)
+        if (!hasCachedUser) {
+          localStorage.removeItem(AUTH_TOKEN_KEY)
+          clearCachedUser()
+          setCurrentUser(null)
+          return
+        }
+        console.warn("后台同步登录状态失败，继续使用本地快照", error)
       })
       .finally(() => {
         if (ignore) {
@@ -649,8 +758,14 @@ export function KratosPage() {
     return nextActiveSessionId
   }
 
-  const loadConversationSession = async (token: string, sessionId: string) => {
-    setConversationLoading(true)
+  const loadConversationSession = async (
+    token: string,
+    sessionId: string,
+    options: { silent?: boolean } = {}
+  ) => {
+    if (!options.silent) {
+      setConversationLoading(true)
+    }
     setSidebarDrawerOpen(false)
 
     try {
@@ -691,7 +806,9 @@ export function KratosPage() {
       setActiveNav(sessionId)
       pushWorkspacePath(`/chat/${encodeURIComponent(sessionId)}`)
     } finally {
-      setConversationLoading(false)
+      if (!options.silent) {
+        setConversationLoading(false)
+      }
     }
   }
 
@@ -1411,6 +1528,10 @@ export function KratosPage() {
     if (!file) {
       return
     }
+    if (file.size > 5 * 1024 * 1024) {
+      sonnerToast.error("头像不能超过 5MB")
+      return
+    }
 
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token || !currentUser) {
@@ -1418,6 +1539,7 @@ export function KratosPage() {
       return
     }
 
+    setAvatarUploading(true)
     void uploadAvatar(token, file)
       .then((upload) => {
         const nextUser = { ...currentUser, avatar_url: upload.url }
@@ -1427,6 +1549,9 @@ export function KratosPage() {
       })
       .catch((error) => {
         sonnerToast.error(getErrorMessage(error), { richColors: true })
+      })
+      .finally(() => {
+        setAvatarUploading(false)
       })
   }
 
@@ -2243,6 +2368,7 @@ export function KratosPage() {
           footer={
             <ProfileMenu
               authLoading={authLoading}
+              avatarUploading={avatarUploading}
               menuOpen={profileMenuOpen}
               onEditBodyData={openBodyMetricEditor}
               onLogin={() => openAuth("login")}
