@@ -598,10 +598,7 @@ export type ExerciseMediaResponse = {
 }
 
 export async function getExerciseMedia(actionName: string, token?: string | null) {
-  const url = new URL(
-    `${API_BASE_URL.replace(/\/$/, "")}/plans/media`,
-    window.location.origin
-  )
+  const url = new URL(apiUrl("/plans/media"), window.location.origin)
   url.searchParams.set("action_name", actionName)
 
   const response = await fetch(url.toString(), {
@@ -627,6 +624,12 @@ export function absoluteApiUrl(path: string) {
   return `${apiRoot}${path.startsWith("/") ? path : `/${path}`}`
 }
 
+function apiUrl(path: string) {
+  const base = API_BASE_URL.replace(/\/$/, "")
+  const nextPath = path.startsWith("/") ? path : `/${path}`
+  return `${base}${nextPath}`
+}
+
 export function proxiedBilibiliImageUrl(url: string | null | undefined) {
   if (!url) {
     return null
@@ -642,7 +645,7 @@ export function proxiedBilibiliImageUrl(url: string | null | undefined) {
     return normalized
   }
 
-  const proxyUrl = new URL(`${API_BASE_URL.replace(/\/$/, "")}/plans/media/proxy-image`)
+  const proxyUrl = new URL(apiUrl("/plans/media/proxy-image"), window.location.origin)
   proxyUrl.searchParams.set("url", normalized)
   return proxyUrl.toString()
 }
