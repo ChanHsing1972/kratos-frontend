@@ -55,7 +55,6 @@ import {
   chatSessionsFromAgentSessions,
   formatTime,
   getLatestByDate,
-  titleFromPrompt,
   trainingPlanPayloadFromAgentResult,
 } from "@/entities/kratos/lib/domain"
 import {
@@ -112,6 +111,7 @@ import { Toaster } from "@/shared/ui/sonner"
 import { useTheme } from "@/app/providers/theme-provider"
 import type {
   AgentCheckin,
+  AgentStreamEvent,
   AgentToolConfig,
   AgentRun,
   AuthForm,
@@ -202,10 +202,27 @@ function withTrainingPlanJsonContract(message: string) {
   return message
 }
 
-function stripTrainingPlanJsonContract(message: string) {
-  return message
-    .replace(/```json\s*\{[\s\S]*?"workout_plan"[\s\S]*?\}\s*```/g, "")
-    .trim()
+function stripTrainingPlanJsonContract(
+  message: string,
+  options: { trim?: boolean } = {}
+) {
+  const stripped = message.replace(
+    /```json\s*\{[\s\S]*?"workout_plan"[\s\S]*?\}\s*```/g,
+    ""
+  )
+
+  return options.trim === false ? stripped : stripped.trim()
+}
+
+function isAnswerResetEvent(event: AgentStreamEvent) {
+  const raw = event.raw
+  return (
+    event.type === "status" &&
+    raw !== null &&
+    typeof raw === "object" &&
+    "answer_reset" in raw &&
+    raw.answer_reset === true
+  )
 }
 
 function bodyMetricFormFromRecord(metric: BodyMetric): BodyMetricForm {
@@ -312,8 +329,8 @@ export function KratosPage() {
         return initialMessages
       }
       return cachedWorkspaceRef.current?.messages?.length
-      ? cachedWorkspaceRef.current.messages
-      : initialMessages
+        ? cachedWorkspaceRef.current.messages
+        : initialMessages
     }
   )
   const [agentStreaming, setAgentStreaming] = useState(false)
@@ -1199,7 +1216,7 @@ export function KratosPage() {
     let nextSessionId = activeSessionId ?? createId()
     const clientTurnId = createId()
     if (!activeSessionId) {
-      const sessionTitle = titleFromPrompt(body)
+      const sessionTitle = "新的训练对话"
       setActiveSessionId(nextSessionId)
       writeActiveAgentSessionId(nextSessionId)
       setActiveNav(nextSessionId)
@@ -1259,7 +1276,7 @@ export function KratosPage() {
           if (event.session_id && event.session_id !== handledStreamSessionId) {
             handledStreamSessionId = event.session_id
             const serverSessionId = event.session_id
-            const sessionTitle = titleFromPrompt(body)
+            const sessionTitle = "新的训练对话"
             const optimisticSessionId = nextSessionId
             nextSessionId = serverSessionId
             setActiveSessionId(serverSessionId)
@@ -1297,6 +1314,15 @@ export function KratosPage() {
               const suggestedHealthData =
                 healthDataFromAgentRaw(event.raw) ?? message.suggestedHealthData
 
+              if (isAnswerResetEvent(event)) {
+                return {
+                  ...message,
+                  body: "",
+                  suggestedHealthData,
+                  trace: [...(message.trace ?? []), event],
+                }
+              }
+
               if (event.type === "done") {
                 return {
                   ...message,
@@ -1311,7 +1337,8 @@ export function KratosPage() {
                 return {
                   ...message,
                   body: stripTrainingPlanJsonContract(
-                    `${message.body}${event.delta ?? ""}`
+                    `${message.body}${event.delta ?? ""}`,
+                    { trim: false }
                   ),
                 }
               }

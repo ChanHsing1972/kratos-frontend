@@ -1,5 +1,5 @@
 import type { ChangeEvent, ComponentProps, FormEvent } from "react"
-import { ImageUp, LoaderCircle } from "lucide-react"
+import { Camera, LoaderCircle } from "lucide-react"
 
 import { absoluteApiUrl } from "@/entities/kratos/api/client"
 import type { ProfileForm, UserProfile } from "@/entities/kratos/model/types"
@@ -65,39 +65,33 @@ export function ProfileEditDialog({
 
           <form id="sidebar-personal-form" onSubmit={onSubmit}>
             <FieldGroup>
-              <div className="flex items-center gap-4 rounded-lg border border-border bg-muted/40 p-3">
-                <Avatar data-size="lg">
-                  <AvatarImage src={avatarSrc} alt={user?.username ?? "avatar"} />
-                  <AvatarFallback>{getUserInitials(user?.username ?? "")}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">头像</p>
-                  <p className="text-xs text-muted-foreground">支持 JPG、PNG、WebP，最大 5MB。</p>
-                </div>
-                <Button
-                  asChild
-                  disabled={avatarUploading}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  <label className="cursor-pointer">
+              <div className="flex justify-center">
+                <label className="group relative block cursor-pointer">
+                  <Avatar className="size-20 sm:size-30">
+                    <AvatarImage src={avatarSrc} alt={user?.username ?? "avatar"} />
+                    <AvatarFallback className="text-3xl">
+                      {getUserInitials(user?.username ?? "")}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <span className="absolute bottom-2 right-2 flex size-6 items-center justify-center rounded-full border border-border bg-background transition-colors group-hover:bg-muted">
                     {avatarUploading ? (
-                      <LoaderCircle className="animate-spin" />
+                      <LoaderCircle className="size-4 animate-spin" />
                     ) : (
-                      <ImageUp />
+                      <Camera className="size-4" />
                     )}
-                    上传头像
-                    <input
-                      accept="image/png,image/jpeg,image/webp"
-                      className="hidden"
-                      disabled={avatarUploading}
-                      onChange={onAvatarChange}
-                      type="file"
-                    />
-                  </label>
-                </Button>
+                  </span>
+
+                  <input
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    disabled={avatarUploading}
+                    onChange={onAvatarChange}
+                    type="file"
+                  />
+                </label>
               </div>
+
               <div className="grid gap-4 sm:grid-cols-3">
                 <ProfileInput
                   label="性别"
