@@ -1651,7 +1651,7 @@ export function KratosPage() {
             trace: [
               ...(message.trace ?? []),
               {
-                type: "status",
+                type: "status" as const,
                 content: "已停止接收本次回复，Agent 会在后台完成",
               },
             ],
