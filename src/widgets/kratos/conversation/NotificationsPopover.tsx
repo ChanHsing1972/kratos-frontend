@@ -26,22 +26,28 @@ export function NotificationsPopover({
         </button>
       </div>
       <div className="mt-3 flex flex-col gap-2">
-        {notifications.map((item) => (
-          <div className="rounded-[10px] border border-border p-3" key={item.id}>
-            <div className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "size-1.5 rounded-full",
-                  item.read ? "bg-muted-foreground/35" : "bg-primary"
-                )}
-              />
-              <h4 className="text-[12px] font-bold">{item.title}</h4>
+        {notifications.length ? (
+          notifications.map((item) => (
+            <div className="rounded-[10px] border border-border p-3" key={item.id}>
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "size-1.5 rounded-full",
+                    item.read ? "bg-muted-foreground/35" : "bg-primary"
+                  )}
+                />
+                <h4 className="text-[12px] font-bold">{item.title}</h4>
+              </div>
+              <p className="mt-1.5 text-[11px] leading-4 text-muted-foreground">
+                {item.body}
+              </p>
             </div>
-            <p className="mt-1.5 text-[11px] leading-4 text-muted-foreground">
-              {item.body}
-            </p>
+          ))
+        ) : (
+          <div className="rounded-[10px] border border-dashed border-border p-3 text-[11px] leading-5 text-muted-foreground">
+            暂无通知。Agent 完成回复、失败或继续运行时会出现在这里。
           </div>
-        ))}
+        )}
       </div>
     </div>
   )

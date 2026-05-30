@@ -482,6 +482,7 @@ export type AgentRun = {
   id: number
   user_id: number
   session_id: string
+  client_turn_id?: string | null
   user_message: string
   answer: string
   status: string

@@ -268,6 +268,7 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
         (left, right) => left.position - right.position
       )
       const trace = orderedTraceSteps.map(traceStepFromRun)
+      const running = run.status === "running"
       const traceTimes = orderedTraceSteps
         .map((step) => new Date(step.created_at).getTime())
         .filter((value) => Number.isFinite(value))
@@ -289,10 +290,11 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
           id: `run-${run.id}-assistant`,
           author: "assistant" as const,
           body: run.answer,
-          completedAt,
+          completedAt: running ? undefined : completedAt,
           startedAt,
           suggestedTrainingPlan: trainingPlanPayloadFromAgentResult(run.result_payload),
           suggestedHealthData: pendingHealthDataFromTrace(run.trace_steps),
+          streaming: running,
           time: formatStoredTime(run.created_at),
           trace,
         },

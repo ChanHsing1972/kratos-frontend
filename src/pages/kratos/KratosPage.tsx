@@ -9,7 +9,7 @@ import {
 import { PanelLeft } from "lucide-react"
 import { toast as sonnerToast } from "sonner"
 
-import { initialMessages, initialNotifications } from "@/features/kratos/model/fixtures"
+import { initialMessages } from "@/features/kratos/model/fixtures"
 import {
   AUTH_TOKEN_KEY,
   activateTrainingPlan,
@@ -365,9 +365,10 @@ export function KratosPage() {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifications, setNotifications] =
     useState<NotificationItem[]>(
-      () => cachedWorkspaceRef.current?.notifications?.length
-        ? cachedWorkspaceRef.current.notifications
-        : initialNotifications
+      () =>
+        (cachedWorkspaceRef.current?.notifications ?? []).filter(
+          (item) => !["hydration", "knee", "plan"].includes(item.id)
+        )
     )
   const [detailPanel, setDetailPanel] = useState<DetailPanel | null>(null)
   const [completedExercises, setCompletedExercises] = useState<string[]>([])
@@ -393,7 +394,19 @@ export function KratosPage() {
     title: string
   } | null>(null)
   const activeStreamRef = useRef<AbortController | null>(null)
+  const activeSessionIdRef = useRef<string | null>(null)
+  const attachedClientTurnIdsRef = useRef<Set<string>>(new Set())
+  const liveMessagesBySessionRef = useRef<Record<string, ChatMessage[]>>({})
+  const messagesRef = useRef<ChatMessage[]>(messages)
   const sendLockRef = useRef(false)
+
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId
+  }, [activeSessionId])
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   useEffect(() => {
     if (!profileMenuOpen && !notificationsOpen) {
@@ -420,12 +433,177 @@ export function KratosPage() {
   const activeSession =
     chatSessions.find((session) => session.id === activeSessionId) ?? null
   const activeSessionTitle = activeSession?.title ?? "新的训练对话"
+  const activeSessionHasRunningMessage = messages.some(
+    (message) => message.author === "assistant" && message.streaming
+  )
   const latestMetric =
     getLatestByDate(bodyMetrics, (metric) => metric.measured_at ?? metric.recorded_at) ?? null
   const latestCheckin =
     getLatestByDate(agentCheckins, (checkin) => checkin.checkin_date ?? checkin.created_at) ?? null
   const onboardingStatus: OnboardingStatus | null =
     fitnessContext?.onboarding ?? null
+
+  const pushNotification = (title: string, body: string, read = false) => {
+    setNotifications((current) => [
+      {
+        id: createId(),
+        title,
+        body,
+        read,
+      },
+      ...current,
+    ].slice(0, 20))
+  }
+
+  const updateLiveSessionMessages = (
+    sessionId: string,
+    updater: (current: ChatMessage[]) => ChatMessage[]
+  ) => {
+    const current =
+      liveMessagesBySessionRef.current[sessionId] ??
+      (activeSessionIdRef.current === sessionId ? messagesRef.current : [])
+    const next = updater(current)
+    liveMessagesBySessionRef.current[sessionId] = next
+    if (activeSessionIdRef.current === sessionId) {
+      messagesRef.current = next
+      setMessages(next)
+    }
+    return next
+  }
+
+  const attachRunningRuns = (token: string, runs: AgentRun[]) => {
+    runs
+      .filter((run) => run.status === "running" && run.client_turn_id)
+      .forEach((run) => {
+        const clientTurnId = run.client_turn_id
+        if (!clientTurnId || attachedClientTurnIdsRef.current.has(clientTurnId)) {
+          return
+        }
+        attachedClientTurnIdsRef.current.add(clientTurnId)
+        void streamAgentChat({
+          clientTurnId,
+          message: run.user_message,
+          sessionId: run.session_id,
+          token,
+          onEvent: (event) => {
+            applyAgentEventToSession({
+              assistantMessageId: `run-${run.id}-assistant`,
+              body: run.user_message,
+              event,
+              sessionId: event.session_id ?? run.session_id,
+            })
+          },
+        }).finally(() => {
+          attachedClientTurnIdsRef.current.delete(clientTurnId)
+        })
+      })
+  }
+
+  const applyAgentEventToSession = ({
+    assistantMessageId,
+    body,
+    event,
+    sessionId,
+  }: {
+    assistantMessageId: string
+    body: string
+    event: AgentStreamEvent
+    sessionId: string
+  }) => {
+    if (event.type === "final") {
+      setAgentStreaming(false)
+    }
+    if (event.type === "done") {
+      activeStreamRef.current = null
+      setAgentStreaming(false)
+      sendLockRef.current = false
+      pushNotification("Agent 回复完成", body.slice(0, 36) || "一条对话已生成结果")
+    }
+    if (event.type === "error") {
+      pushNotification("Agent 回复失败", event.content || "请稍后重试")
+    }
+
+    updateLiveSessionMessages(sessionId, (current) =>
+      current.map((message) => {
+        if (message.id !== assistantMessageId) {
+          return message
+        }
+        const suggestedHealthData =
+          healthDataFromAgentRaw(event.raw) ?? message.suggestedHealthData
+
+        if (isAnswerResetEvent(event)) {
+          return {
+            ...message,
+            body: "",
+            suggestedHealthData,
+            trace: [...(message.trace ?? []), event],
+          }
+        }
+
+        if (event.type === "done") {
+          return {
+            ...message,
+            body: stripTrainingPlanJsonContract(event.answer ?? message.body),
+            completedAt: Date.now(),
+            streaming: false,
+            suggestedHealthData,
+          }
+        }
+
+        if (event.type === "answer_delta") {
+          return {
+            ...message,
+            body: stripTrainingPlanJsonContract(
+              `${message.body}${event.delta ?? ""}`,
+              { trim: false }
+            ),
+          }
+        }
+
+        if (event.type === "error") {
+          return {
+            ...message,
+            completedAt: Date.now(),
+            error: event.content,
+            streaming: false,
+            suggestedHealthData,
+            trace: [...(message.trace ?? []), event],
+          }
+        }
+
+        if (event.type === "final") {
+          const suggestedTrainingPlan = trainingPlanPayloadFromAgentResult(
+            event.raw,
+            event.answer ?? event.content ?? message.body
+          )
+          const generatedAlready = suggestedTrainingPlan
+            ? generatedTrainingPlanKeys.has(
+              trainingPlanDraftKey(suggestedTrainingPlan)
+            )
+            : false
+          return {
+            ...message,
+            body: message.body || event.answer || event.content || "",
+            completedAt: Date.now(),
+            streaming: false,
+            suggestedHealthData,
+            suggestedTrainingPlan:
+              suggestedTrainingPlan ?? message.suggestedTrainingPlan,
+            trainingPlanCreatedId: generatedAlready
+              ? (message.trainingPlanCreatedId ?? -1)
+              : message.trainingPlanCreatedId,
+            trace: [...(message.trace ?? []), event],
+          }
+        }
+
+        return {
+          ...message,
+          suggestedHealthData,
+          trace: [...(message.trace ?? []), event],
+        }
+      })
+    )
+  }
 
   useEffect(() => {
     if (!currentUser) {
@@ -750,7 +928,7 @@ export function KratosPage() {
   const syncConversationSessions = async (
     token: string,
     preferredSessionId: string | null = activeSessionId,
-    options: { selectFirst?: boolean } = {}
+    options: { preserveActive?: boolean; selectFirst?: boolean } = {}
   ) => {
     const sessions = await listAgentSessions(token, {
       includeArchived: true,
@@ -761,6 +939,10 @@ export function KratosPage() {
       .filter((session) => !session.deleted && session.messageCount > 0)
       .sort(sortChatSessions)
     setChatSessions(nextSessions)
+
+    if (options.preserveActive) {
+      return activeSessionId
+    }
 
     const nextActiveSessionId =
       preferredSessionId &&
@@ -812,16 +994,28 @@ export function KratosPage() {
           .sort(sortChatSessions)
       )
 
+      const storedMessages = markGeneratedTrainingPlanMessages(
+        chatMessagesFromAgentRuns(runs),
+        generatedTrainingPlanKeys
+      )
+      const liveMessages = liveMessagesBySessionRef.current[sessionId]
+      const nextMessages = liveMessages?.some((message) => message.streaming)
+        ? liveMessages
+        : storedMessages
+      liveMessagesBySessionRef.current[sessionId] = nextMessages
+      messagesRef.current = nextMessages
       setMessages(
         markGeneratedTrainingPlanMessages(
-          chatMessagesFromAgentRuns(runs),
+          nextMessages,
           generatedTrainingPlanKeys
         )
       )
       setActiveSessionId(sessionId)
+      activeSessionIdRef.current = sessionId
       writeActiveAgentSessionId(sessionId)
       setActiveNav(sessionId)
       pushWorkspacePath(`/chat/${encodeURIComponent(sessionId)}`)
+      attachRunningRuns(token, runs)
     } finally {
       if (!options.silent) {
         setConversationLoading(false)
@@ -829,13 +1023,81 @@ export function KratosPage() {
     }
   }
 
+  useEffect(() => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token || !activeSessionId || agentStreaming || !activeSessionHasRunningMessage) {
+      return undefined
+    }
+
+    let cancelled = false
+    const refreshRunningSession = async () => {
+      try {
+        const runs = await listAgentRunsForSession(token, activeSessionId)
+        if (cancelled) {
+          return
+        }
+
+        attachRunningRuns(token, runs)
+        const storedMessages = markGeneratedTrainingPlanMessages(
+          chatMessagesFromAgentRuns(runs),
+          generatedTrainingPlanKeys
+        )
+        const liveMessages = liveMessagesBySessionRef.current[activeSessionId]
+        const nextMessages = liveMessages?.some((message) => message.streaming)
+          ? liveMessages
+          : storedMessages
+
+        setMessages(
+          markGeneratedTrainingPlanMessages(nextMessages, generatedTrainingPlanKeys)
+        )
+
+        if (!runs.some((run) => run.status === "running")) {
+          const sessions = await listAgentSessions(token, {
+            includeArchived: true,
+            includeDeleted: false,
+            limit: 200,
+          })
+          if (!cancelled) {
+            setChatSessions(
+              chatSessionsFromAgentSessions(sessions)
+                .filter((session) => !session.deleted && session.messageCount > 0)
+                .sort(sortChatSessions)
+            )
+          }
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error(error)
+        }
+      }
+    }
+
+    void refreshRunningSession()
+    const intervalId = window.setInterval(refreshRunningSession, 4000)
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- attachRunningRuns reads latest live refs; including it would recreate polling every render.
+  }, [
+    activeSessionHasRunningMessage,
+    activeSessionId,
+    agentStreaming,
+    generatedTrainingPlanKeys,
+  ])
+
   const handleCreateConversation = () => {
-    activeStreamRef.current?.abort()
+    if (activeSessionHasRunningMessage) {
+      pushNotification("Agent 继续运行", "当前对话仍在生成，切回该对话可继续查看实时进度")
+    }
+    activeStreamRef.current = null
     setMessages(initialMessages)
     setActiveSessionId(null)
+    activeSessionIdRef.current = null
     writeActiveAgentSessionId(null)
     setComposerValue("")
     setAgentStreaming(false)
+    sendLockRef.current = false
     setActiveNav("new")
     pushWorkspacePath("/chat/new")
     setConversationLoading(false)
@@ -850,7 +1112,12 @@ export function KratosPage() {
       return
     }
 
-    activeStreamRef.current?.abort()
+    if (activeSessionHasRunningMessage) {
+      pushNotification("Agent 继续运行", "当前对话仍在生成，切回该对话可继续查看实时进度")
+    }
+    activeStreamRef.current = null
+    setAgentStreaming(false)
+    sendLockRef.current = false
 
     try {
       await loadConversationSession(token, sessionId)
@@ -1214,6 +1481,7 @@ export function KratosPage() {
 
     sendLockRef.current = true
     let nextSessionId = activeSessionId ?? createId()
+    activeSessionIdRef.current = nextSessionId
     const clientTurnId = createId()
     if (!activeSessionId) {
       const sessionTitle = "新的训练对话"
@@ -1240,35 +1508,36 @@ export function KratosPage() {
     const controller = new AbortController()
     activeStreamRef.current = controller
     setAgentStreaming(true)
-    setMessages((current) => [
-      ...current,
-      {
-        id: createId(),
-        author: "user",
-        body,
-        time: formatTime(),
-      },
-      {
-        id: assistantMessageId,
-        author: "assistant",
-        body: "",
-        startedAt: Date.now(),
-        streaming: true,
-        time: formatTime(),
-        trace: [
-          {
-            type: "status",
-            content: "正在连接 Kratos Agent...",
-          },
-        ],
-      },
-    ])
+    updateLiveSessionMessages(nextSessionId, (current) => [
+        ...current,
+        {
+          id: createId(),
+          author: "user",
+          body,
+          time: formatTime(),
+        },
+        {
+          id: assistantMessageId,
+          author: "assistant",
+          body: "",
+          startedAt: Date.now(),
+          streaming: true,
+          time: formatTime(),
+          trace: [
+            {
+              type: "status",
+              content: "正在连接 Kratos Agent...",
+            },
+          ],
+        },
+      ])
     setComposerValue("")
 
     let handledStreamSessionId: string | null = null
     const agentMessage = withTrainingPlanJsonContract(body)
 
     try {
+      attachedClientTurnIdsRef.current.add(clientTurnId)
       await streamAgentChat({
         clientTurnId,
         message: agentMessage,
@@ -1279,6 +1548,14 @@ export function KratosPage() {
             const sessionTitle = "新的训练对话"
             const optimisticSessionId = nextSessionId
             nextSessionId = serverSessionId
+            activeSessionIdRef.current = serverSessionId
+            if (optimisticSessionId !== serverSessionId) {
+              const liveMessages = liveMessagesBySessionRef.current[optimisticSessionId]
+              if (liveMessages) {
+                liveMessagesBySessionRef.current[serverSessionId] = liveMessages
+                delete liveMessagesBySessionRef.current[optimisticSessionId]
+              }
+            }
             setActiveSessionId(serverSessionId)
             writeActiveAgentSessionId(serverSessionId)
             setActiveNav(serverSessionId)
@@ -1306,92 +1583,23 @@ export function KratosPage() {
             })
           }
 
-          setMessages((current) =>
-            current.map((message) => {
-              if (message.id !== assistantMessageId) {
-                return message
-              }
-              const suggestedHealthData =
-                healthDataFromAgentRaw(event.raw) ?? message.suggestedHealthData
-
-              if (isAnswerResetEvent(event)) {
-                return {
-                  ...message,
-                  body: "",
-                  suggestedHealthData,
-                  trace: [...(message.trace ?? []), event],
-                }
-              }
-
-              if (event.type === "done") {
-                return {
-                  ...message,
-                  body: stripTrainingPlanJsonContract(event.answer ?? message.body),
-                  completedAt: Date.now(),
-                  streaming: false,
-                  suggestedHealthData,
-                }
-              }
-
-              if (event.type === "answer_delta") {
-                return {
-                  ...message,
-                  body: stripTrainingPlanJsonContract(
-                    `${message.body}${event.delta ?? ""}`,
-                    { trim: false }
-                  ),
-                }
-              }
-
-              if (event.type === "error") {
-                return {
-                  ...message,
-                  completedAt: Date.now(),
-                  error: event.content,
-                  streaming: false,
-                  suggestedHealthData,
-                  trace: [...(message.trace ?? []), event],
-                }
-              }
-
-              if (event.type === "final") {
-                const suggestedTrainingPlan = trainingPlanPayloadFromAgentResult(
-                  event.raw,
-                  event.answer ?? message.body
-                )
-                const generatedAlready = suggestedTrainingPlan
-                  ? generatedTrainingPlanKeys.has(
-                    trainingPlanDraftKey(suggestedTrainingPlan)
-                  )
-                  : false
-                return {
-                  ...message,
-                  suggestedHealthData,
-                  suggestedTrainingPlan:
-                    suggestedTrainingPlan ?? message.suggestedTrainingPlan,
-                  trainingPlanCreatedId: generatedAlready
-                    ? (message.trainingPlanCreatedId ?? -1)
-                    : message.trainingPlanCreatedId,
-                  trace: [...(message.trace ?? []), event],
-                }
-              }
-
-              return {
-                ...message,
-                suggestedHealthData,
-                trace: [...(message.trace ?? []), event],
-              }
-            })
-          )
+          applyAgentEventToSession({
+            assistantMessageId,
+            body,
+            event,
+            sessionId: event.session_id ?? nextSessionId,
+          })
         },
         sessionId: nextSessionId,
         signal: controller.signal,
         token,
       })
       if (nextSessionId) {
-        await syncConversationSessions(token, nextSessionId)
+        void syncConversationSessions(token, nextSessionId, {
+          preserveActive: true,
+        })
       }
-      await refreshDashboard(token, { preserveMessages: true })
+      void refreshDashboard(token, { preserveMessages: true })
     } catch (error) {
       if (controller.signal.aborted) {
         return
@@ -1399,7 +1607,8 @@ export function KratosPage() {
 
       const message = getErrorMessage(error)
       sonnerToast.error(message)
-      setMessages((current) =>
+      pushNotification("Agent 连接失败", message)
+      updateLiveSessionMessages(nextSessionId, (current) =>
         current.map((item) =>
           item.id === assistantMessageId
             ? {
@@ -1419,6 +1628,7 @@ export function KratosPage() {
         )
       )
     } finally {
+      attachedClientTurnIdsRef.current.delete(clientTurnId)
       activeStreamRef.current = null
       setAgentStreaming(false)
       sendLockRef.current = false
@@ -1426,11 +1636,12 @@ export function KratosPage() {
   }
 
   const handleStopAgent = () => {
+    const stoppingSessionId = activeSessionId
     activeStreamRef.current?.abort()
     activeStreamRef.current = null
     setAgentStreaming(false)
     sendLockRef.current = false
-    setMessages((current) =>
+    const updateMessages = (current: ChatMessage[]) =>
       current.map((message) =>
         message.streaming
           ? {
@@ -1441,14 +1652,18 @@ export function KratosPage() {
               ...(message.trace ?? []),
               {
                 type: "status",
-                content: "用户已中断本次回复",
+                content: "已停止接收本次回复，Agent 会在后台完成",
               },
             ],
           }
           : message
       )
-    )
-    sonnerToast.warning("已中断 Agent 回复")
+    if (stoppingSessionId) {
+      updateLiveSessionMessages(stoppingSessionId, updateMessages)
+    } else {
+      setMessages(updateMessages)
+    }
+    sonnerToast.warning("已停止接收本次回复，Agent 会在后台完成")
   }
 
   const handleQuickAction = (action: QuickAction) => {
