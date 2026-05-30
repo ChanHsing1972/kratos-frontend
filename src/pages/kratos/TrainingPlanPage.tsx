@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  ExternalLink,
   // Flame,
   Play,
   RotateCcw,
@@ -57,12 +58,16 @@ import {
   FieldLabel,
 } from "@/shared/ui/field"
 import {
+  proxiedBilibiliImageUrl,
+} from "@/entities/kratos/api/client"
+import {
   getPlanExerciseLines,
   trainingPlanTemplates,
 } from "@/entities/kratos/lib/domain"
 import { cn } from "@/shared/lib/utils"
 import type {
   AgentCheckin,
+  TrainingExerciseMedia,
   TrainingPlan,
   TrainingPlanPayload,
   WorkoutLog,
@@ -100,6 +105,29 @@ type TrainingPlanPageProps = {
   trainingPlans: TrainingPlan[]
   trainingStarted: boolean
   workoutLogs: WorkoutLog[]
+}
+
+type TrainingDayAction = {
+  completed?: boolean
+  id: string
+  media?: TrainingExerciseMedia | null
+  notes?: string | null
+  restSeconds?: number | null
+  targetReps?: string | null
+  targetRpe?: number | null
+  targetSets?: number | null
+  targetWeightKg?: number | null
+  title: string
+}
+
+type TrainingDay = {
+  actions: TrainingDayAction[]
+  date: Date
+  dateValue: string
+  day: string
+  goal: string
+  id: string
+  title: string
 }
 
 export function TrainingPlanPage({
@@ -398,7 +426,48 @@ function getInitialTrainingDate(plan: TrainingPlan | null) {
   return new Date()
 }
 
-function buildTrainingDays(plan: TrainingPlan | null, weekStart: Date) {
+function buildTrainingDays(plan: TrainingPlan | null, weekStart: Date): TrainingDay[] {
+  const structuredWeeks = plan?.schedule_json?.weeks ?? []
+  const structuredSessions = structuredWeeks.flatMap((week) =>
+    week.sessions.map((session) => ({ session, week: week.week }))
+  )
+  if (structuredSessions.length) {
+    const dailyPlan = isDailyTrainingPlan(plan)
+    const dailyDate = dailyPlan
+      ? dateFromValue(plan?.start_date ?? localDateValue(new Date()))
+      : null
+
+    return structuredSessions.map(({ session, week }, sessionIndex) => {
+      const weekdayIndex = dailyDate
+        ? getMondayFirstDayIndex(dailyDate)
+        : inferWeekdayIndex(session.weekday, sessionIndex)
+      const date = dailyDate ?? addDays(weekStart, weekdayIndex + Math.max(week - 1, 0) * 7)
+      const dateValue = localDateValue(date)
+      const dayLabel = dailyDate ? weekdayLabel(date) : session.weekday.trim()
+      const actions = session.exercises.map((exercise, exerciseIndex) => ({
+        id: exercise.id || `${dateValue}-${dayLabel}-${sessionIndex}-${exerciseIndex}-${exercise.name}`,
+        media: exercise.media,
+        notes: exercise.notes,
+        restSeconds: exercise.rest_seconds,
+        targetReps: exercise.target_reps,
+        targetRpe: exercise.target_rpe,
+        targetSets: exercise.target_sets,
+        targetWeightKg: exercise.target_weight_kg,
+        title: exercise.name,
+      }))
+
+      return {
+        actions,
+        date,
+        dateValue,
+        day: dayLabel,
+        goal: session.title,
+        id: `${dayLabel}-${sessionIndex}-${session.id}`,
+        title: session.title || "训练日",
+      }
+    })
+  }
+
   const lines = getPlanExerciseLines(plan).filter(isTrainingDayLine)
   const dailyPlan = isDailyTrainingPlan(plan)
   const dailyDate = dailyPlan
@@ -872,8 +941,6 @@ function calculateTrainingStreak(logs: WorkoutLog[], planId: number | null) {
   return streak
 }
 
-type TrainingDay = ReturnType<typeof buildTrainingDays>[number]
-
 // function TrainingStatsBar({
 //   className,
 //   completedSessions,
@@ -992,7 +1059,7 @@ function TodayTrainingHero({
   selectedDate: string
   selectedDay: TrainingDay | null
   selectedDayCompleted: boolean
-  selectedDisplayActions: { completed?: boolean; id: string; title: string }[]
+  selectedDisplayActions: TrainingDayAction[]
   selectedDisplayTitle: string
   selectedTrainingActive: boolean
   trainingElapsedSeconds: number
@@ -1146,7 +1213,11 @@ function TodayTrainingHero({
                       >
                         <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-linear-to-br from-background/12 via-primary-foreground/6 to-transparent">
                           <div className="px-4 py-2 text-[13px] font-semibold text-primary-foreground/45">
-                            <ActionImage actionName={action.title} className="absolute inset-0" />
+                            <ActionImage
+                              actionName={action.title}
+                              className="absolute inset-0"
+                              media={action.media}
+                            />
                           </div>
 
                           <div className="absolute top-4 left-4 grid size-9 place-items-center rounded-full bg-background/90 text-[13px] font-black text-foreground shadow-sm">
@@ -1720,40 +1791,89 @@ function TrainingPlanDetailDialog({
   open: boolean
   plan: TrainingPlan | null
 }) {
-  if (plan) {
-    return (
+  const [selectedAction, setSelectedAction] = useState<TrainingDayAction | null>(null)
+  const detailDays = useMemo(
+    () => buildTrainingDays(plan, startOfWeek(dateFromValue(plan?.start_date ?? localDateValue(new Date())))),
+    [plan]
+  )
+
+  if (!plan) {
+    return null
+  }
+
+  return (
+    <>
       <Dialog onOpenChange={onOpenChange} open={open}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{plan.title}</DialogTitle>
-            <DialogDescription>计划详情</DialogDescription>
+            <DialogDescription>
+              {plan.summary ?? "按训练日查看动作安排、目标次数和恢复建议。"}
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <DetailBlock label="目标" value={plan.goal ?? "未设置"} />
-            <DetailBlock
+          <section className="grid gap-3 sm:grid-cols-3">
+            <PlanSummaryTile label="目标" value={plan.goal ?? "未设置"} />
+            <PlanSummaryTile
               label="周期"
               value={`${plan.start_date ?? "未设置"} - ${plan.end_date ?? "未设置"}`}
             />
-          </div>
-          <div className="grid gap-3">
-            <DetailBlock label="摘要" value={plan.summary ?? "暂无摘要"} />
-            <DetailBlock
-              label="周训练安排"
-              value={plan.weekly_schedule ?? "未填写"}
-              large
+            <PlanSummaryTile
+              label="类型"
+              value={plan.plan_kind === "daily" ? "单日计划" : `${plan.duration_weeks ?? 1} 周计划`}
             />
-            <DetailBlock
-              label="恢复建议"
-              value={plan.recovery_guidance ?? "未填写"}
-              large
-            />
-            <DetailBlock
-              label="营养建议"
-              value={plan.nutrition_guidance ?? "未填写"}
-              large
-            />
-          </div>
+          </section>
+
+          <section className="grid gap-3">
+            <h3 className="text-[15px] font-semibold">训练安排</h3>
+            {detailDays.length ? (
+              <div className="grid gap-3">
+                {detailDays.map((day) => (
+                  <div className="grid gap-2 rounded-lg border border-border p-3" key={day.id}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[13px] font-semibold text-muted-foreground">{day.day}</p>
+                        <h4 className="text-[15px] font-semibold">{day.title}</h4>
+                      </div>
+                      <Badge variant="secondary">{day.actions.length} 个动作</Badge>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {day.actions.map((action) => (
+                        <button
+                          className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-lg border border-border bg-card p-2 text-left transition hover:border-primary/40 hover:bg-muted"
+                          key={action.id}
+                          onClick={() => setSelectedAction(action)}
+                          type="button"
+                        >
+                          <span className="relative aspect-square overflow-hidden rounded-md bg-muted">
+                            <ActionImage actionName={action.title} className="absolute inset-0" fit="contain" media={action.media} />
+                          </span>
+                          <span className="min-w-0 self-center">
+                            <span className="block truncate text-[14px] font-semibold">{action.title}</span>
+                            <span className="mt-1 block text-[12px] text-muted-foreground">
+                              {formatActionPrescription(action)}
+                            </span>
+                            <span className="mt-1 line-clamp-2 text-[12px] leading-5 text-muted-foreground">
+                              {action.notes || action.media?.exercise_name || "点击查看动作讲解和教学视频"}
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                暂无结构化训练动作。
+              </p>
+            )}
+          </section>
+
+          <section className="grid gap-3 sm:grid-cols-2">
+            <GuidanceBlock label="恢复建议" value={plan.recovery_guidance} />
+            <GuidanceBlock label="营养建议" value={plan.nutrition_guidance} />
+          </section>
 
           <DialogFooter>
             <DialogClose asChild>
@@ -1762,8 +1882,163 @@ function TrainingPlanDetailDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    )
-  }
+
+      <ActionDetailDialog
+        action={selectedAction}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setSelectedAction(null)
+          }
+        }}
+      />
+    </>
+  )
+}
+
+function PlanSummaryTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-3">
+      <p className="text-[12px] font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 text-[14px] font-semibold leading-5">{value}</p>
+    </div>
+  )
+}
+
+function GuidanceBlock({
+  label,
+  value,
+}: {
+  label: string
+  value: string | null | undefined
+}) {
+  const lines = value
+    ?.split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean) ?? []
+
+  return (
+    <section className="rounded-lg border border-border p-3">
+      <h3 className="text-[14px] font-semibold">{label}</h3>
+      {lines.length ? (
+        <div className="mt-2 grid gap-2">
+          {lines.map((line) => (
+            <p className="rounded-md bg-muted px-3 py-2 text-[13px] leading-5 text-muted-foreground" key={line}>
+              {line}
+            </p>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-2 text-[13px] text-muted-foreground">未填写</p>
+      )}
+    </section>
+  )
+}
+
+function ActionDetailDialog({
+  action,
+  onOpenChange,
+}: {
+  action: TrainingDayAction | null
+  onOpenChange: (open: boolean) => void
+}) {
+  const videos = action?.media?.teaching_videos ?? []
+
+  return (
+    <Dialog onOpenChange={onOpenChange} open={Boolean(action)}>
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
+        {action ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>{action.title}</DialogTitle>
+              <DialogDescription>
+                {action.media?.exercise_name ?? "动作讲解、训练处方和教学视频"}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
+              <div className="relative aspect-square overflow-hidden rounded-lg border border-border bg-muted">
+                <ActionImage actionName={action.title} className="absolute inset-0" fit="contain" media={action.media} />
+              </div>
+              <div className="grid content-start gap-3">
+                <PlanSummaryTile label="次数组数" value={formatActionPrescription(action)} />
+                <PlanSummaryTile
+                  label="休息与强度"
+                  value={formatActionIntensity(action)}
+                />
+                <section className="rounded-lg border border-border p-3">
+                  <h3 className="text-[14px] font-semibold">动作讲解</h3>
+                  <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
+                    {action.notes || "保持动作稳定、控制节奏，在目标次数范围内优先保证动作质量。"}
+                  </p>
+                </section>
+              </div>
+            </div>
+
+            <section className="grid gap-3">
+              <h3 className="text-[15px] font-semibold">教学视频</h3>
+              {videos.length ? (
+                <div className="grid gap-2">
+                  {videos.slice(0, 4).map((video) => (
+                    <a
+                      className="flex min-w-0 items-center gap-3 rounded-lg border border-border p-2 transition hover:border-primary/40 hover:bg-muted"
+                      href={video.url}
+                      key={`${video.source}-${video.external_id ?? video.url}`}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <span className="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-md bg-muted">
+                        {video.thumbnail_url ? (
+                          <img
+                            alt={video.title}
+                            className="absolute inset-0 h-full w-full object-cover"
+                            draggable={false}
+                            src={proxiedBilibiliImageUrl(video.thumbnail_url) ?? video.thumbnail_url}
+                          />
+                        ) : null}
+                        <span className="relative grid size-8 place-items-center rounded-full bg-foreground/70 text-background">
+                          <Play className="size-3.5 fill-current" />
+                        </span>
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-semibold">{video.title}</span>
+                        <span className="block truncate text-[12px] text-muted-foreground">
+                          {video.author ?? video.source}
+                        </span>
+                      </span>
+                      <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg border border-dashed p-3 text-[13px] text-muted-foreground">
+                  暂无匹配的教学视频。
+                </p>
+              )}
+            </section>
+          </>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function formatActionPrescription(action: TrainingDayAction) {
+  const parts = [
+    action.targetSets ? `${action.targetSets} 组` : null,
+    action.targetReps,
+    action.targetWeightKg ? `${action.targetWeightKg} kg` : null,
+  ].filter(Boolean)
+
+  return parts.length ? parts.join(" × ") : "按计划完成"
+}
+
+function formatActionIntensity(action: TrainingDayAction) {
+  const parts = [
+    action.restSeconds ? `休息 ${Math.round(action.restSeconds / 60)} 分钟` : null,
+    action.targetRpe ? `RPE ${action.targetRpe}` : null,
+  ].filter(Boolean)
+
+  return parts.length ? parts.join(" · ") : "以动作质量优先"
 }
 
 function TrainingCalendar({

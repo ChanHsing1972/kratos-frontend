@@ -5,10 +5,12 @@ import { useExerciseMedia } from "../hooks/useExerciseMedia"
 export function ActionImage({
   actionName,
   className,
+  fit = "cover",
   media: embeddedMedia,
 }: {
   actionName: string
   className?: string
+  fit?: "contain" | "cover"
   media?: TrainingExerciseMedia | null
 }) {
   const { media: fetchedMedia, mediaUrl: fetchedMediaUrl, loading } = useExerciseMedia(actionName)
@@ -32,7 +34,7 @@ export function ActionImage({
         loop
         muted
         playsInline
-        className={`object-cover w-full h-full ${className || ''}`}
+        className={`${fit === "contain" ? "object-contain" : "object-cover"} w-full h-full ${className || ""}`}
         src={mediaUrl}
       />
     )
@@ -42,7 +44,7 @@ export function ActionImage({
     <img
       src={mediaUrl}
       alt={media?.exercise_name ?? actionName}
-      className={`object-cover w-full h-full ${className || ''}`}
+      className={`${fit === "contain" ? "object-contain" : "object-cover"} w-full h-full ${className || ""}`}
       draggable={false}
     />
   )
