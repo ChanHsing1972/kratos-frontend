@@ -4,6 +4,7 @@ import type {
   AgentRun,
   AgentRunTraceStep,
   AgentTraceStep,
+  ChatAttachment,
   ChatSession,
   BodyMetric,
   ChatMessage,
@@ -287,7 +288,8 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
         {
           id: `run-${run.id}-user`,
           author: "user" as const,
-          body: run.user_message,
+          attachments: attachmentsFromAgentResult(run.result_payload),
+          body: stripStoredAttachmentBlock(run.user_message),
           time: formatStoredTime(run.created_at),
         },
         {
@@ -305,6 +307,30 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
         },
       ]
     })
+}
+
+function attachmentsFromAgentResult(resultPayload: unknown): ChatAttachment[] {
+  const result = asRecord(resultPayload)
+  const attachments = Array.isArray(result?.user_attachments)
+    ? result.user_attachments
+    : []
+
+  return attachments
+    .map((item) => asRecord(item))
+    .filter((item): item is Record<string, unknown> => Boolean(item))
+    .map((item) => ({
+      content_type: textValue(item.content_type) ?? "application/octet-stream",
+      filename: textValue(item.filename) ?? "附件",
+      size: numberValue(item.size) ?? 0,
+      url: textValue(item.url) ?? "",
+    }))
+    .filter((item) => item.url)
+}
+
+function stripStoredAttachmentBlock(message: string) {
+  return message
+    .replace(/\n{0,2}附件：\n(?:- .+(?:\n|$))+$/u, "")
+    .trim()
 }
 
 function structuredCardPendingFromTrace(traceSteps: AgentRunTraceStep[]) {

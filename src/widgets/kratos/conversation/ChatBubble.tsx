@@ -222,7 +222,7 @@ function AttachmentPreviewList({
               <img
                 alt={attachment.filename}
                 className="size-10 rounded-md object-cover"
-                src={absoluteApiUrl(attachment.url)}
+                src={attachment.data_url || absoluteApiUrl(attachment.url)}
               />
             ) : (
               <span className="grid size-10 place-items-center rounded-md bg-muted">

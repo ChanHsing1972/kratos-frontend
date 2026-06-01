@@ -5,7 +5,7 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
 } from "react"
-import { ArrowUp, Eye, Paperclip, PencilLine, Plus, Square, X } from "lucide-react"
+import { ArrowUp, Eye, ImageIcon, Paperclip, PencilLine, Plus, Square, X } from "lucide-react"
 
 import type { ChatAttachment } from "@/entities/kratos/model/types"
 import { MarkdownMessage } from "@/widgets/kratos/conversation/MarkdownMessage"
@@ -67,7 +67,17 @@ export function ConversationComposer({
               className="inline-flex max-w-full items-center gap-1 rounded-md border bg-muted px-2 py-1 text-xs text-foreground"
               key={`${attachment.url}-${index}`}
             >
-              <Paperclip />
+              {attachment.content_type.startsWith("image/") && attachment.data_url ? (
+                <img
+                  alt=""
+                  className="size-5 rounded-sm object-cover"
+                  src={attachment.data_url}
+                />
+              ) : attachment.content_type.startsWith("image/") ? (
+                <ImageIcon className="size-3.5" />
+              ) : (
+                <Paperclip className="size-3.5" />
+              )}
               <span className="max-w-40 truncate">{attachment.filename}</span>
               <button
                 aria-label={`移除附件 ${attachment.filename}`}

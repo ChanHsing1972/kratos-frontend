@@ -266,6 +266,15 @@ function bodyMetricFormFromRecord(metric: BodyMetric): BodyMetricForm {
   }
 }
 
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ""))
+    reader.onerror = () => reject(reader.error ?? new Error("图片读取失败"))
+    reader.readAsDataURL(file)
+  })
+}
+
 export function KratosPage() {
   const { setTheme, theme } = useTheme()
   const cachedWorkspaceRef = useRef(readWorkspaceSnapshot())
@@ -1813,7 +1822,13 @@ export function KratosPage() {
       return
     }
 
-    void Promise.all(files.map((file) => uploadAttachment(token, file)))
+    void Promise.all(files.map(async (file) => {
+      const uploaded = await uploadAttachment(token, file)
+      return {
+        ...uploaded,
+        data_url: file.type.startsWith("image/") ? await readFileAsDataUrl(file) : null,
+      }
+    }))
       .then((uploads) => {
         setComposerAttachments((current) => [...current, ...uploads].slice(0, 8))
         sonnerToast.success(`已上传 ${uploads.length} 个附件`)

@@ -37,6 +37,7 @@ export type AgentStreamEvent = AgentTraceStep & {
 
 export type ChatAttachment = {
   content_type: string
+  data_url?: string | null
   filename: string
   size: number
   url: string

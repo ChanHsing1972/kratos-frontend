@@ -5,18 +5,13 @@ import {
   ChevronRight,
   ClipboardList,
   ExternalLink,
-  // Flame,
   Play,
   RotateCcw,
   Save,
   Ban,
   PencilLine,
   PlusCircle,
-  // SlidersHorizontal,
-  // Timer,
-  // Trophy,
   Trash2,
-  WandSparkles,
   Pause,
   MoreHorizontal,
   List,
@@ -402,13 +397,6 @@ export function TrainingPlanPage({
           open={detailsOpen}
           plan={activePlan}
         />
-
-        {/* <TrainingConsistencyGrid
-          activePlanId={activePlan?.id ?? null}
-          workoutLogs={workoutLogs}
-        /> */}
-
-
       </section>
     </main>
   )
@@ -864,15 +852,6 @@ function formatDurationShort(totalSeconds: number) {
   return `${minutes} 分 ${seconds.toString().padStart(2, "0")} 秒`
 }
 
-// function formatMinutes(totalSeconds: number) {
-//   const minutes = Math.round(totalSeconds / 60)
-//   return `${minutes} min`
-// }
-
-// function formatHours(totalSeconds: number) {
-//   return `${(totalSeconds / 3600).toFixed(1)} 小时`
-// }
-
 function buildPlanStageLabel(plan: TrainingPlan | null, weekStart: Date) {
   if (!plan?.start_date) {
     return `本周 ${formatWeekRange(weekStart)}`
@@ -912,87 +891,6 @@ function calculateTrainingStreak(logs: WorkoutLog[], planId: number | null) {
 
   return streak
 }
-
-// function TrainingStatsBar({
-//   className,
-//   completedSessions,
-//   planTitle,
-//   planTotalProgress,
-//   planTotalSeconds,
-//   stageLabel,
-//   streakDays,
-//   totalSessions,
-//   weekCalories,
-//   weekProgress,
-//   weekSeconds,
-// }: {
-//   className?: string
-//   completedSessions: number
-//   planTitle: string
-//   planTotalProgress: number
-//   planTotalSeconds: number
-//   stageLabel: string
-//   streakDays: number
-//   totalSessions: number
-//   weekCalories: number
-//   weekProgress: number
-//   weekSeconds: number
-// }) {
-//   const stats = [
-//     {
-//       icon: CalendarIcon,
-//       label: "当前计划",
-//       sub: stageLabel,
-//       value: planTitle,
-//     },
-//     {
-//       icon: SlidersHorizontal,
-//       label: "本周进度",
-//       sub: `${weekProgress}% 完成`,
-//       value: `${completedSessions} / ${totalSessions || 0} 次`,
-//     },
-//     {
-//       icon: Timer,
-//       label: "本周训练时长",
-//       sub: `总累计 ${formatHours(planTotalSeconds)}`,
-//       value: formatMinutes(weekSeconds),
-//     },
-//     {
-//       icon: Flame,
-//       label: "本周消耗",
-//       sub: "来自训练记录",
-//       value: `${weekCalories} kcal`,
-//     },
-//     {
-//       icon: Trophy,
-//       label: "连续训练",
-//       sub: `计划总进度 ${planTotalProgress}%`,
-//       value: `${streakDays} 天`,
-//     },
-//   ]
-
-//   return (
-//     <div className={cn("grid gap-3 sm:grid-cols-2 xl:grid-cols-5", className)}>
-//       {stats.map(({ icon: Icon, label, sub, value }) => (
-//         <div
-//           className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card p-3"
-//           key={label}
-//         >
-//           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-//             <Icon className="size-4" strokeWidth={1.8} />
-//           </span>
-//           <div className="min-w-0">
-//             <p className="text-[12px] text-muted-foreground">{label}</p>
-//             <p className="truncate text-[15px] font-semibold">{value}</p>
-//             <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-//               {sub}
-//             </p>
-//           </div>
-//         </div>
-//       ))}
-//     </div>
-//   )
-// }
 
 function TodayTrainingHero({
   anotherTrainingActive,
@@ -1139,13 +1037,17 @@ function TodayTrainingHero({
         </div>
 
         <div className="max-w-150">
-          <div className="flex items-center gap-2 text-[15px] font-semibold">
-            <WandSparkles className="size-4" />
-            Kratos 建议
+          <div className="flex items-start gap-3">
+            <div className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+              <span className="text-[18px] font-black">K</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[14px] leading-5 font-bold">Kratos</div>
+              <div className="mt-2 rounded-2xl rounded-tl-md bg-muted px-4 py-3 text-[13px] leading-5 text-foreground">
+                {hasActivePlan ? dailySuggestion : planGoal}
+              </div>
+            </div>
           </div>
-          <p className="mt-1 text-[13px] leading-5">
-            {hasActivePlan ? dailySuggestion : planGoal}
-          </p>
         </div>
 
         <div className="min-w-0">
@@ -1244,13 +1146,10 @@ function TodayTrainingHero({
 
 function WeeklyTrainingTimeline({
   activePlan,
-  activePlanId,
   calendarMenuRef,
   calendarOpen,
   calendarVisibleDate,
-  // completedSessions,
   completedDateSet,
-  // completedExercises,
   onCalendarSelectDate,
   onCalendarVisibleDateChange,
   onDeletePlan,
@@ -1260,23 +1159,13 @@ function WeeklyTrainingTimeline({
   onSelectDate,
   onSelectPlan,
   onToggleCalendar,
-  // planTitle,
-  // planTotalProgress,
-  // planTotalSeconds,
   onWeekBackward,
   onWeekForward,
   selectedDate,
-  // stageLabel,
-  // streakDays,
   trainingDays,
   trainingPlans,
-  // totalSessions,
-  // weekCalories,
-  // weekProgress,
   weekRangeLabel,
   weekStart,
-  // weekSeconds,
-  workoutLogs,
 }: {
   activePlan: TrainingPlan | null
   activePlanId: number | null
@@ -1381,33 +1270,11 @@ function WeeklyTrainingTimeline({
           </div>}
       </div>
 
-      {/* <TrainingStatsBar
-        className="mt-4"
-        completedSessions={completedSessions}
-        planTitle={planTitle}
-        planTotalProgress={planTotalProgress}
-        planTotalSeconds={planTotalSeconds}
-        stageLabel={stageLabel}
-        streakDays={streakDays}
-        totalSessions={totalSessions}
-        weekCalories={weekCalories}
-        weekProgress={weekProgress}
-        weekSeconds={weekSeconds}
-      /> */}
-
       {trainingDays.length > 0 ? (
         <div className="relative mt-4 grid overflow-visible -mx-3 lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr]">
           {days.map((day) => {
             const trainingDay =
               trainingDays.find((item) => item.dateValue === day.value) ?? null
-            const dayLog = getLatestWorkoutForDate(
-              workoutLogs,
-              activePlanId,
-              day.value
-            )
-            const loggedActions = dayLog
-              ? parseWorkoutActionsFromNotes(dayLog.notes)
-              : []
             const completed = completedDateSet.has(day.value)
             const selected = selectedDate === day.value
             const active = trainingDay?.dateValue === selectedDate
@@ -1447,9 +1314,9 @@ function WeeklyTrainingTimeline({
                     </h3>
                     <p className="mt-2 line-clamp-3 text-[12px] leading-4 text-muted-foreground">
                       {trainingDay
-                        ? completed && loggedActions.length > 0
-                          ? loggedActions.join("；")
-                          : `${actionCount} 个动作 · ${trainingDay.goal}`
+                        ? `${actionCount} 个动作 · ${trainingDay.actions
+                          .map((action) => action.title)
+                          .join("；")}`
                         : "恢复、拉伸或轻活动"}
                     </p>
                   </div>
@@ -1476,23 +1343,6 @@ function WeeklyTrainingTimeline({
           })}
         </div>
       ) : (
-        // <section className="mt-5 rounded-[14px] border border-dashed border-border bg-muted/40 p-8 text-center">
-        //   <ClipboardList className="mx-auto size-7 text-muted-foreground" />
-        //   <h2 className="mt-3 text-[17px] font-black">
-        //     还没有可执行的训练安排
-        //   </h2>
-        //   <p className="mx-auto mt-2 max-w-107.5 text-[13px] leading-6 text-muted-foreground">
-        //     选择一个常见模板，或从空白计划开始撰写。保存后会同步到后端计划接口。
-        //   </p>
-        //   <Button
-        //     className="mt-4 h-10 rounded-[10px] bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:bg-primary/90"
-        //     onClick={() => onOpenPlanComposer(null)}
-        //     type="button"
-        //   >
-        //     <PlusCircle className="size-4" />
-        //     自定义计划
-        //   </Button>
-        //  </section>
         <Empty className="mt-4 border border-dashed min-h-50">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -1563,79 +1413,6 @@ function PlanManagementSection({
   )
 }
 
-// function TrainingConsistencyGrid({
-//   activePlanId,
-//   workoutLogs,
-// }: {
-//   activePlanId: number | null
-//   workoutLogs: WorkoutLog[]
-// }) {
-//   const days = Array.from({ length: 56 }, (_, index) => {
-//     const date = addDays(startOfWeek(addDays(new Date(), -49)), index)
-//     const value = localDateValue(date)
-//     const seconds = sumWorkoutSecondsForDate(workoutLogs, activePlanId, value)
-//     const completed = workoutLogs.some(
-//       (log) =>
-//         log.training_plan_id === activePlanId &&
-//         log.workout_date === value &&
-//         log.completed
-//     )
-//     const level = completed
-//       ? Math.min(4, Math.max(1, Math.ceil(seconds / 1200)))
-//       : 0
-
-//     return { date, level, value }
-//   })
-
-//   return (
-//     <section className="mt-5 rounded-[16px] border border-border bg-card p-5">
-//       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-//         <div>
-//           <h2 className="text-[18px] font-black tracking-[-0.03em]">
-//             训练连续性
-//           </h2>
-//           <p className="mt-1 text-[12px] font-medium text-muted-foreground">
-//             最近 8 周 · 每一格都是一次和计划的约定
-//           </p>
-//         </div>
-//         <div className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">
-//           <span>少</span>
-//           {[0, 1, 2, 3, 4].map((level) => (
-//             <span
-//               className={cn(
-//                 "size-3 rounded-[3px]",
-//                 level === 0 && "bg-muted",
-//                 level === 1 && "bg-chart-1",
-//                 level === 2 && "bg-chart-2",
-//                 level === 3 && "bg-chart-3",
-//                 level === 4 && "bg-primary"
-//               )}
-//               key={level}
-//             />
-//           ))}
-//           <span>多</span>
-//         </div>
-//       </div>
-//       <div className="mt-5 grid grid-flow-col grid-rows-7 justify-start gap-1.5 overflow-x-auto pb-1">
-//         {days.map(({ date, level, value }) => (
-//           <span
-//             aria-label={`${formatDateLabel(date)} 训练强度 ${level}`}
-//             className={cn(
-//               "size-4 rounded-lg",
-//               level === 0 && "bg-muted",
-//               level === 1 && "bg-chart-1",
-//               level === 2 && "bg-chart-2",
-//               level === 3 && "bg-chart-3",
-//               level === 4 && "bg-primary"
-//             )}
-//             key={value}
-//             title={`${formatDateLabel(date)} · ${level > 0 ? "已训练" : "未训练"}`}
-//           />
-//         ))}
-//       </div>
-//     </section>
-//   )
-// }
 
 function MoreTrainingMenu({
   onClose,

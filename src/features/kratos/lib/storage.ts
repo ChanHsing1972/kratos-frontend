@@ -139,7 +139,16 @@ export function readWorkspaceSnapshot(): KratosWorkspaceSnapshot | null {
 
 export function writeWorkspaceSnapshot(snapshot: KratosWorkspaceSnapshot) {
   try {
-    localStorage.setItem(WORKSPACE_CACHE_KEY, JSON.stringify(snapshot))
+    localStorage.setItem(
+      WORKSPACE_CACHE_KEY,
+      JSON.stringify({
+        ...snapshot,
+        messages: snapshot.messages.map((message) => ({
+          ...message,
+          attachments: message.attachments?.map(({ data_url, ...attachment }) => attachment),
+        })),
+      })
+    )
   } catch {
     // localStorage can be full or disabled; the app can still run without a snapshot.
   }
