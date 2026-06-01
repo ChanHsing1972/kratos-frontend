@@ -35,6 +35,13 @@ export type AgentStreamEvent = AgentTraceStep & {
   delta?: string
 }
 
+export type ChatAttachment = {
+  content_type: string
+  filename: string
+  size: number
+  url: string
+}
+
 export type Metric = {
   label: string
   value: string
@@ -498,6 +505,7 @@ export type AgentRun = {
 export type ChatMessage = {
   id: string
   author: "user" | "assistant"
+  attachments?: ChatAttachment[]
   body: string
   time: string
   completedAt?: number
@@ -507,6 +515,7 @@ export type ChatMessage = {
   suggestedHealthData?: SuggestedHealthData
   healthDataSaved?: boolean
   startedAt?: number
+  structuredCardPending?: boolean
   streaming?: boolean
   trace?: AgentTraceStep[]
 }
@@ -522,6 +531,19 @@ export type NotificationItem = {
   title: string
   body: string
   read: boolean
+}
+
+export type WorkoutShareCard = {
+  workout_title: string
+  workout_date: string
+  completed: boolean
+  duration_seconds: number
+  week_completed_count: number
+  week_duration_seconds: number
+  streak_days: number
+  total_completed_count: number
+  coach_comment: string
+  highlights: string[]
 }
 
 export type DetailPanel = {

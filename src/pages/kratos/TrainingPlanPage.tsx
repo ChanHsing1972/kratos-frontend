@@ -52,12 +52,6 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
 import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldLabel,
-} from "@/shared/ui/field"
-import {
   proxiedBilibiliImageUrl,
 } from "@/entities/kratos/api/client"
 import {
@@ -596,28 +590,6 @@ function calculateExpectedPlanSessions(
   return Math.max(
     fullWeeks * weeklyTrainingDayCount + remainderSessions,
     fallback
-  )
-}
-
-function DetailBlock({
-  label,
-  value,
-}: {
-  label: string
-  large?: boolean
-  value: string
-}) {
-  const displayValue = value.trim() || "未填写"
-
-  return (
-    <Field>
-      <FieldContent>
-        <FieldLabel>{label}</FieldLabel>
-        <FieldDescription className="text-sm leading-6 whitespace-pre-wrap">
-          {displayValue}
-        </FieldDescription>
-      </FieldContent>
-    </Field>
   )
 }
 

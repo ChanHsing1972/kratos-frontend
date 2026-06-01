@@ -276,8 +276,12 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
       const fallbackStartedAt = Number.isFinite(runCreatedAt)
         ? runCreatedAt
         : traceTimes[0]
-      const startedAt = traceTimes[0] ?? fallbackStartedAt
-      const completedAt = traceTimes[traceTimes.length - 1] ?? fallbackStartedAt
+      const startedAt = fallbackStartedAt
+      const resultCompletedAt = agentRunResultUpdatedAt(run.result_payload)
+      const completedAt =
+        resultCompletedAt ??
+        traceTimes[traceTimes.length - 1] ??
+        fallbackStartedAt
 
       return [
         {
@@ -292,6 +296,7 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
           body: run.answer,
           completedAt: running ? undefined : completedAt,
           startedAt,
+          structuredCardPending: running && structuredCardPendingFromTrace(run.trace_steps),
           suggestedTrainingPlan: trainingPlanPayloadFromAgentResult(run.result_payload),
           suggestedHealthData: pendingHealthDataFromTrace(run.trace_steps),
           streaming: running,
@@ -300,6 +305,23 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
         },
       ]
     })
+}
+
+function structuredCardPendingFromTrace(traceSteps: AgentRunTraceStep[]) {
+  return traceSteps.some((step) => {
+    const raw = asRecord(step.raw)
+    return raw?.structured_card_pending === true
+  })
+}
+
+function agentRunResultUpdatedAt(resultPayload: unknown) {
+  const result = asRecord(resultPayload)
+  const value = textValue(result?.last_updated_at)
+  if (!value) {
+    return null
+  }
+  const timestamp = new Date(value).getTime()
+  return Number.isFinite(timestamp) ? timestamp : null
 }
 
 export function trainingPlanPayloadFromAgentResult(

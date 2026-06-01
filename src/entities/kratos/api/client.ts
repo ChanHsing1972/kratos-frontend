@@ -21,6 +21,8 @@ import type {
   UserUpdatePayload,
   WorkoutLog,
   WorkoutLogPayload,
+  ChatAttachment,
+  WorkoutShareCard,
   AgentToolConfig,
 } from "@/entities/kratos/model/types"
 
@@ -161,6 +163,10 @@ export async function createWorkoutLog(token: string, payload: WorkoutLogPayload
     body: JSON.stringify(payload),
     method: "POST",
   })
+}
+
+export async function getWorkoutShareCard(token: string, logId: number) {
+  return authorizedJson<WorkoutShareCard>(`/workout-logs/${logId}/share-card`, token)
 }
 
 export async function updateWorkoutLog(
@@ -425,6 +431,7 @@ export async function activateTrainingPlan(token: string, planId: number) {
 }
 
 export async function streamAgentChat({
+  attachments = [],
   clientTurnId,
   message,
   onEvent,
@@ -432,6 +439,7 @@ export async function streamAgentChat({
   signal,
   token,
 }: {
+  attachments?: ChatAttachment[]
   clientTurnId: string
   message: string
   onEvent: (event: AgentStreamEvent) => void
@@ -441,6 +449,7 @@ export async function streamAgentChat({
 }) {
   const response = await fetch(`${API_BASE_URL}/agent/chat/stream`, {
     body: JSON.stringify({
+      attachments,
       client_turn_id: clientTurnId,
       message,
       session_id: sessionId,

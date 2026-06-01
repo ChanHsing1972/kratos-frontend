@@ -30,6 +30,7 @@ type SidebarProps = {
   onToggleCollapse: () => void
   onDrawerOpenChange: (open: boolean) => void
   onTogglePinConversation: (sessionId: string) => void
+  onToggleShareConversation: (sessionId: string) => void
 }
 
 export function Sidebar({
@@ -46,6 +47,7 @@ export function Sidebar({
   onToggleCollapse,
   onDrawerOpenChange,
   onTogglePinConversation,
+  onToggleShareConversation,
 }: SidebarProps) {
   return (
     <ShadSidebar
@@ -99,6 +101,7 @@ export function Sidebar({
           onRenameConversation={onRenameConversation}
           onSelectConversation={onSelectConversation}
           onTogglePinConversation={onTogglePinConversation}
+          onToggleShareConversation={onToggleShareConversation}
         />
       </SidebarContent>
 

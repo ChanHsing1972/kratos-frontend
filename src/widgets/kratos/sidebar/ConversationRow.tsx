@@ -5,6 +5,7 @@ import {
   MoreHorizontal,
   Pin,
   PinOff,
+  Share2,
   Trash2,
 } from "lucide-react"
 
@@ -29,6 +30,7 @@ type ConversationRowProps = {
   onRename: (title: string) => void
   onSelect: () => void
   onTogglePin: () => void
+  onToggleShare: () => void
   session: ChatSession
 }
 
@@ -39,6 +41,7 @@ export function ConversationRow({
   onRename,
   onSelect,
   onTogglePin,
+  onToggleShare,
   session,
 }: ConversationRowProps) {
   const [editing, setEditing] = useState(false)
@@ -63,6 +66,7 @@ export function ConversationRow({
         type="button"
       >
         {session.pinned && <Pin />}
+        {session.shared && <Share2 />}
         {editing ? (
           <input
             autoFocus
@@ -101,6 +105,10 @@ export function ConversationRow({
           <DropdownMenuItem onClick={onExport}>
             <Download />
             导出 JSON
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onToggleShare}>
+            <Share2 />
+            {session.shared ? "关闭跨对话共享" : "跨对话共享"}
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => {

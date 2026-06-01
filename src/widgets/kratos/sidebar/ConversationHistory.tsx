@@ -19,6 +19,7 @@ type ConversationHistoryProps = {
   onRenameConversation: (sessionId: string, title: string) => void
   onSelectConversation: (sessionId: string) => void
   onTogglePinConversation: (sessionId: string) => void
+  onToggleShareConversation: (sessionId: string) => void
 }
 
 export function ConversationHistory({
@@ -29,6 +30,7 @@ export function ConversationHistory({
   onRenameConversation,
   onSelectConversation,
   onTogglePinConversation,
+  onToggleShareConversation,
 }: ConversationHistoryProps) {
   return (
     <SidebarGroup className="min-h-0 flex-1 overflow-hidden opacity-100 transition-[opacity,transform] duration-200 ease-out group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0">
@@ -45,6 +47,7 @@ export function ConversationHistory({
                 onRename={(title) => onRenameConversation(session.id, title)}
                 onSelect={() => onSelectConversation(session.id)}
                 onTogglePin={() => onTogglePinConversation(session.id)}
+                onToggleShare={() => onToggleShareConversation(session.id)}
                 session={session}
               />
             ))

@@ -4,6 +4,7 @@ import type { NotificationItem } from "@/entities/kratos/model/types"
 import { NotificationsPopover } from "@/widgets/kratos/conversation/NotificationsPopover"
 import { cn } from "@/shared/lib/utils"
 import { Button } from "@/shared/ui/button"
+import { Popover, PopoverTrigger } from "@/shared/ui/popover"
 
 type ConversationHeaderProps = {
   muted: boolean
@@ -33,7 +34,7 @@ export function ConversationHeader({
         muted ? "bg-muted/40" : "bg-card"
       )}
     >
-      <div className="relative ml-auto flex items-center gap-0">
+      <div className="ml-auto flex items-center gap-0">
         <Button
           aria-label="Toggle theme"
           className="grid size-10 place-items-center"
@@ -48,28 +49,35 @@ export function ConversationHeader({
           )}
         </Button>
 
-        <Button
-          aria-label="Notifications"
-          className="relative grid size-10"
-          data-popover-root
-          onClick={onToggleNotifications}
-          type="button"
-          variant="ghost"
+        <Popover
+          open={notificationsOpen}
+          onOpenChange={(open) => {
+            if (open !== notificationsOpen) {
+              onToggleNotifications()
+            }
+          }}
         >
-          <Bell className="size-5" strokeWidth={1.7} />
-          {unreadCount > 0 ? (
-            <span className="absolute top-0 right-0 grid size-4 place-items-center rounded-full bg-primary text-[9px] text-primary-foreground">
-              {unreadCount}
-            </span>
-          ) : null}
-        </Button>
-
-        {notificationsOpen ? (
+          <PopoverTrigger asChild>
+            <Button
+              aria-label="Notifications"
+              className="relative grid size-10"
+              data-popover-root
+              type="button"
+              variant="ghost"
+            >
+              <Bell className="size-5" strokeWidth={1.7} />
+              {unreadCount > 0 ? (
+                <span className="absolute top-0 right-0 grid size-4 place-items-center rounded-full bg-primary text-[9px] text-primary-foreground">
+                  {unreadCount}
+                </span>
+              ) : null}
+            </Button>
+          </PopoverTrigger>
           <NotificationsPopover
             notifications={notifications}
             onMarkAllRead={onMarkNotificationsRead}
           />
-        ) : null}
+        </Popover>
       </div>
     </header>
   )

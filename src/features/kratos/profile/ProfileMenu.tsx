@@ -13,6 +13,7 @@ import {
   LogOut,
   User,
   Activity,
+  Trophy,
 } from "lucide-react"
 
 import { profileFormFromUser } from "@/entities/kratos/lib/domain"
@@ -54,6 +55,7 @@ type ProfileMenuProps = {
   onEditBodyData: () => void
   onLogin: () => void
   onLogout: () => void
+  onOpenAchievements: () => void
   onAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void
   onProfileSubmit: (form: ProfileForm) => void
   onRegister: () => void
@@ -71,6 +73,7 @@ export function ProfileMenu({
   onEditBodyData,
   onLogin,
   onLogout,
+  onOpenAchievements,
   onAvatarChange,
   onProfileSubmit,
   onRegister,
@@ -197,6 +200,13 @@ export function ProfileMenu({
             }}>
               <Activity />
               身体数据
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              onOpenAchievements()
+              onToggleMenu(false)
+            }}>
+              <Trophy />
+              成就系统
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>

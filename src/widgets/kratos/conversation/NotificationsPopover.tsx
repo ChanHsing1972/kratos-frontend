@@ -1,5 +1,12 @@
+import { BellRing, CheckCheck } from "lucide-react"
+
 import type { NotificationItem } from "@/entities/kratos/model/types"
 import { cn } from "@/shared/lib/utils"
+import { Badge } from "@/shared/ui/badge"
+import { Button } from "@/shared/ui/button"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
+import { PopoverContent } from "@/shared/ui/popover"
+import { ScrollArea } from "@/shared/ui/scroll-area"
 
 type NotificationsPopoverProps = {
   notifications: NotificationItem[]
@@ -11,44 +18,69 @@ export function NotificationsPopover({
   onMarkAllRead,
 }: NotificationsPopoverProps) {
   return (
-    <div
-      className="absolute top-9 right-0 z-40 w-[280px] rounded-[14px] border border-border bg-card p-3 shadow-[0_16px_40px_rgba(0,0,0,0.16)]"
+    <PopoverContent
+      align="end"
+      className="w-80 p-0 sm:w-96"
       data-popover-root
+      sideOffset={8}
     >
-      <div className="flex items-center justify-between">
-        <h3 className="text-[13px] font-bold">通知中心</h3>
-        <button
-          className="text-[11px] font-medium text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div>
+          <h3 className="text-sm font-semibold">通知中心</h3>
+          <p className="text-xs text-muted-foreground">
+            {notifications.length ? `${notifications.length} 条事件` : "暂无新事件"}
+          </p>
+        </div>
+        <Button
+          className="h-8 px-2"
+          disabled={!notifications.some((item) => !item.read)}
           onClick={onMarkAllRead}
           type="button"
+          variant="ghost"
         >
+          <CheckCheck data-icon="inline-start" />
           全部已读
-        </button>
+        </Button>
       </div>
-      <div className="mt-3 flex flex-col gap-2">
+      <ScrollArea className="max-h-96">
         {notifications.length ? (
-          notifications.map((item) => (
-            <div className="rounded-[10px] border border-border p-3" key={item.id}>
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "size-1.5 rounded-full",
-                    item.read ? "bg-muted-foreground/35" : "bg-primary"
-                  )}
-                />
-                <h4 className="text-[12px] font-bold">{item.title}</h4>
+          <div className="flex flex-col gap-2 p-3">
+            {notifications.map((item) => (
+              <div className="rounded-lg border bg-card p-3" key={item.id}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        item.read ? "bg-muted-foreground/35" : "bg-primary"
+                      )}
+                    />
+                    <h4 className="truncate text-sm font-medium">{item.title}</h4>
+                  </div>
+                  <Badge variant={item.read ? "secondary" : "default"}>
+                    {item.read ? "已读" : "新"}
+                  </Badge>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {item.body}
+                </p>
               </div>
-              <p className="mt-1.5 text-[11px] leading-4 text-muted-foreground">
-                {item.body}
-              </p>
-            </div>
-          ))
-        ) : (
-          <div className="rounded-[10px] border border-dashed border-border p-3 text-[11px] leading-5 text-muted-foreground">
-            暂无通知。Agent 完成回复、失败或继续运行时会出现在这里。
+            ))}
           </div>
+        ) : (
+          <Empty className="border-0 py-8">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <BellRing />
+              </EmptyMedia>
+              <EmptyTitle>暂无通知</EmptyTitle>
+              <EmptyDescription>
+                Agent 完成回复、失败或继续运行时会出现在这里。
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )}
-      </div>
-    </div>
+      </ScrollArea>
+    </PopoverContent>
   )
 }

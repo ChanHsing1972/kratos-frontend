@@ -3,6 +3,15 @@ import { Check, ChevronRight, Sparkles } from "lucide-react"
 
 import type { AgentTraceStep } from "@/entities/kratos/model/types"
 import { cn } from "@/shared/lib/utils"
+import { Button } from "@/shared/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/ui/dialog"
+import { ScrollArea } from "@/shared/ui/scroll-area"
 
 type ThinkingCardProps = {
   completedAt?: number
@@ -21,10 +30,19 @@ export function ThinkingCard({
   streaming,
   onToggle,
 }: ThinkingCardProps) {
+  const [evidenceStep, setEvidenceStep] = useState<AgentTraceStep | null>(null)
   const nonAnswerSteps = steps.filter((step) => step.type !== "answer_delta")
   const traceSteps = nonAnswerSteps.filter((step) => step.type !== "final")
   const visibleSteps = traceSteps.length > 0 ? traceSteps : nonAnswerSteps
-  const elapsedSeconds = useElapsedSeconds(startedAt, completedAt, streaming)
+  const latestStreamingStatus = [...visibleSteps]
+    .reverse()
+    .find((step) => step.type === "status" || step.type === "thought")
+  const elapsedSeconds = useElapsedSeconds({
+    completedAt,
+    startedAt,
+    steps: nonAnswerSteps,
+    streaming,
+  })
 
   return (
     <section className="animate-fade-slide-in rounded-[12px] border border-border bg-muted/40 px-4 py-4">
@@ -42,7 +60,9 @@ export function ThinkingCard({
                 )}
               >
                 {streaming
-                  ? "正在读取资料、规划工具和组织回答"
+                  ? latestStreamingStatus
+                    ? formatTraceContent(latestStreamingStatus)
+                    : "正在读取资料、规划工具和组织回答"
                   : `${visibleSteps.length} 条推理事件`}
               </p>
             </div>
@@ -71,6 +91,7 @@ export function ThinkingCard({
                       animate={Boolean(streaming)}
                       item={step}
                       key={`${step.type}-${step.timestamp ?? index}-${step.content}`}
+                      onOpenEvidence={() => setEvidenceStep(step)}
                     />
                   ))
                 ) : (
@@ -83,6 +104,21 @@ export function ThinkingCard({
           ) : null}
         </div>
       </div>
+      <Dialog open={Boolean(evidenceStep)} onOpenChange={(open) => !open && setEvidenceStep(null)}>
+        <DialogContent className="max-h-[80svh] sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>工具依据</DialogTitle>
+            <DialogDescription>
+              这里显示本次推理中对应步骤的原始工具参数或返回结果。
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[56svh] rounded-md border bg-muted/40">
+            <pre className="whitespace-pre-wrap break-words p-4 text-xs leading-5">
+              {formatEvidence(evidenceStep)}
+            </pre>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </section>
   )
 }
@@ -90,11 +126,15 @@ export function ThinkingCard({
 function TimelineRow({
   animate,
   item,
+  onOpenEvidence,
 }: {
   animate: boolean
   item: AgentTraceStep
+  onOpenEvidence: () => void
 }) {
   const meta = traceMeta[item.type] ?? traceMeta.status
+  const hasEvidence =
+    (item.type === "action" || item.type === "observation") && item.raw !== undefined && item.raw !== null
 
   return (
     <div className="animate-fade-slide-in relative">
@@ -119,6 +159,16 @@ function TimelineRow({
             className="mt-1 text-[12px] leading-[1.58] text-foreground"
             text={formatTraceContent(item)}
           />
+          {hasEvidence ? (
+            <Button
+              className="mt-2 h-7 px-2 text-[11px]"
+              onClick={onOpenEvidence}
+              type="button"
+              variant="outline"
+            >
+              查看工具依据
+            </Button>
+          ) : null}
         </div>
         {item.timestamp ? (
           <time className="shrink-0 text-[11px] leading-4 text-muted-foreground">
@@ -128,6 +178,17 @@ function TimelineRow({
       </div>
     </div>
   )
+}
+
+function formatEvidence(item: AgentTraceStep | null) {
+  if (!item) {
+    return ""
+  }
+  try {
+    return JSON.stringify(item.raw ?? item.content, null, 2)
+  } catch {
+    return String(item.raw ?? item.content)
+  }
 }
 
 function formatTraceContent(item: AgentTraceStep) {
@@ -231,11 +292,17 @@ function TypewriterText({
   return <p className={className}>{text.slice(0, active ? visibleLength : text.length)}</p>
 }
 
-function useElapsedSeconds(
-  startedAt?: number,
-  completedAt?: number,
+function useElapsedSeconds({
+  completedAt,
+  startedAt,
+  steps,
+  streaming,
+}: {
+  completedAt?: number
+  startedAt?: number
+  steps: AgentTraceStep[]
   streaming?: boolean
-) {
+}) {
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -246,9 +313,44 @@ function useElapsedSeconds(
     return () => window.clearInterval(timer)
   }, [streaming])
 
+  const traceElapsed = elapsedSecondsFromTrace(steps)
+  if (!streaming && traceElapsed !== null) {
+    return traceElapsed
+  }
+
   if (!startedAt) {
-    return 0
+    return traceElapsed ?? 0
   }
   const end = completedAt ?? now
-  return Math.max(0, Math.floor((end - startedAt) / 1000))
+  const elapsed = Math.floor((end - startedAt) / 1000)
+  if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > MAX_REASONABLE_THINKING_SECONDS) {
+    return traceElapsed ?? 0
+  }
+  return elapsed
+}
+
+const MAX_REASONABLE_THINKING_SECONDS = 30 * 60
+
+function elapsedSecondsFromTrace(steps: AgentTraceStep[]) {
+  const timestamps = steps
+    .map((step) => parseTraceTimestamp(step.timestamp))
+    .filter((value): value is number => value !== null)
+
+  if (timestamps.length < 2) {
+    return null
+  }
+
+  const elapsed = Math.floor((Math.max(...timestamps) - Math.min(...timestamps)) / 1000)
+  if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > MAX_REASONABLE_THINKING_SECONDS) {
+    return null
+  }
+  return elapsed
+}
+
+function parseTraceTimestamp(value?: string) {
+  if (!value) {
+    return null
+  }
+  const timestamp = new Date(value).getTime()
+  return Number.isFinite(timestamp) ? timestamp : null
 }

@@ -28,6 +28,7 @@ import {
   getAgentSession,
   getCurrentUser,
   getErrorMessage,
+  getWorkoutShareCard,
   listAgentRunsForSession,
   listAgentSessions,
   listAgentTools,
@@ -46,7 +47,6 @@ import {
   updateTrainingPlan,
   uploadAttachment,
   uploadAvatar,
-  absoluteApiUrl,
 } from "@/entities/kratos/api/client"
 import {
   buildPlanPanel,
@@ -85,6 +85,7 @@ import {
   writeWorkspaceSnapshot,
 } from "@/features/kratos/lib/storage"
 import { ProfileMenu } from "@/features/kratos/profile/ProfileMenu"
+import { AchievementCenterDialog } from "@/features/kratos/achievements/AchievementCenterDialog"
 import {
   compactTrainingPlanProposal,
   formatDuration,
@@ -104,6 +105,7 @@ import { BodyMetricModal } from "@/widgets/kratos/modals/BodyMetricModal"
 import { DetailModal } from "@/widgets/kratos/modals/DetailModal"
 import { OnboardingModal } from "@/widgets/kratos/modals/OnboardingModal"
 import { TrainingFeedbackModal } from "@/widgets/kratos/modals/TrainingFeedbackModal"
+import { TrainingShareCardDialog } from "@/widgets/kratos/modals/TrainingShareCardDialog"
 import { TrainingPlanModal } from "@/widgets/kratos/modals/TrainingPlanModal"
 import { Sidebar } from "@/widgets/kratos/sidebar/Sidebar"
 import { SidebarProvider } from "@/shared/ui/sidebar"
@@ -119,6 +121,7 @@ import type {
   BodyMetric,
   BodyMetricForm,
   ChatSession,
+  ChatAttachment,
   ChatMessage,
   DetailPanel,
   FitnessContext,
@@ -135,6 +138,7 @@ import type {
   TrainingPlanPayload,
   UserProfile,
   WorkoutLog,
+  WorkoutShareCard,
   SuggestedHealthData,
 } from "@/entities/kratos/model/types"
 import { Button } from "@/shared/ui/button"
@@ -225,6 +229,17 @@ function isAnswerResetEvent(event: AgentStreamEvent) {
   )
 }
 
+function isStructuredCardPendingEvent(event: AgentStreamEvent) {
+  const raw = event.raw
+  return (
+    event.type === "status" &&
+    raw !== null &&
+    typeof raw === "object" &&
+    "structured_card_pending" in raw &&
+    raw.structured_card_pending === true
+  )
+}
+
 function bodyMetricFormFromRecord(metric: BodyMetric): BodyMetricForm {
   const measuredAt = metric.measured_at ?? metric.recorded_at
   const date = new Date(measuredAt)
@@ -285,6 +300,7 @@ export function KratosPage() {
     readCachedUser() ?? cachedWorkspaceRef.current?.user ?? null
   )
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [achievementsOpen, setAchievementsOpen] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [profileSubmitting, setProfileSubmitting] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
@@ -322,6 +338,7 @@ export function KratosPage() {
         : cachedWorkspaceRef.current?.composerValue ?? ""
     }
   )
+  const [composerAttachments, setComposerAttachments] = useState<ChatAttachment[]>([])
   const [messages, setMessages] = useState<ChatMessage[]>(
     () => {
       const route = routeFromLocation()
@@ -393,6 +410,10 @@ export function KratosPage() {
     log: WorkoutLog
     title: string
   } | null>(null)
+  const [trainingShareCard, setTrainingShareCard] =
+    useState<WorkoutShareCard | null>(null)
+  const [trainingShareCardOpen, setTrainingShareCardOpen] = useState(false)
+  const [trainingShareCardQueued, setTrainingShareCardQueued] = useState(false)
   const activeStreamRef = useRef<AbortController | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
   const attachedClientTurnIdsRef = useRef<Set<string>>(new Set())
@@ -530,12 +551,17 @@ export function KratosPage() {
         }
         const suggestedHealthData =
           healthDataFromAgentRaw(event.raw) ?? message.suggestedHealthData
+        const structuredCardPending =
+          event.type === "done" || event.type === "final" || event.type === "error"
+            ? false
+            : isStructuredCardPendingEvent(event) || message.structuredCardPending
 
         if (isAnswerResetEvent(event)) {
           return {
             ...message,
             body: "",
             suggestedHealthData,
+            structuredCardPending,
             trace: [...(message.trace ?? []), event],
           }
         }
@@ -546,6 +572,7 @@ export function KratosPage() {
             body: stripTrainingPlanJsonContract(event.answer ?? message.body),
             completedAt: Date.now(),
             streaming: false,
+            structuredCardPending,
             suggestedHealthData,
           }
         }
@@ -567,6 +594,7 @@ export function KratosPage() {
             error: event.content,
             streaming: false,
             suggestedHealthData,
+            structuredCardPending,
             trace: [...(message.trace ?? []), event],
           }
         }
@@ -587,6 +615,7 @@ export function KratosPage() {
             completedAt: Date.now(),
             streaming: false,
             suggestedHealthData,
+            structuredCardPending,
             suggestedTrainingPlan:
               suggestedTrainingPlan ?? message.suggestedTrainingPlan,
             trainingPlanCreatedId: generatedAlready
@@ -599,6 +628,7 @@ export function KratosPage() {
         return {
           ...message,
           suggestedHealthData,
+          structuredCardPending,
           trace: [...(message.trace ?? []), event],
         }
       })
@@ -791,6 +821,13 @@ export function KratosPage() {
     }
   }, [trainingSession])
 
+  useEffect(() => {
+    if (!trainingFeedbackOpen && trainingShareCardQueued && trainingShareCard) {
+      setTrainingShareCardOpen(true)
+      setTrainingShareCardQueued(false)
+    }
+  }, [trainingFeedbackOpen, trainingShareCard, trainingShareCardQueued])
+
   const openAuth = (mode: AuthMode) => {
     setAuthMode(mode)
     setAuthError(null)
@@ -856,6 +893,7 @@ export function KratosPage() {
     setAgentCheckins([])
     setTools([])
     setMessages(initialMessages)
+    setComposerAttachments([])
     setActiveSessionId(null)
     writeActiveAgentSessionId(null)
     setChatSessions([])
@@ -1096,6 +1134,7 @@ export function KratosPage() {
     activeSessionIdRef.current = null
     writeActiveAgentSessionId(null)
     setComposerValue("")
+    setComposerAttachments([])
     setAgentStreaming(false)
     sendLockRef.current = false
     setActiveNav("new")
@@ -1168,6 +1207,32 @@ export function KratosPage() {
             .filter((item) => !item.deleted)
             .sort(sortChatSessions)
         )
+      })
+      .catch((error) => {
+        sonnerToast.error(getErrorMessage(error), { richColors: true })
+      })
+  }
+
+  const handleToggleShareConversation = (sessionId: string) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      return
+    }
+
+    const session = chatSessions.find((item) => item.id === sessionId)
+    const nextShared = !session?.shared
+
+    void updateAgentSession(token, sessionId, {
+      is_shared: nextShared,
+    })
+      .then((updated) => {
+        setChatSessions((current) =>
+          [chatSessionFromAgentSession(updated), ...current.filter((item) => item.id !== updated.session_id)]
+            .filter((item) => !item.deleted)
+            .sort(sortChatSessions)
+        )
+        sonnerToast.success(nextShared ? "已加入跨对话知识共享" : "已关闭跨对话共享")
       })
       .catch((error) => {
         sonnerToast.error(getErrorMessage(error), { richColors: true })
@@ -1462,8 +1527,9 @@ export function KratosPage() {
 
   const handleSendMessage = async () => {
     const body = composerValue.trim()
-    if (!body) {
-      sonnerToast.warning("不可发送空白消息")
+    const attachments = composerAttachments
+    if (!body && attachments.length === 0) {
+      sonnerToast.warning("请输入消息或上传附件")
       return
     }
 
@@ -1513,6 +1579,7 @@ export function KratosPage() {
         {
           id: createId(),
           author: "user",
+          attachments,
           body,
           time: formatTime(),
         },
@@ -1532,6 +1599,7 @@ export function KratosPage() {
         },
       ])
     setComposerValue("")
+    setComposerAttachments([])
 
     let handledStreamSessionId: string | null = null
     const agentMessage = withTrainingPlanJsonContract(body)
@@ -1539,6 +1607,7 @@ export function KratosPage() {
     try {
       attachedClientTurnIdsRef.current.add(clientTurnId)
       await streamAgentChat({
+        attachments,
         clientTurnId,
         message: agentMessage,
         onEvent: (event) => {
@@ -1670,7 +1739,7 @@ export function KratosPage() {
     if (action.title === "查看历史") {
       setActiveNav("历史记录")
     }
-    setComposerValue(action.prompt)
+    setComposerValue(action.prompt.slice(0, 1000))
     sonnerToast.info(`${action.title}已填入输入框`)
   }
 
@@ -1746,17 +1815,7 @@ export function KratosPage() {
 
     void Promise.all(files.map((file) => uploadAttachment(token, file)))
       .then((uploads) => {
-        const attachmentText = uploads
-          .map((upload) => {
-            const url = absoluteApiUrl(upload.url)
-            return upload.content_type.startsWith("image/")
-              ? `![${upload.filename}](${url})`
-              : `[${upload.filename}](${url})`
-          })
-          .join("\n")
-        setComposerValue((current) =>
-          [current.trimEnd(), attachmentText].filter(Boolean).join("\n")
-        )
+        setComposerAttachments((current) => [...current, ...uploads].slice(0, 8))
         sonnerToast.success(`已上传 ${uploads.length} 个附件`)
       })
       .catch((error) => {
@@ -1964,7 +2023,11 @@ export function KratosPage() {
       setTrainingSession(null)
       setTrainingElapsedSeconds(0)
       setTrainingPaused(false)
-      if (isDailyPlanForAdjustment(activePlan)) {
+      const dailyAdjustmentPlan = isDailyPlanForAdjustment(activePlan)
+      void loadTrainingShareCard(token, log.id, {
+        deferOpen: !dailyAdjustmentPlan,
+      })
+      if (dailyAdjustmentPlan) {
         setLastCompletedWorkout(null)
         setTrainingFeedback("")
         setTrainingAdjustment(null)
@@ -1990,6 +2053,24 @@ export function KratosPage() {
       sonnerToast.error(getErrorMessage(error))
     } finally {
       setDashboardLoading(false)
+    }
+  }
+
+  const loadTrainingShareCard = async (
+    token: string,
+    logId: number,
+    options: { deferOpen?: boolean } = {}
+  ) => {
+    try {
+      const card = await getWorkoutShareCard(token, logId)
+      setTrainingShareCard(card)
+      if (options.deferOpen) {
+        setTrainingShareCardQueued(true)
+      } else {
+        setTrainingShareCardOpen(true)
+      }
+    } catch (error) {
+      console.warn("训练分享卡生成失败", error)
     }
   }
 
@@ -2556,13 +2637,14 @@ export function KratosPage() {
         activeSessionTitle={activeSessionTitle}
         agentStreaming={agentStreaming}
         chatTrainingPlanSavingId={chatTrainingPlanSavingId}
+        composerAttachments={composerAttachments}
         composerValue={composerValue}
         conversationLoading={conversationLoading}
         messages={messages}
         notifications={notifications}
         notificationsOpen={notificationsOpen}
         onAttachment={handleAttachment}
-        onComposerChange={setComposerValue}
+        onComposerChange={(value) => setComposerValue(value.slice(0, 1000))}
         onComposerKeyDown={handleComposerKeyDown}
         onCreateTrainingPlanFromMessage={handleCreateTrainingPlanFromChat}
         onEditTrainingPlanDraft={openTrainingPlanComposer}
@@ -2570,6 +2652,11 @@ export function KratosPage() {
         confirmingHealthDataId={confirmingHealthDataId}
         onMarkNotificationsRead={markAllNotificationsRead}
         onQuickAction={handleQuickAction}
+        onRemoveAttachment={(index) =>
+          setComposerAttachments((current) =>
+            current.filter((_, itemIndex) => itemIndex !== index)
+          )
+        }
         onSendMessage={handleSendMessage}
         onStopAgent={handleStopAgent}
         onToggleNotifications={() =>
@@ -2618,6 +2705,7 @@ export function KratosPage() {
               onAvatarChange={handleAvatarUpload}
               onProfileSubmit={handleProfileSubmit}
               onRegister={() => openAuth("register")}
+              onOpenAchievements={() => setAchievementsOpen(true)}
               onToggleMenu={setProfileMenuOpen}
               profile={fitnessProfile}
               profileError={profileError}
@@ -2632,6 +2720,7 @@ export function KratosPage() {
           onNavSelect={handleNavSelect}
           onSelectConversation={handleSelectConversation}
           onTogglePinConversation={handleTogglePinConversation}
+          onToggleShareConversation={handleToggleShareConversation}
           onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
           onDrawerOpenChange={setSidebarDrawerOpen}
         />
@@ -2713,6 +2802,18 @@ export function KratosPage() {
         }}
         onPreview={handlePreviewTrainingAdjustment}
         open={trainingFeedbackOpen}
+      />
+      <AchievementCenterDialog
+        checkins={agentCheckins}
+        bodyMetrics={bodyMetrics}
+        onOpenChange={setAchievementsOpen}
+        open={achievementsOpen}
+        workoutLogs={workoutLogs}
+      />
+      <TrainingShareCardDialog
+        card={trainingShareCard}
+        onOpenChange={setTrainingShareCardOpen}
+        open={trainingShareCardOpen}
       />
       <DetailModal panel={detailPanel} onClose={() => setDetailPanel(null)} />
       <Toaster position="bottom-right" />

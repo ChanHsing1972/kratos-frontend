@@ -5,8 +5,9 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
 } from "react"
-import { ArrowUp, Eye, PencilLine, Plus, Square } from "lucide-react"
+import { ArrowUp, Eye, Paperclip, PencilLine, Plus, Square, X } from "lucide-react"
 
+import type { ChatAttachment } from "@/entities/kratos/model/types"
 import { MarkdownMessage } from "@/widgets/kratos/conversation/MarkdownMessage"
 import { Button } from "@/shared/ui/button"
 import {
@@ -20,9 +21,12 @@ import { Separator } from "@/shared/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 
 type ConversationComposerProps = {
+  attachments: ChatAttachment[]
+  maxLength?: number
   onAttachment: (event: ChangeEvent<HTMLInputElement>) => void
   onChange: (value: string) => void
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
+  onRemoveAttachment: (index: number) => void
   onSend: () => void
   onStop: () => void
   sending: boolean
@@ -30,9 +34,12 @@ type ConversationComposerProps = {
 }
 
 export function ConversationComposer({
+  attachments,
+  maxLength = 1000,
   onAttachment,
   onChange,
   onKeyDown,
+  onRemoveAttachment,
   onSend,
   onStop,
   sending,
@@ -53,10 +60,33 @@ export function ConversationComposer({
 
   return (
     <InputGroup className="max-h-60 bg-background p-1">
+      {attachments.length ? (
+        <InputGroupAddon align="block-start" className="flex-wrap justify-start">
+          {attachments.map((attachment, index) => (
+            <span
+              className="inline-flex max-w-full items-center gap-1 rounded-md border bg-muted px-2 py-1 text-xs text-foreground"
+              key={`${attachment.url}-${index}`}
+            >
+              <Paperclip />
+              <span className="max-w-40 truncate">{attachment.filename}</span>
+              <button
+                aria-label={`移除附件 ${attachment.filename}`}
+                className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                onClick={() => onRemoveAttachment(index)}
+                type="button"
+              >
+                <X />
+              </button>
+            </span>
+          ))}
+        </InputGroupAddon>
+      ) : null}
+
       {mode === "write" ? (
         <InputGroupTextarea
           className="min-h-16 resize-none text-base disabled:opacity-100 md:text-sm"
-          onChange={(event) => onChange(event.target.value)}
+          maxLength={maxLength}
+          onChange={(event) => onChange(event.target.value.slice(0, maxLength))}
           onCompositionEnd={(event) => {
             event.currentTarget.dataset.composing = "false"
           }}
@@ -118,7 +148,7 @@ export function ConversationComposer({
         </ToggleGroup>
 
         <InputGroupText className="ml-auto text-sm text-muted-foreground">
-          {value.length}/1000
+          {value.length}/{maxLength}
         </InputGroupText>
 
         <Separator className="mx-1" orientation="vertical" />
@@ -127,7 +157,7 @@ export function ConversationComposer({
           aria-label={sending ? "停止生成" : "发送"}
           className="size-8 rounded-full p-0 shadow-none"
           onClick={() => {
-            if (!sending && !value.trim()) {
+            if (!sending && !value.trim() && attachments.length === 0) {
               return
             }
             if (sending) {

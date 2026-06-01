@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { getExerciseMedia, AUTH_TOKEN_KEY, type ExerciseMediaResponse } from "../../entities/kratos/api/client"
 
 const mediaCache = new Map<string, ExerciseMediaResponse | null>()
+const mediaRequests = new Map<string, Promise<ExerciseMediaResponse>>()
 
 export function useExerciseMedia(actionName: string) {
   const normalizedInitialName = actionName.trim()
@@ -41,7 +42,13 @@ export function useExerciseMedia(actionName: string) {
 
     updateMediaState(null, true)
 
-    getExerciseMedia(normalizedName, token)
+    let request = mediaRequests.get(normalizedName)
+    if (!request) {
+      request = getExerciseMedia(normalizedName, token)
+      mediaRequests.set(normalizedName, request)
+    }
+
+    request
       .then((data) => {
         if (isMounted) {
           mediaCache.set(normalizedName, data)
@@ -55,6 +62,7 @@ export function useExerciseMedia(actionName: string) {
         }
       })
       .finally(() => {
+        mediaRequests.delete(normalizedName)
         if (isMounted) {
           setLoading(false)
         }

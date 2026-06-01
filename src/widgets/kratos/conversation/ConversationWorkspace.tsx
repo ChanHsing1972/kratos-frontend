@@ -7,6 +7,7 @@ import {
 
 import type {
   ChatMessage,
+  ChatAttachment,
   NotificationItem,
   QuickAction,
   TrainingPlanPayload,
@@ -22,6 +23,7 @@ export type ConversationWorkspaceProps = {
   agentStreaming: boolean
   chatTrainingPlanSavingId: string | null
   composerValue: string
+  composerAttachments: ChatAttachment[]
   conversationLoading: boolean
   messages: ChatMessage[]
   notifications: NotificationItem[]
@@ -30,6 +32,7 @@ export type ConversationWorkspaceProps = {
   onComposerChange: (value: string) => void
   onComposerKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   onMarkNotificationsRead: () => void
+  onRemoveAttachment: (index: number) => void
   onCreateTrainingPlanFromMessage: (
     messageId: string,
     payload: TrainingPlanPayload
@@ -52,6 +55,7 @@ export function ConversationWorkspace({
   agentStreaming,
   chatTrainingPlanSavingId,
   composerValue,
+  composerAttachments,
   conversationLoading,
   messages,
   notifications,
@@ -60,6 +64,7 @@ export function ConversationWorkspace({
   onComposerChange,
   onComposerKeyDown,
   onMarkNotificationsRead,
+  onRemoveAttachment,
   onCreateTrainingPlanFromMessage,
   onEditTrainingPlanDraft,
   onConfirmHealthData,
@@ -112,11 +117,13 @@ export function ConversationWorkspace({
         ) : isEmptyConversation ? (
           <EmptyConversationPanel
             agentStreaming={agentStreaming}
+            composerAttachments={composerAttachments}
             composerValue={composerValue}
             onAttachment={onAttachment}
             onComposerChange={onComposerChange}
             onComposerKeyDown={onComposerKeyDown}
             onQuickAction={onQuickAction}
+            onRemoveAttachment={onRemoveAttachment}
             onSendMessage={onSendMessage}
             onStopAgent={onStopAgent}
           />
@@ -153,8 +160,10 @@ export function ConversationWorkspace({
               <div className="mx-auto w-full max-w-[820px]">
                 <ConversationComposer
                   onAttachment={onAttachment}
+                  attachments={composerAttachments}
                   onChange={onComposerChange}
                   onKeyDown={onComposerKeyDown}
+                  onRemoveAttachment={onRemoveAttachment}
                   onSend={onSendMessage}
                   onStop={onStopAgent}
                   sending={agentStreaming}
@@ -187,19 +196,23 @@ function LoadingConversation() {
 function EmptyConversationPanel({
   agentStreaming,
   composerValue,
+  composerAttachments,
   onAttachment,
   onComposerChange,
   onComposerKeyDown,
   onQuickAction,
+  onRemoveAttachment,
   onSendMessage,
   onStopAgent,
 }: {
   agentStreaming: boolean
   composerValue: string
+  composerAttachments: ChatAttachment[]
   onAttachment: (event: ChangeEvent<HTMLInputElement>) => void
   onComposerChange: (value: string) => void
   onComposerKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   onQuickAction: (action: QuickAction) => void
+  onRemoveAttachment: (index: number) => void
   onSendMessage: () => void
   onStopAgent: () => void
 }) {
@@ -210,8 +223,10 @@ function EmptyConversationPanel({
           composer={
             <ConversationComposer
               onAttachment={onAttachment}
+              attachments={composerAttachments}
               onChange={onComposerChange}
               onKeyDown={onComposerKeyDown}
+              onRemoveAttachment={onRemoveAttachment}
               onSend={onSendMessage}
               onStop={onStopAgent}
               sending={agentStreaming}
