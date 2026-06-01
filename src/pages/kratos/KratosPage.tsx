@@ -462,7 +462,7 @@ export function KratosPage() {
     trainingPlans.find((plan) => plan.status === "active") ?? null
   const activeSession =
     chatSessions.find((session) => session.id === activeSessionId) ?? null
-  const activeSessionTitle = activeSession?.title ?? "新的训练对话"
+  const activeSessionTitle = activeSession?.title ?? "新会话"
   const activeSessionHasRunningMessage = messages.some(
     (message) => message.author === "assistant" && message.streaming
   )
@@ -1559,7 +1559,7 @@ export function KratosPage() {
     activeSessionIdRef.current = nextSessionId
     const clientTurnId = createId()
     if (!activeSessionId) {
-      const sessionTitle = "新的训练对话"
+      const sessionTitle = "新会话"
       setActiveSessionId(nextSessionId)
       writeActiveAgentSessionId(nextSessionId)
       setActiveNav(nextSessionId)
@@ -1623,7 +1623,7 @@ export function KratosPage() {
           if (event.session_id && event.session_id !== handledStreamSessionId) {
             handledStreamSessionId = event.session_id
             const serverSessionId = event.session_id
-            const sessionTitle = "新的训练对话"
+            const sessionTitle = "新会话"
             const optimisticSessionId = nextSessionId
             nextSessionId = serverSessionId
             activeSessionIdRef.current = serverSessionId

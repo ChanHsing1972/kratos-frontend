@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Check, ChevronRight, Sparkles } from "lucide-react"
+import { Check, ChevronDown, ChevronRight, Sparkles } from "lucide-react"
 
 import type { AgentTraceStep } from "@/entities/kratos/model/types"
 import { cn } from "@/shared/lib/utils"
@@ -50,12 +50,12 @@ export function ThinkingCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="text-[13px] leading-5 font-bold">
-                思考过程 · {elapsedSeconds}s
+              <h3 className="text-sm leading-5 font-bold">
+                正在思考 · {elapsedSeconds}s
               </h3>
               <p
                 className={cn(
-                  "mt-1 text-[12px] text-muted-foreground",
+                  "mt-0.5 text-xs text-muted-foreground",
                   streaming && "thinking-status-sweep"
                 )}
               >
@@ -66,19 +66,18 @@ export function ThinkingCard({
                   : `${visibleSteps.length} 条推理事件`}
               </p>
             </div>
-            <button
-              className="inline-flex items-center gap-1 rounded-[8px] text-[12px] font-medium text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+            <Button
               onClick={onToggle}
               type="button"
+              variant="ghost"
             >
-              {expanded ? "收起思考过程" : "展开思考过程"}
-              <ChevronRight
+              <ChevronDown
                 className={cn(
-                  "size-3.5 transition-transform",
-                  expanded && "rotate-[-90deg]"
+                  "size-4 transition-transform",
+                  expanded && "rotate-[-180deg]"
                 )}
               />
-            </button>
+            </Button>
           </div>
 
           {expanded ? (

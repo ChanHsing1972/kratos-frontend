@@ -466,7 +466,7 @@ export function chatSessionsFromAgentRuns(
       )
       const latest = ordered[ordered.length - 1]
       const meta = metadata[sessionId] ?? {}
-      const firstQuestion = ordered[0]?.user_message ?? "新的训练对话"
+      const firstQuestion = ordered[0]?.user_message ?? "新会话"
       const title = meta.title ?? titleFromPrompt(firstQuestion)
 
       return {
@@ -525,7 +525,7 @@ export function titleFromPrompt(prompt: string) {
     .replace(/\s+/g, " ")
     .trim()
   if (!compacted) {
-    return "新的训练对话"
+    return "新会话"
   }
 
   const keywordTitles = [
