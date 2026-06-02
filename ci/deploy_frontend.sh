@@ -52,6 +52,7 @@ if command -v apt-get >/dev/null 2>&1; then
   missing_packages=()
   command -v nginx >/dev/null 2>&1 || missing_packages+=(nginx)
   command -v curl >/dev/null 2>&1 || missing_packages+=(curl)
+  command -v openssl >/dev/null 2>&1 || missing_packages+=(openssl)
   if [[ "${#missing_packages[@]}" -gt 0 ]]; then
     export DEBIAN_FRONTEND=noninteractive
     apt-get update
@@ -65,11 +66,24 @@ tar --no-same-owner -xzf "$REMOTE_ARCHIVE" -C "$SITE_ROOT"
 chown -R root:root "$SITE_ROOT"
 rm -f "$REMOTE_ARCHIVE"
 
+mkdir -p /etc/nginx/ssl
+if [[ ! -f /etc/nginx/ssl/se3-selfsigned.crt || ! -f /etc/nginx/ssl/se3-selfsigned.key ]]; then
+  openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
+    -keyout /etc/nginx/ssl/se3-selfsigned.key \
+    -out /etc/nginx/ssl/se3-selfsigned.crt \
+    -subj "/CN=kratos.qzz.io"
+fi
+
 cat > /etc/nginx/sites-available/se3.conf <<'NGINX'
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
     server_name _;
+
+    ssl_certificate /etc/nginx/ssl/se3-selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/se3-selfsigned.key;
 
     root /var/www/se3/agent;
     index index.html;
