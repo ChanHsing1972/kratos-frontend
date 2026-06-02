@@ -15,10 +15,14 @@ import {
   Pause,
   MoreHorizontal,
   List,
+  CircleAlert,
+  Send,
 } from "lucide-react"
 import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 
 import { Button } from "@/shared/ui/button"
+import { Textarea } from "@/shared/ui/textarea"
+import { Spinner } from "@/shared/ui/spinner"
 import { Calendar } from "@/shared/ui/calendar"
 import { Badge } from "@/shared/ui/badge"
 import { CardContent } from "@/shared/ui/card"
@@ -58,6 +62,7 @@ import type {
   AgentCheckin,
   TrainingExerciseMedia,
   TrainingPlan,
+  TrainingPlanAdjustmentResponse,
   TrainingPlanPayload,
   WorkoutLog,
 } from "@/entities/kratos/model/types"
@@ -70,8 +75,16 @@ type TrainingPlanPageProps = {
   latestCheckin: AgentCheckin | null
   completedExercises: string[]
   dashboardLoading: boolean
+  postTrainingAdjustment: TrainingPlanAdjustmentResponse | null
+  postTrainingFeedback: string
+  postTrainingFeedbackError: string | null
+  postTrainingFeedbackLoading: boolean
+  postTrainingFeedbackVisible: boolean
   onDeletePlan: (plan: TrainingPlan) => void
   onEditPlan: (plan: TrainingPlan) => void
+  onApplyPostTrainingAdjustment: () => void
+  onPostTrainingFeedbackChange: (value: string) => void
+  onPreviewPostTrainingAdjustment: () => void
   onOpenPlanComposer: (draft?: TrainingPlanPayload | null) => void
   onSelectPlan: (plan: TrainingPlan) => void
   onToggleExercise: (title: string) => void
@@ -124,8 +137,16 @@ export function TrainingPlanPage({
   latestCheckin,
   completedExercises,
   dashboardLoading,
+  postTrainingAdjustment,
+  postTrainingFeedback,
+  postTrainingFeedbackError,
+  postTrainingFeedbackLoading,
+  postTrainingFeedbackVisible,
   onDeletePlan,
   onEditPlan,
+  onApplyPostTrainingAdjustment,
+  onPostTrainingFeedbackChange,
+  onPreviewPostTrainingAdjustment,
   onOpenPlanComposer,
   onSelectPlan,
   onToggleExercise,
@@ -301,8 +322,16 @@ export function TrainingPlanPage({
           dashboardLoading={dashboardLoading}
           dailySuggestion={dailySuggestion}
           hasActivePlan={Boolean(activePlan)}
+          postTrainingAdjustment={postTrainingAdjustment}
+          postTrainingFeedback={postTrainingFeedback}
+          postTrainingFeedbackError={postTrainingFeedbackError}
+          postTrainingFeedbackLoading={postTrainingFeedbackLoading}
+          postTrainingFeedbackVisible={postTrainingFeedbackVisible}
+          onApplyPostTrainingAdjustment={onApplyPostTrainingAdjustment}
           onCompleteTrainingDay={onCompleteTrainingDay}
           onOpenPlanComposer={onOpenPlanComposer}
+          onPostTrainingFeedbackChange={onPostTrainingFeedbackChange}
+          onPreviewPostTrainingAdjustment={onPreviewPostTrainingAdjustment}
           onPauseTraining={onPauseTraining}
           onResumeTraining={onResumeTraining}
           onToggleExercise={onToggleExercise}
@@ -401,6 +430,120 @@ export function TrainingPlanPage({
     </main>
   )
 }
+
+function PostTrainingFeedbackPanel({
+  adjustment,
+  error,
+  feedback,
+  loading,
+  onApply,
+  onFeedbackChange,
+  onPreview,
+}: {
+  adjustment: TrainingPlanAdjustmentResponse | null
+  error: string | null
+  feedback: string
+  loading: boolean
+  onApply: () => void
+  onFeedbackChange: (value: string) => void
+  onPreview: () => void
+}) {
+  return (
+    <div className="mt-3 rounded-2xl border border-border bg-background p-3 shadow-sm">
+      <div className="flex items-end gap-2">
+        <Textarea
+          className="min-h-10 resize-none rounded-xl text-[13px]"
+          onChange={(event) => onFeedbackChange(event.target.value)}
+          onKeyDown={(event) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+              event.preventDefault()
+              onPreview()
+            }
+          }}
+          placeholder="训练结束，感觉如何？"
+          rows={1}
+          value={feedback}
+        />
+        <Button
+          disabled={loading || !feedback.trim()}
+          onClick={onPreview}
+          size="icon"
+          type="button"
+        >
+          {loading && !adjustment ? <Spinner /> : <Send className="size-4" />}
+        </Button>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-2">
+        {[
+          "整体轻松，可以上点强度。",
+          "较累，动作质量下降，建议降低训练量。",
+          "膝盖不适，需减少冲击。",
+          "提前结束训练，时间体力都不够。",
+        ].map((item) => (
+          <Button
+            className="h-auto rounded-full px-3 py-1 text-left text-[12px] font-normal text-muted-foreground"
+            key={item}
+            onClick={() => onFeedbackChange(appendFeedbackText(feedback, item))}
+            type="button"
+            variant="outline"
+          >
+            {item}
+          </Button>
+        ))}
+      </div>
+
+      {error ? (
+        <div className="mt-3 flex items-start gap-2 rounded-xl bg-destructive/10 p-3 text-[12px] leading-5 text-destructive">
+          <CircleAlert className="mt-0.5 size-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      ) : null}
+
+      {adjustment ? (
+        <div className="mt-3 rounded-xl bg-muted/60 p-3">
+          <div className="text-[12px] font-semibold text-foreground">
+            Kratos 生成的调整建议
+          </div>
+          <div className="mt-2 flex flex-col gap-2">
+            {adjustment.rationale.map((item) => (
+              <div
+                className="flex gap-2 text-[12px] leading-5 text-muted-foreground"
+                key={item}
+              >
+                <Check className="mt-0.5 size-3.5 shrink-0" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button
+              disabled={loading}
+              onClick={onApply}
+              size="sm"
+              type="button"
+            >
+              {loading ? <Spinner /> : null}
+              同意并更新计划
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function appendFeedbackText(current: string, addition: string) {
+  const trimmed = current.trim()
+  if (!trimmed) {
+    return addition
+  }
+  if (trimmed.includes(addition)) {
+    return trimmed
+  }
+  return `${trimmed}\n${addition}`
+}
+
 function getInitialTrainingDate(plan: TrainingPlan | null) {
   if (isDailyTrainingPlan(plan) && plan?.start_date) {
     return dateFromValue(plan.start_date)
@@ -898,8 +1041,16 @@ function TodayTrainingHero({
   dailySuggestion,
   dashboardLoading,
   hasActivePlan,
+  postTrainingAdjustment,
+  postTrainingFeedback,
+  postTrainingFeedbackError,
+  postTrainingFeedbackLoading,
+  postTrainingFeedbackVisible,
+  onApplyPostTrainingAdjustment,
   onCompleteTrainingDay,
   onOpenPlanComposer,
+  onPostTrainingFeedbackChange,
+  onPreviewPostTrainingAdjustment,
   onPauseTraining,
   onResumeTraining,
   onStartTraining,
@@ -919,8 +1070,16 @@ function TodayTrainingHero({
   dailySuggestion: string
   dashboardLoading: boolean
   hasActivePlan: boolean
+  postTrainingAdjustment: TrainingPlanAdjustmentResponse | null
+  postTrainingFeedback: string
+  postTrainingFeedbackError: string | null
+  postTrainingFeedbackLoading: boolean
+  postTrainingFeedbackVisible: boolean
+  onApplyPostTrainingAdjustment: () => void
   onCompleteTrainingDay: TrainingPlanPageProps["onCompleteTrainingDay"]
   onOpenPlanComposer: TrainingPlanPageProps["onOpenPlanComposer"]
+  onPostTrainingFeedbackChange: (value: string) => void
+  onPreviewPostTrainingAdjustment: () => void
   onPauseTraining: () => void
   onResumeTraining: () => void
   onStartTraining: TrainingPlanPageProps["onStartTraining"]
@@ -1046,6 +1205,17 @@ function TodayTrainingHero({
               <div className="mt-2 rounded-2xl rounded-tl-md bg-muted px-4 py-3 text-[13px] leading-5 text-foreground">
                 {hasActivePlan ? dailySuggestion : planGoal}
               </div>
+              {postTrainingFeedbackVisible ? (
+                <PostTrainingFeedbackPanel
+                  adjustment={postTrainingAdjustment}
+                  error={postTrainingFeedbackError}
+                  feedback={postTrainingFeedback}
+                  loading={postTrainingFeedbackLoading}
+                  onApply={onApplyPostTrainingAdjustment}
+                  onFeedbackChange={onPostTrainingFeedbackChange}
+                  onPreview={onPreviewPostTrainingAdjustment}
+                />
+              ) : null}
             </div>
           </div>
         </div>

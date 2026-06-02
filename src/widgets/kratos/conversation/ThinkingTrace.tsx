@@ -104,11 +104,11 @@ export function ThinkingCard({
         </div>
       </div>
       <Dialog open={Boolean(evidenceStep)} onOpenChange={(open) => !open && setEvidenceStep(null)}>
-        <DialogContent className="max-h-[80svh] sm:max-w-2xl">
+        <DialogContent className="max-h-md sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>工具依据</DialogTitle>
             <DialogDescription>
-              这里显示本次推理中对应步骤的原始工具参数或返回结果。
+              本次推理中对应步骤的原始工具参数或返回结果。
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[56svh] rounded-md border bg-muted/40">
@@ -160,7 +160,7 @@ function TimelineRow({
           />
           {hasEvidence ? (
             <Button
-              className="mt-2 h-7 px-2 text-[11px]"
+              className="mt-1 h-6 text-[11px]"
               onClick={onOpenEvidence}
               type="button"
               variant="outline"

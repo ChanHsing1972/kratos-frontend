@@ -41,7 +41,6 @@ import {
   updateAgentSession,
   updateAgentTool,
   updateBodyMetric,
-  updateWorkoutLog,
   updateSkillBinding,
   updateMyFitnessProfile,
   updateTrainingPlan,
@@ -104,7 +103,6 @@ import { AuthModal } from "@/widgets/kratos/modals/AuthModal"
 import { BodyMetricModal } from "@/widgets/kratos/modals/BodyMetricModal"
 import { DetailModal } from "@/widgets/kratos/modals/DetailModal"
 import { OnboardingModal } from "@/widgets/kratos/modals/OnboardingModal"
-import { TrainingFeedbackModal } from "@/widgets/kratos/modals/TrainingFeedbackModal"
 import { TrainingShareCardDialog } from "@/widgets/kratos/modals/TrainingShareCardDialog"
 import { TrainingPlanModal } from "@/widgets/kratos/modals/TrainingPlanModal"
 import { Sidebar } from "@/widgets/kratos/sidebar/Sidebar"
@@ -403,9 +401,7 @@ export function KratosPage() {
     useState<TrainingSession | null>(null)
   const [trainingElapsedSeconds, setTrainingElapsedSeconds] = useState(0)
   const [trainingPaused, setTrainingPaused] = useState(false)
-  const [trainingFeedbackOpen, setTrainingFeedbackOpen] = useState(false)
   const [trainingFeedback, setTrainingFeedback] = useState("")
-  const [trainingRpe, setTrainingRpe] = useState("")
   const [trainingFeedbackError, setTrainingFeedbackError] = useState<
     string | null
   >(null)
@@ -422,7 +418,6 @@ export function KratosPage() {
   const [trainingShareCard, setTrainingShareCard] =
     useState<WorkoutShareCard | null>(null)
   const [trainingShareCardOpen, setTrainingShareCardOpen] = useState(false)
-  const [trainingShareCardQueued, setTrainingShareCardQueued] = useState(false)
   const activeStreamRef = useRef<AbortController | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
   const attachedClientTurnIdsRef = useRef<Set<string>>(new Set())
@@ -829,13 +824,6 @@ export function KratosPage() {
       window.clearInterval(timer)
     }
   }, [trainingSession])
-
-  useEffect(() => {
-    if (!trainingFeedbackOpen && trainingShareCardQueued && trainingShareCard) {
-      setTrainingShareCardOpen(true)
-      setTrainingShareCardQueued(false)
-    }
-  }, [trainingFeedbackOpen, trainingShareCard, trainingShareCardQueued])
 
   const openAuth = (mode: AuthMode) => {
     setAuthMode(mode)
@@ -2039,15 +2027,14 @@ export function KratosPage() {
       setTrainingElapsedSeconds(0)
       setTrainingPaused(false)
       const dailyAdjustmentPlan = isDailyPlanForAdjustment(activePlan)
-      void loadTrainingShareCard(token, log.id, {
-        deferOpen: !dailyAdjustmentPlan,
-      })
+      setTrainingShareCard(null)
+      setTrainingShareCardOpen(true)
+      void loadTrainingShareCard(token, log.id)
       if (dailyAdjustmentPlan) {
         setLastCompletedWorkout(null)
         setTrainingFeedback("")
         setTrainingAdjustment(null)
         setTrainingFeedbackError(null)
-        setTrainingFeedbackOpen(false)
         sonnerToast.success("每日训练记录已同步，未更新后续计划")
       } else {
         setLastCompletedWorkout({
@@ -2058,10 +2045,8 @@ export function KratosPage() {
           title: dayTitle || activePlan?.title || "未命名训练",
         })
         setTrainingFeedback("")
-        setTrainingRpe("")
         setTrainingAdjustment(null)
         setTrainingFeedbackError(null)
-        setTrainingFeedbackOpen(true)
         sonnerToast.success("训练完成记录已同步")
       }
     } catch (error) {
@@ -2071,19 +2056,10 @@ export function KratosPage() {
     }
   }
 
-  const loadTrainingShareCard = async (
-    token: string,
-    logId: number,
-    options: { deferOpen?: boolean } = {}
-  ) => {
+  const loadTrainingShareCard = async (token: string, logId: number) => {
     try {
       const card = await getWorkoutShareCard(token, logId)
       setTrainingShareCard(card)
-      if (options.deferOpen) {
-        setTrainingShareCardQueued(true)
-      } else {
-        setTrainingShareCardOpen(true)
-      }
     } catch (error) {
       console.warn("训练分享卡生成失败", error)
     }
@@ -2490,28 +2466,6 @@ export function KratosPage() {
     setTrainingFeedbackError(null)
 
     try {
-      const perceivedExertion = trainingRpe.trim() ? Number(trainingRpe) : null
-      if (
-        perceivedExertion !== null &&
-        (!Number.isFinite(perceivedExertion) ||
-          perceivedExertion < 1 ||
-          perceivedExertion > 10)
-      ) {
-        setTrainingFeedbackError("RPE 必须在 1 到 10 之间")
-        return
-      }
-      if (perceivedExertion !== null) {
-        await updateWorkoutLog(token, lastCompletedWorkout.logId, {
-          perceived_exertion: perceivedExertion,
-          exercises: lastCompletedWorkout.log.exercises.map((exercise) => ({
-            ...exercise,
-            sets: exercise.sets.map((set) => ({
-              ...set,
-              rpe: set.completed ? perceivedExertion : set.rpe,
-            })),
-          })),
-        })
-      }
       const adjustment = await previewTrainingPlanAdjustment(
         token,
         activePlan.id,
@@ -2553,7 +2507,6 @@ export function KratosPage() {
         current.map((plan) => (plan.id === updated.id ? updated : plan))
       )
       await refreshDashboard(token, { preserveMessages: true })
-      setTrainingFeedbackOpen(false)
       setTrainingFeedback("")
       setTrainingAdjustment(null)
       setLastCompletedWorkout(null)
@@ -2583,9 +2536,21 @@ export function KratosPage() {
           latestCheckin={latestCheckin}
           completedExercises={completedExercises}
           dashboardLoading={dashboardLoading}
+          postTrainingAdjustment={trainingAdjustment}
+          postTrainingFeedback={trainingFeedback}
+          postTrainingFeedbackError={trainingFeedbackError}
+          postTrainingFeedbackLoading={trainingFeedbackLoading}
+          postTrainingFeedbackVisible={Boolean(lastCompletedWorkout)}
           onOpenPlanComposer={openTrainingPlanComposer}
+          onApplyPostTrainingAdjustment={handleApplyTrainingAdjustment}
           onDeletePlan={handleDeleteTrainingPlan}
           onEditPlan={openTrainingPlanEditor}
+          onPostTrainingFeedbackChange={(value) => {
+            setTrainingFeedback(value)
+            setTrainingFeedbackError(null)
+            setTrainingAdjustment(null)
+          }}
+          onPreviewPostTrainingAdjustment={handlePreviewTrainingAdjustment}
           onSelectPlan={handleSelectTrainingPlan}
           onStartTraining={handleStartTraining}
           onCompleteTrainingDay={handleCompleteTrainingDay}
@@ -2789,34 +2754,6 @@ export function KratosPage() {
         }}
         onSubmit={handleTrainingPlanSubmit}
         open={trainingPlanModalOpen}
-      />
-      <TrainingFeedbackModal
-        adjustment={trainingAdjustment}
-        error={trainingFeedbackError}
-        feedback={trainingFeedback}
-        perceivedExertion={trainingRpe}
-        loading={trainingFeedbackLoading}
-        onApply={handleApplyTrainingAdjustment}
-        onClose={() => {
-          setTrainingFeedbackOpen(false)
-          setTrainingFeedback("")
-          setTrainingRpe("")
-          setTrainingFeedbackError(null)
-          setTrainingAdjustment(null)
-          setLastCompletedWorkout(null)
-        }}
-        onFeedbackChange={(value) => {
-          setTrainingFeedback(value)
-          setTrainingFeedbackError(null)
-          setTrainingAdjustment(null)
-        }}
-        onPerceivedExertionChange={(value) => {
-          setTrainingRpe(value)
-          setTrainingFeedbackError(null)
-          setTrainingAdjustment(null)
-        }}
-        onPreview={handlePreviewTrainingAdjustment}
-        open={trainingFeedbackOpen}
       />
       <AchievementCenterDialog
         checkins={agentCheckins}

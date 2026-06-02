@@ -538,6 +538,8 @@ export type WorkoutShareCard = {
   workout_title: string
   workout_date: string
   completed: boolean
+  calories_burned?: number | null
+  completion_rate?: number
   duration_seconds: number
   week_completed_count: number
   week_duration_seconds: number
