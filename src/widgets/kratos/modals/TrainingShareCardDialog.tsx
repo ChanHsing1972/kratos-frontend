@@ -1,7 +1,7 @@
 import type { ReactNode, RefObject } from "react"
 import { useRef, useState } from "react"
 import { toPng } from "html-to-image"
-import { Activity, CalendarDays, Download, Flame, LoaderCircle, Trophy } from "lucide-react"
+import { Activity, CalendarDays, Download, Flame, Trophy } from "lucide-react"
 import { toast as sonnerToast } from "sonner"
 
 import type { WorkoutShareCard } from "@/entities/kratos/model/types"
@@ -58,6 +58,10 @@ function TrainingShareCardGenerating() {
         <div className="mx-auto grid place-items-center">
           <Spinner className="size-6 animate-spin" />
         </div>
+        <h3 className="mt-4 text-lg font-semibold">加载中</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Kratos 正在整理本次训练数据
+        </p>
       </div>
     </div>
   )

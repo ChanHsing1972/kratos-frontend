@@ -300,6 +300,10 @@ export type TrainingPlanAdjustmentResponse = {
   rationale: string[]
 }
 
+export type TrainingPlanGuidanceResponse = {
+  message: string
+}
+
 export type TrainingPlanForm = {
   title: string
   goal: string

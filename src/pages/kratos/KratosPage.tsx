@@ -28,6 +28,7 @@ import {
   getAgentSession,
   getCurrentUser,
   getErrorMessage,
+  getTrainingPlanGuidance,
   getWorkoutShareCard,
   listAgentRunsForSession,
   listAgentSessions,
@@ -408,6 +409,11 @@ export function KratosPage() {
   const [trainingFeedbackLoading, setTrainingFeedbackLoading] = useState(false)
   const [trainingAdjustment, setTrainingAdjustment] =
     useState<TrainingPlanAdjustmentResponse | null>(null)
+  const [trainingGuidance, setTrainingGuidance] = useState("")
+  const [trainingGuidanceError, setTrainingGuidanceError] = useState<
+    string | null
+  >(null)
+  const [trainingGuidanceLoading, setTrainingGuidanceLoading] = useState(false)
   const [lastCompletedWorkout, setLastCompletedWorkout] = useState<{
     completed: boolean
     durationSeconds: number
@@ -824,6 +830,43 @@ export function KratosPage() {
       window.clearInterval(timer)
     }
   }, [trainingSession])
+
+  useEffect(() => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token || !activePlan) {
+      setTrainingGuidance("")
+      setTrainingGuidanceError(null)
+      setTrainingGuidanceLoading(false)
+      return undefined
+    }
+
+    let cancelled = false
+    setTrainingGuidanceLoading(true)
+    setTrainingGuidanceError(null)
+    void getTrainingPlanGuidance(token, activePlan.id)
+      .then((response) => {
+        if (cancelled) return
+        setTrainingGuidance(response.message)
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setTrainingGuidance("")
+        setTrainingGuidanceError(getErrorMessage(error))
+      })
+      .finally(() => {
+        if (cancelled) return
+        setTrainingGuidanceLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    activePlan?.id,
+    latestCheckin?.id,
+    workoutLogs[0]?.id,
+    workoutLogs[0]?.created_at,
+  ])
 
   const openAuth = (mode: AuthMode) => {
     setAuthMode(mode)
@@ -2536,6 +2579,9 @@ export function KratosPage() {
           latestCheckin={latestCheckin}
           completedExercises={completedExercises}
           dashboardLoading={dashboardLoading}
+          guidanceError={trainingGuidanceError}
+          guidanceLoading={trainingGuidanceLoading}
+          guidanceMessage={trainingGuidance}
           postTrainingAdjustment={trainingAdjustment}
           postTrainingFeedback={trainingFeedback}
           postTrainingFeedbackError={trainingFeedbackError}

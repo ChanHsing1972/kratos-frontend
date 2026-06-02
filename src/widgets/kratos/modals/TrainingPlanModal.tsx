@@ -162,7 +162,7 @@ function TrainingPlanModalForm({
                     id="training-plan-date-range"
                     type="button"
                     variant="outline"
-                    className="justify-start font-normal text-muted-foreground"
+                    className="justify-start font-normal"
                   >
                     <CalendarIcon className="size-4" />
                     <span >{trainingPlanDateRangeLabel(selectedDateRange)}</span>

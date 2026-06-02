@@ -16,12 +16,11 @@ import {
   MoreHorizontal,
   List,
   CircleAlert,
-  Send,
+  ArrowUp,
 } from "lucide-react"
 import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 
 import { Button } from "@/shared/ui/button"
-import { Textarea } from "@/shared/ui/textarea"
 import { Spinner } from "@/shared/ui/spinner"
 import { Calendar } from "@/shared/ui/calendar"
 import { Badge } from "@/shared/ui/badge"
@@ -69,12 +68,16 @@ import type {
 import { ActionImage } from "@/shared/ui/ActionImage"
 import { ButtonGroup } from "@/shared/ui/button-group"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/ui/input-group"
 
 type TrainingPlanPageProps = {
   activePlan: TrainingPlan | null
   latestCheckin: AgentCheckin | null
   completedExercises: string[]
   dashboardLoading: boolean
+  guidanceError: string | null
+  guidanceLoading: boolean
+  guidanceMessage: string
   postTrainingAdjustment: TrainingPlanAdjustmentResponse | null
   postTrainingFeedback: string
   postTrainingFeedbackError: string | null
@@ -137,6 +140,9 @@ export function TrainingPlanPage({
   latestCheckin,
   completedExercises,
   dashboardLoading,
+  guidanceError,
+  guidanceLoading,
+  guidanceMessage,
   postTrainingAdjustment,
   postTrainingFeedback,
   postTrainingFeedbackError,
@@ -321,6 +327,9 @@ export function TrainingPlanPage({
           anotherTrainingActive={anotherTrainingActive}
           dashboardLoading={dashboardLoading}
           dailySuggestion={dailySuggestion}
+          guidanceError={guidanceError}
+          guidanceLoading={guidanceLoading}
+          guidanceMessage={guidanceMessage}
           hasActivePlan={Boolean(activePlan)}
           postTrainingAdjustment={postTrainingAdjustment}
           postTrainingFeedback={postTrainingFeedback}
@@ -432,57 +441,61 @@ export function TrainingPlanPage({
 }
 
 function PostTrainingFeedbackPanel({
-  adjustment,
-  error,
   feedback,
   loading,
-  onApply,
   onFeedbackChange,
   onPreview,
 }: {
-  adjustment: TrainingPlanAdjustmentResponse | null
-  error: string | null
   feedback: string
   loading: boolean
-  onApply: () => void
   onFeedbackChange: (value: string) => void
   onPreview: () => void
 }) {
   return (
-    <div className="mt-3 rounded-2xl border border-border bg-background p-3 shadow-sm">
-      <div className="flex items-end gap-2">
-        <Textarea
-          className="min-h-10 resize-none rounded-xl text-[13px]"
+    <div className="mt-3">
+      <InputGroup className="min-h-10 bg-background">
+        <InputGroupInput
           onChange={(event) => onFeedbackChange(event.target.value)}
           onKeyDown={(event) => {
             if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
               event.preventDefault()
-              onPreview()
+              if (!loading && feedback.trim()) {
+                onPreview()
+              }
             }
           }}
           placeholder="训练结束，感觉如何？"
-          rows={1}
           value={feedback}
         />
-        <Button
-          disabled={loading || !feedback.trim()}
-          onClick={onPreview}
-          size="icon"
-          type="button"
-        >
-          {loading && !adjustment ? <Spinner /> : <Send className="size-4" />}
-        </Button>
-      </div>
+        <InputGroupAddon align="inline-end" className="self-center">
+          <Button
+            className="rounded-full"
+            aria-disabled={loading || !feedback.trim()}
+            onClick={() => {
+              if (loading || !feedback.trim()) {
+                return
+              }
+              onPreview()
+            }}
+            size="icon"
+            type="button"
+          >
+            {loading ? <Spinner /> : <ArrowUp className="size-4" />}
+          </Button>
+        </InputGroupAddon>
+      </InputGroup>
 
-      <div className="mt-2 flex flex-wrap gap-2">
+      <div className="mt-2 flex flex-wrap gap-1.5">
         {[
-          "整体轻松，可以上点强度。",
-          "较累，动作质量下降，建议降低训练量。",
-          "膝盖不适，需减少冲击。",
-          "提前结束训练，时间体力都不够。",
+          "整体轻松",
+          "正常完成",
+          "较为吃力",
+          "提前结束",
+          "有不适感觉",
+          "补给不足",
         ].map((item) => (
           <Button
-            className="h-auto rounded-full px-3 py-1 text-left text-[12px] font-normal text-muted-foreground"
+            className="h-auto rounded-full px-3 py-1 text-left text-[12px] font-normal text-muted-foreground bg-background"
             key={item}
             onClick={() => onFeedbackChange(appendFeedbackText(feedback, item))}
             type="button"
@@ -492,45 +505,85 @@ function PostTrainingFeedbackPanel({
           </Button>
         ))}
       </div>
-
-      {error ? (
-        <div className="mt-3 flex items-start gap-2 rounded-xl bg-destructive/10 p-3 text-[12px] leading-5 text-destructive">
-          <CircleAlert className="mt-0.5 size-4 shrink-0" />
-          <span>{error}</span>
-        </div>
-      ) : null}
-
-      {adjustment ? (
-        <div className="mt-3 rounded-xl bg-muted/60 p-3">
-          <div className="text-[12px] font-semibold text-foreground">
-            Kratos 生成的调整建议
-          </div>
-          <div className="mt-2 flex flex-col gap-2">
-            {adjustment.rationale.map((item) => (
-              <div
-                className="flex gap-2 text-[12px] leading-5 text-muted-foreground"
-                key={item}
-              >
-                <Check className="mt-0.5 size-3.5 shrink-0" />
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex justify-end">
-            <Button
-              disabled={loading}
-              onClick={onApply}
-              size="sm"
-              type="button"
-            >
-              {loading ? <Spinner /> : null}
-              同意并更新计划
-            </Button>
-          </div>
-        </div>
-      ) : null}
     </div>
   )
+}
+
+function TrainingSuggestionBubbleContent({
+  adjustment,
+  defaultMessage,
+  error,
+  guidanceError,
+  guidanceLoading,
+  loading,
+  onApply,
+}: {
+  adjustment: TrainingPlanAdjustmentResponse | null
+  defaultMessage: string
+  error: string | null
+  guidanceError: string | null
+  guidanceLoading: boolean
+  loading: boolean
+  onApply: () => void
+}) {
+  if (loading && !adjustment) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Spinner />
+        <span>正在根据你的反馈生成调整建议...</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-start gap-2 text-destructive">
+        <CircleAlert className="mt-0.5 size-4 shrink-0" />
+        <span>{error}</span>
+      </div>
+    )
+  }
+
+  if (adjustment) {
+    return (
+      <div>
+        <div className="font-semibold">我建议这样调整：</div>
+        <div className="mt-2 flex flex-col gap-2">
+          {adjustment.rationale.map((item) => (
+            <div
+              className="flex gap-2 text-muted-foreground"
+              key={item}
+            >
+              <Check className="mt-0.5 size-3.5 shrink-0" />
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex justify-end">
+          <Button
+            disabled={loading}
+            onClick={onApply}
+            size="sm"
+            type="button"
+          >
+            {loading ? <Spinner /> : null}
+            同意并更新计划
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (guidanceLoading && !guidanceError) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Spinner />
+        <span>Kratos 正在分析你的训练状态...</span>
+      </div>
+    )
+  }
+
+  return defaultMessage
 }
 
 function appendFeedbackText(current: string, addition: string) {
@@ -1203,15 +1256,18 @@ function TodayTrainingHero({
             <div className="min-w-0 flex-1">
               <div className="text-[14px] leading-5 font-bold">Kratos</div>
               <div className="mt-2 rounded-2xl rounded-tl-md bg-muted px-4 py-3 text-[13px] leading-5 text-foreground">
-                {hasActivePlan ? dailySuggestion : planGoal}
+                <TrainingSuggestionBubbleContent
+                  adjustment={postTrainingAdjustment}
+                  defaultMessage={hasActivePlan ? dailySuggestion : planGoal}
+                  error={postTrainingFeedbackError}
+                  loading={postTrainingFeedbackLoading}
+                  onApply={onApplyPostTrainingAdjustment}
+                />
               </div>
               {postTrainingFeedbackVisible ? (
                 <PostTrainingFeedbackPanel
-                  adjustment={postTrainingAdjustment}
-                  error={postTrainingFeedbackError}
                   feedback={postTrainingFeedback}
                   loading={postTrainingFeedbackLoading}
-                  onApply={onApplyPostTrainingAdjustment}
                   onFeedbackChange={onPostTrainingFeedbackChange}
                   onPreview={onPreviewPostTrainingAdjustment}
                 />
@@ -1276,7 +1332,7 @@ function TodayTrainingHero({
                         <CardContent className="flex flex-1 flex-col justify-between p-4">
                           <div>
                             <h3 className="line-clamp-2 text-[16px] leading-5 font-medium">
-                              {action.title}
+                              {action.title} {action.targetReps}
                             </h3>
                             <p className="mt-1 text-[13px] text-muted-foreground">
                               动作 {actionPosition} / {actionTotal}
@@ -1652,11 +1708,6 @@ function MoreTrainingMenu({
                 从模板或空白计划保存后，这里会显示计划列表。
               </EmptyDescription>
             </EmptyHeader>
-            {/* <EmptyContent>
-              <Button variant="outline" size="sm">
-                Upload Files
-              </Button>
-            </EmptyContent> */}
           </Empty>
         )}
       </section>

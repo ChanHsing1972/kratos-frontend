@@ -14,6 +14,7 @@ import type {
   TokenResponse,
   TrainingPlanAdjustmentPayload,
   TrainingPlanAdjustmentResponse,
+  TrainingPlanGuidanceResponse,
   TrainingPlan,
   TrainingPlanPayload,
   UserProfile,
@@ -123,6 +124,13 @@ export async function previewTrainingPlanAdjustment(
       body: JSON.stringify(payload),
       method: "POST",
     }
+  )
+}
+
+export async function getTrainingPlanGuidance(token: string, planId: number) {
+  return authorizedJson<TrainingPlanGuidanceResponse>(
+    `/plans/${planId}/guidance`,
+    token
   )
 }
 
