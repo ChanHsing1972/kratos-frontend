@@ -1093,6 +1093,8 @@ function TodayTrainingHero({
   completedExercises,
   dailySuggestion,
   dashboardLoading,
+  guidanceError,
+  guidanceLoading,
   hasActivePlan,
   postTrainingAdjustment,
   postTrainingFeedback,
@@ -1122,6 +1124,9 @@ function TodayTrainingHero({
   completedExercises: string[]
   dailySuggestion: string
   dashboardLoading: boolean
+  guidanceError: string | null
+  guidanceLoading: boolean
+  guidanceMessage: string
   hasActivePlan: boolean
   postTrainingAdjustment: TrainingPlanAdjustmentResponse | null
   postTrainingFeedback: string
@@ -1260,6 +1265,8 @@ function TodayTrainingHero({
                   adjustment={postTrainingAdjustment}
                   defaultMessage={hasActivePlan ? dailySuggestion : planGoal}
                   error={postTrainingFeedbackError}
+                  guidanceError={guidanceError}
+                  guidanceLoading={guidanceLoading}
                   loading={postTrainingFeedbackLoading}
                   onApply={onApplyPostTrainingAdjustment}
                 />
