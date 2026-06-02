@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Check, ChevronDown, ChevronRight, Sparkles } from "lucide-react"
+import { Check, ChevronDown, Sparkles } from "lucide-react"
 
 import type { AgentTraceStep } from "@/entities/kratos/model/types"
 import { cn } from "@/shared/lib/utils"

@@ -2,12 +2,10 @@ import { BellRing, CheckCheck } from "lucide-react"
 
 import type { NotificationItem } from "@/entities/kratos/model/types"
 import { cn } from "@/shared/lib/utils"
-import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
 import { PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle } from "@/shared/ui/popover"
 import { ScrollArea } from "@/shared/ui/scroll-area"
-import { Separator } from "@/shared/ui/separator"
 import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/shared/ui/item"
 
 type NotificationsPopoverProps = {
