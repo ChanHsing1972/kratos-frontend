@@ -58,6 +58,7 @@ export function buildProfilePayload(
     fitness_goal: compactOptionalText(form.fitnessGoal),
     fitness_summary: compactOptionalText(form.fitnessSummary),
     gender: compactOptionalText(form.gender),
+    hyperate_id: compactOptionalText(form.hyperateId),
     injury_history: compactOptionalText(form.injuryHistory),
     location: compactOptionalText(form.location),
     medical_conditions: compactOptionalText(form.medicalConditions),

@@ -115,6 +115,12 @@ export function ProfileEditDialog({
                   value={form.location}
                 />
               </div>
+              <ProfileInput
+                label="HypeRate ID"
+                onChange={(value) => onFieldChange("hyperateId", value)}
+                placeholder="FED0C"
+                value={form.hyperateId}
+              />
               <ProfileTextarea
                 label="医疗情况"
                 onChange={(value) => onFieldChange("medicalConditions", value)}

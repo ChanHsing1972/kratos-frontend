@@ -9,6 +9,10 @@ import type {
   FitnessContext,
   FitnessProfile,
   FitnessProfilePayload,
+  HeartRateSample,
+  HeartRateSamplePayload,
+  HeartRateSummary,
+  HyperateCurrentHeartRate,
   Skill,
   SkillPayload,
   TokenResponse,
@@ -186,6 +190,46 @@ export async function updateWorkoutLog(
     body: JSON.stringify(payload),
     method: "PATCH",
   })
+}
+
+export async function getCurrentHyperateHeartRate(
+  token: string,
+  signal?: AbortSignal
+) {
+  return authorizedJson<HyperateCurrentHeartRate>(
+    "/integrations/hyperate/current",
+    token,
+    { signal }
+  )
+}
+
+export async function saveWorkoutHeartRateSample(
+  token: string,
+  workoutSessionId: number,
+  payload: HeartRateSamplePayload,
+  signal?: AbortSignal
+) {
+  return authorizedJson<HeartRateSample>(
+    `/workout-sessions/${workoutSessionId}/heart-rate-samples`,
+    token,
+    {
+      body: JSON.stringify(payload),
+      method: "POST",
+      signal,
+    }
+  )
+}
+
+export async function getWorkoutHeartRateSummary(
+  token: string,
+  workoutSessionId: number,
+  signal?: AbortSignal
+) {
+  return authorizedJson<HeartRateSummary>(
+    `/workout-sessions/${workoutSessionId}/heart-rate-summary`,
+    token,
+    { signal }
+  )
 }
 
 export async function listAgentCheckins(token: string) {

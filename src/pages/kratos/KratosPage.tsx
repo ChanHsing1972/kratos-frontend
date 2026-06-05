@@ -29,6 +29,7 @@ import {
   getCurrentUser,
   getErrorMessage,
   getTrainingPlanGuidance,
+  getWorkoutHeartRateSummary,
   getWorkoutShareCard,
   listAgentRunsForSession,
   listAgentSessions,
@@ -45,6 +46,7 @@ import {
   updateSkillBinding,
   updateMyFitnessProfile,
   updateTrainingPlan,
+  updateWorkoutLog,
   uploadAttachment,
   uploadAvatar,
 } from "@/entities/kratos/api/client"
@@ -94,6 +96,7 @@ import {
   trainingPlanPayloadFromPlan,
 } from "@/features/kratos/lib/trainingPlans"
 import { createId } from "@/shared/lib/id"
+import { useLiveHeartRate } from "@/shared/hooks/useLiveHeartRate"
 import { BodyDataPage } from "@/pages/kratos/BodyDataPage"
 import { ConversationDetailPage } from "@/pages/kratos/ConversationDetailPage"
 import { EvaluationPage } from "@/pages/kratos/EvaluationPage"
@@ -126,6 +129,7 @@ import type {
   FitnessContext,
   FitnessProfile,
   FitnessProfilePayload,
+  HeartRateSummary,
   OnboardingStatus,
   NotificationItem,
   ProfileForm,
@@ -154,9 +158,11 @@ import {
 
 type TrainingSession = {
   actionIds: string[]
+  actionTitles: string[]
   accumulatedSeconds: number
   dayTitle: string
   isPaused: boolean
+  logId: number
   startedAt: number
   workoutDate: string
 }
@@ -409,6 +415,8 @@ export function KratosPage() {
   const [trainingFeedbackLoading, setTrainingFeedbackLoading] = useState(false)
   const [trainingAdjustment, setTrainingAdjustment] =
     useState<TrainingPlanAdjustmentResponse | null>(null)
+  const [lastHeartRateSummary, setLastHeartRateSummary] =
+    useState<HeartRateSummary | null>(null)
   const [trainingGuidance, setTrainingGuidance] = useState("")
   const [trainingGuidanceError, setTrainingGuidanceError] = useState<
     string | null
@@ -417,6 +425,7 @@ export function KratosPage() {
   const [lastCompletedWorkout, setLastCompletedWorkout] = useState<{
     completed: boolean
     durationSeconds: number
+    heartRateSummary: HeartRateSummary | null
     logId: number
     log: WorkoutLog
     title: string
@@ -473,6 +482,16 @@ export function KratosPage() {
     getLatestByDate(agentCheckins, (checkin) => checkin.checkin_date ?? checkin.created_at) ?? null
   const onboardingStatus: OnboardingStatus | null =
     fitnessContext?.onboarding ?? null
+  const authToken = localStorage.getItem(AUTH_TOKEN_KEY)
+  const liveHeartRate = useLiveHeartRate({
+    enabled:
+      activeNav === "训练计划" &&
+      trainingStarted &&
+      Boolean(trainingSession?.logId),
+    hasHyperateId: Boolean(fitnessProfile?.hyperate_id?.trim()),
+    token: authToken,
+    workoutSessionId: trainingSession?.logId ?? null,
+  })
 
   const pushNotification = (title: string, body: string, read = false) => {
     setNotifications((current) => [
@@ -940,6 +959,12 @@ export function KratosPage() {
     setProfileMenuOpen(false)
     setOnboardingOpen(false)
     setBodyMetricModalOpen(false)
+    setCompletedExercises([])
+    setTrainingStarted(false)
+    setTrainingSession(null)
+    setTrainingElapsedSeconds(0)
+    setTrainingPaused(false)
+    setLastHeartRateSummary(null)
     pushWorkspacePath("/chat/new")
     setActiveNav("new")
     sonnerToast.info("已退出登录")
@@ -1913,7 +1938,8 @@ export function KratosPage() {
   const handleStartTraining = (
     dayTitle: string,
     workoutDate: string,
-    actions: string[]
+    actionTitles: string[],
+    actionIds: string[]
   ) => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
@@ -1922,7 +1948,7 @@ export function KratosPage() {
       return
     }
 
-    if (actions.length === 0) {
+    if (actionTitles.length === 0) {
       sonnerToast.info("当前计划没有可记录的训练动作")
       return
     }
@@ -1932,19 +1958,64 @@ export function KratosPage() {
       return
     }
 
-    setCompletedExercises([])
-    setTrainingSession({
-      actionIds: actions,
-      accumulatedSeconds: 0,
-      dayTitle,
-      isPaused: false,
-      startedAt: Date.now(),
-      workoutDate,
-    })
-    setTrainingElapsedSeconds(0)
-    setTrainingPaused(false)
-    setTrainingStarted(true)
-    sonnerToast.info("训练计时已开始，逐个点击动作卡片标记完成")
+    void startWorkoutSession(token, dayTitle, workoutDate, actionTitles, actionIds)
+  }
+
+  const startWorkoutSession = async (
+    token: string,
+    dayTitle: string,
+    workoutDate: string,
+    actionTitles: string[],
+    actionIds: string[]
+  ) => {
+    setDashboardLoading(true)
+    try {
+      setLastHeartRateSummary(null)
+      const log = await createWorkoutLog(token, {
+        calories_burned: null,
+        completed: false,
+        duration_minutes: 0,
+        duration_seconds: 0,
+        notes: `训练进行中；计划动作快照：${JSON.stringify(actionTitles)}`,
+        perceived_exertion: null,
+        title: dayTitle || activePlan?.title || "未命名训练",
+        training_plan_id: activePlan?.id ?? null,
+        workout_date: workoutDate,
+        workout_type: "strength",
+        exercises: actionTitles.map((action, index) => ({
+          completed: false,
+          exercise_id: actionIds[index] ?? `${workoutDate}-${index}`,
+          name: action,
+          position: index,
+          sets: [
+            {
+              completed: false,
+              set_number: 1,
+            },
+          ],
+        })),
+      })
+
+      setCompletedExercises([])
+      setTrainingSession({
+        actionIds,
+        actionTitles,
+        accumulatedSeconds: 0,
+        dayTitle,
+        isPaused: false,
+        logId: log.id,
+        startedAt: Date.now(),
+        workoutDate,
+      })
+      setTrainingElapsedSeconds(0)
+      setTrainingPaused(false)
+      setTrainingStarted(true)
+      sonnerToast.info("训练计时已开始，逐个点击动作卡片标记完成")
+    } catch (error) {
+      sonnerToast.error(getErrorMessage(error), { richColors: true })
+    } finally {
+      setDashboardLoading(false)
+    }
   }
 
   const handlePauseTraining = () => {
@@ -2018,6 +2089,7 @@ export function KratosPage() {
 
     void saveCompletedWorkout(
       token,
+      trainingSession.logId,
       dayTitle,
       workoutDate,
       actionsToSave,
@@ -2028,6 +2100,7 @@ export function KratosPage() {
 
   const saveCompletedWorkout = async (
     token: string,
+    logId: number,
     dayTitle: string,
     workoutDate: string,
     actions: string[],
@@ -2039,7 +2112,7 @@ export function KratosPage() {
     try {
       const durationMinutes = Math.max(1, Math.ceil(elapsedSeconds / 60))
       const actionSnapshot = JSON.stringify(actions)
-      const log = await createWorkoutLog(token, {
+      let log = await updateWorkoutLog(token, logId, {
         calories_burned: Math.max(20, Math.round(durationMinutes * 6)),
         completed,
         duration_minutes: durationMinutes,
@@ -2063,7 +2136,23 @@ export function KratosPage() {
           ],
         })),
       })
-      setWorkoutLogs((current) => [log, ...current])
+      let heartRateSummary: HeartRateSummary | null = null
+      try {
+        heartRateSummary = await getWorkoutHeartRateSummary(token, log.id)
+        setLastHeartRateSummary(heartRateSummary)
+        const estimatedKcal = heartRateSummary.estimated_kcal.value
+        if (estimatedKcal !== null && Number.isFinite(estimatedKcal)) {
+          log = await updateWorkoutLog(token, log.id, {
+            calories_burned: Math.max(0, Math.round(estimatedKcal)),
+          })
+        }
+      } catch (error) {
+        console.warn("训练心率汇总失败，保留基础训练记录", error)
+      }
+      setWorkoutLogs((current) => [
+        log,
+        ...current.filter((item) => item.id !== log.id),
+      ])
       setCompletedExercises([])
       setTrainingStarted(false)
       setTrainingSession(null)
@@ -2083,6 +2172,7 @@ export function KratosPage() {
         setLastCompletedWorkout({
           completed,
           durationSeconds: elapsedSeconds,
+          heartRateSummary,
           logId: log.id,
           log,
           title: dayTitle || activePlan?.title || "未命名训练",
@@ -2587,6 +2677,8 @@ export function KratosPage() {
           postTrainingFeedbackError={trainingFeedbackError}
           postTrainingFeedbackLoading={trainingFeedbackLoading}
           postTrainingFeedbackVisible={Boolean(lastCompletedWorkout)}
+          postTrainingHeartRateSummary={lastHeartRateSummary}
+          liveHeartRate={liveHeartRate}
           onOpenPlanComposer={openTrainingPlanComposer}
           onApplyPostTrainingAdjustment={handleApplyTrainingAdjustment}
           onDeletePlan={handleDeleteTrainingPlan}

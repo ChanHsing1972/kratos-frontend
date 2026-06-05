@@ -17,6 +17,7 @@ import {
   List,
   CircleAlert,
   ArrowUp,
+  HeartPulse,
 } from "lucide-react"
 import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 
@@ -59,12 +60,14 @@ import {
 import { cn } from "@/shared/lib/utils"
 import type {
   AgentCheckin,
+  HeartRateSummary,
   TrainingExerciseMedia,
   TrainingPlan,
   TrainingPlanAdjustmentResponse,
   TrainingPlanPayload,
   WorkoutLog,
 } from "@/entities/kratos/model/types"
+import type { LiveHeartRateState } from "@/shared/hooks/useLiveHeartRate"
 import { ActionImage } from "@/shared/ui/ActionImage"
 import { ButtonGroup } from "@/shared/ui/button-group"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
@@ -83,6 +86,8 @@ type TrainingPlanPageProps = {
   postTrainingFeedbackError: string | null
   postTrainingFeedbackLoading: boolean
   postTrainingFeedbackVisible: boolean
+  postTrainingHeartRateSummary: HeartRateSummary | null
+  liveHeartRate: LiveHeartRateState
   onDeletePlan: (plan: TrainingPlan) => void
   onEditPlan: (plan: TrainingPlan) => void
   onApplyPostTrainingAdjustment: () => void
@@ -94,7 +99,8 @@ type TrainingPlanPageProps = {
   onStartTraining: (
     dayTitle: string,
     workoutDate: string,
-    actions: string[]
+    actionTitles: string[],
+    actionIds: string[]
   ) => void
   onCompleteTrainingDay: (
     dayTitle: string,
@@ -148,6 +154,8 @@ export function TrainingPlanPage({
   postTrainingFeedbackError,
   postTrainingFeedbackLoading,
   postTrainingFeedbackVisible,
+  postTrainingHeartRateSummary,
+  liveHeartRate,
   onDeletePlan,
   onEditPlan,
   onApplyPostTrainingAdjustment,
@@ -336,6 +344,8 @@ export function TrainingPlanPage({
           postTrainingFeedbackError={postTrainingFeedbackError}
           postTrainingFeedbackLoading={postTrainingFeedbackLoading}
           postTrainingFeedbackVisible={postTrainingFeedbackVisible}
+          postTrainingHeartRateSummary={postTrainingHeartRateSummary}
+          liveHeartRate={liveHeartRate}
           onApplyPostTrainingAdjustment={onApplyPostTrainingAdjustment}
           onCompleteTrainingDay={onCompleteTrainingDay}
           onOpenPlanComposer={onOpenPlanComposer}
@@ -1101,6 +1111,7 @@ function TodayTrainingHero({
   postTrainingFeedbackError,
   postTrainingFeedbackLoading,
   postTrainingFeedbackVisible,
+  liveHeartRate,
   onApplyPostTrainingAdjustment,
   onCompleteTrainingDay,
   onOpenPlanComposer,
@@ -1133,6 +1144,8 @@ function TodayTrainingHero({
   postTrainingFeedbackError: string | null
   postTrainingFeedbackLoading: boolean
   postTrainingFeedbackVisible: boolean
+  postTrainingHeartRateSummary: HeartRateSummary | null
+  liveHeartRate: LiveHeartRateState
   onApplyPostTrainingAdjustment: () => void
   onCompleteTrainingDay: TrainingPlanPageProps["onCompleteTrainingDay"]
   onOpenPlanComposer: TrainingPlanPageProps["onOpenPlanComposer"]
@@ -1214,6 +1227,7 @@ function TodayTrainingHero({
                   onStartTraining(
                     `${selectedDay.day} - ${selectedDay.title}`,
                     selectedDay.dateValue,
+                    selectedDay.actions.map((action) => action.title),
                     selectedDay.actions.map((action) => action.id)
                   )
                 }}
@@ -1252,6 +1266,10 @@ function TodayTrainingHero({
 
           </div>
         </div>
+
+        {selectedTrainingActive ? (
+          <LiveHeartRatePanel reading={liveHeartRate} />
+        ) : null}
 
         <div className="max-w-150">
           <div className="flex items-start gap-3">
@@ -1375,6 +1393,56 @@ function TodayTrainingHero({
       </div >
     </section >
   )
+}
+
+function LiveHeartRatePanel({ reading }: { reading: LiveHeartRateState }) {
+  const state = liveHeartRateDisplay(reading)
+  const bpmValue = reading.bpm && reading.status === "live"
+    ? String(Math.round(reading.bpm))
+    : "--"
+
+  return (
+    <div className="grid gap-3 rounded-[14px] border bg-background px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full border bg-muted/40">
+          <HeartPulse className="size-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-medium">实时心率</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {state.label}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-baseline gap-2 sm:justify-end">
+        {reading.status === "connecting" ? (
+          <Spinner className="size-4" />
+        ) : null}
+        <span className="text-3xl font-semibold tabular-nums leading-none">
+          {bpmValue}
+        </span>
+        <span className="text-sm text-muted-foreground">bpm</span>
+      </div>
+    </div>
+  )
+}
+
+
+function liveHeartRateDisplay(reading: LiveHeartRateState) {
+  const labels: Record<LiveHeartRateState["status"], string> = {
+    connecting: "连接中",
+    disconnected: "连接中断",
+    idle: "连接中",
+    live: "实时心率",
+    no_data: "暂无数据",
+    unbound: "未绑定 HypeRate",
+  }
+
+  return {
+    label: reading.detail
+      ? `${labels[reading.status]} · ${reading.detail}`
+      : labels[reading.status],
+  }
 }
 
 function WeeklyTrainingTimeline({

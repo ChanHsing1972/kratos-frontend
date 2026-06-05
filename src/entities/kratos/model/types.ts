@@ -111,6 +111,7 @@ export type ProfileForm = {
   gender: string
   age: string
   location: string
+  hyperateId: string
   fitnessGoal: string
   fitnessSummary: string
   activityLevel: string
@@ -195,6 +196,7 @@ export type FitnessProfile = {
   preferred_workout_types: string | null
   dietary_habits: string | null
   dietary_restrictions: string | null
+  hyperate_id: string | null
   created_at: string
   updated_at: string
 }
@@ -392,6 +394,64 @@ export type WorkoutLogPayload = {
   exercises?: WorkoutExerciseLog[]
 }
 
+export type HyperateCurrentHeartRate = {
+  bpm: number | null
+  source: string
+  recorded_at: string
+  status:
+    | "ok"
+    | "unbound"
+    | "no_data"
+    | "invalid_id"
+    | "invalid_data"
+    | "invalid_response"
+    | "network_error"
+    | "timeout"
+  detail?: string | null
+}
+
+export type HeartRateSamplePayload = {
+  bpm: number
+  source?: string
+  recorded_at?: string | null
+}
+
+export type HeartRateSample = {
+  id: number
+  user_id: number
+  workout_session_id: number
+  bpm: number
+  source: string
+  recorded_at: string
+}
+
+export type HeartRateZoneDistribution = {
+  zone: number
+  label: string
+  min_percent: number
+  max_percent: number
+  count: number
+  percentage: number
+}
+
+export type EstimatedKcal = {
+  value: number | null
+  method: "heart_rate" | "met" | "unavailable"
+  reason?: string | null
+}
+
+export type HeartRateSummary = {
+  avg_bpm: number | null
+  max_bpm: number | null
+  min_bpm: number | null
+  sample_count: number
+  duration_minutes: number
+  zone_distribution: HeartRateZoneDistribution[]
+  dominant_zone: number | null
+  dominant_zone_label: string | null
+  estimated_kcal: EstimatedKcal
+}
+
 export type BodyMetricForm = {
   measuredAt: string
   heightCm: string
@@ -543,6 +603,12 @@ export type WorkoutShareCard = {
   workout_date: string
   completed: boolean
   calories_burned?: number | null
+  avg_bpm?: number | null
+  max_bpm?: number | null
+  min_bpm?: number | null
+  heart_rate_sample_count?: number
+  heart_rate_zone_label?: string | null
+  estimated_kcal_method?: "heart_rate" | "met" | "unavailable" | null
   completion_rate?: number
   duration_seconds: number
   week_completed_count: number

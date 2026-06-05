@@ -78,6 +78,7 @@ export function TrainingShareCardPreview({
   const weekDuration = formatDurationParts(card.week_duration_seconds)
   const calories = formatCaloriesParts(card.calories_burned)
   const completion = clampPercent(card.completion_rate ?? (card.completed ? 100 : 0))
+  const hasHeartRate = Boolean(card.avg_bpm || card.max_bpm || card.heart_rate_zone_label)
   // const statusLabel = card.completed ? "全部完成" : "部分完成"
 
   return (
@@ -153,6 +154,26 @@ export function TrainingShareCardPreview({
             <MiniFact label="周累计时长" value={weekDuration.value} unit={weekDuration.unit} />
             <MiniFact label="累计训练" value={String(card.total_completed_count)} unit="次" />
           </div>
+
+          {hasHeartRate ? (
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              <MiniFact
+                label="平均心率"
+                value={formatShareBpm(card.avg_bpm)}
+                unit={card.avg_bpm ? "bpm" : ""}
+              />
+              <MiniFact
+                label="最高心率"
+                value={formatShareBpm(card.max_bpm)}
+                unit={card.max_bpm ? "bpm" : ""}
+              />
+              <MiniFact
+                label="主要心率区间"
+                value={card.heart_rate_zone_label ?? "暂无"}
+                unit=""
+              />
+            </div>
+          ) : null}
 
           <blockquote className="mt-4 rounded-2xl bg-[#242424]/80 p-4 text-base font-semibold leading-7 text-white">
             <span className="-mb-1 block text-[11px] font-black uppercase tracking-[0.2em] text-[#f5ff66]">
@@ -237,7 +258,7 @@ function MiniFact({
     <div className="rounded-2xl bg-white/[0.06] px-4 py-3">
       <p className="text-xs text-white/50">{label}</p>
       <p className="mt-1 font-semibold text-white">
-        <span className="text-2xl">{value}</span>
+        <span className={value.length > 6 ? "text-base" : "text-2xl"}>{value}</span>
         <span className="ml-1 text-xs font-semibold text-white/50">{unit}</span>
       </p>
     </div>
@@ -324,6 +345,13 @@ function formatCaloriesParts(calories: number | null | undefined) {
     return { unit: "kcal", value: "--" }
   }
   return { unit: "kcal", value: String(Math.max(0, Math.round(calories))) }
+}
+
+function formatShareBpm(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "--"
+  }
+  return String(Math.max(0, Math.round(value)))
 }
 
 function clampPercent(value: number) {

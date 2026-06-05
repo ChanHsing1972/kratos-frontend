@@ -960,6 +960,7 @@ export function profileFormFromUser(
     gender: profile?.gender ?? "",
     age: profile?.age?.toString() ?? "",
     location: profile?.location ?? "",
+    hyperateId: profile?.hyperate_id ?? "",
     fitnessGoal: profile?.fitness_goal ?? "",
     fitnessSummary: profile?.fitness_summary ?? "",
     activityLevel: profile?.activity_level ?? "",
