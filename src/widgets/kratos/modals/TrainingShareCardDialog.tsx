@@ -6,11 +6,7 @@ import { toast as sonnerToast } from "sonner"
 
 import type { WorkoutShareCard } from "@/entities/kratos/model/types"
 import { Button } from "@/shared/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-} from "@/shared/ui/dialog"
+import { Dialog, DialogContent, DialogFooter } from "@/shared/ui/dialog"
 import { Spinner } from "@/shared/ui/spinner"
 
 type TrainingShareCardDialogProps = {
@@ -28,7 +24,7 @@ export function TrainingShareCardDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg overflow-hidden">
+      <DialogContent className="overflow-hidden sm:max-w-lg">
         {card ? (
           <TrainingShareCardPreview card={card} captureRef={shareCardRef} />
         ) : (
@@ -43,7 +39,10 @@ export function TrainingShareCardDialog({
             完成
           </Button>
           {card ? (
-            <TrainingShareCardSaveButton card={card} captureRef={shareCardRef} />
+            <TrainingShareCardSaveButton
+              card={card}
+              captureRef={shareCardRef}
+            />
           ) : null}
         </DialogFooter>
       </DialogContent>
@@ -74,19 +73,23 @@ export function TrainingShareCardPreview({
   captureRef?: RefObject<HTMLDivElement | null>
   card: WorkoutShareCard
 }) {
-  const duration = formatDurationParts(card.duration_seconds)
+  const duration = formatDetailedDurationParts(card.duration_seconds)
   const weekDuration = formatDurationParts(card.week_duration_seconds)
   const calories = formatCaloriesParts(card.calories_burned)
-  const completion = clampPercent(card.completion_rate ?? (card.completed ? 100 : 0))
-  const hasHeartRate = Boolean(card.avg_bpm || card.max_bpm || card.heart_rate_zone_label)
+  const completion = clampPercent(
+    card.completion_rate ?? (card.completed ? 100 : 0)
+  )
+  const hasHeartRate = Boolean(
+    card.avg_bpm || card.max_bpm || card.heart_rate_zone_label
+  )
   // const statusLabel = card.completed ? "全部完成" : "部分完成"
 
   return (
-    <div className="overflow-hidden bg-[#f7f3e8] -m-5" ref={captureRef}>
+    <div className="-m-5 overflow-hidden bg-[#f7f3e8]" ref={captureRef}>
       <div className="relative min-h-[560px] bg-[#101010] text-white">
         <div className="absolute inset-x-0 top-0 h-28 bg-[linear-gradient(135deg,#f5ff66_0%,#43e2c4_48%,#8bd8ff_100%)]" />
-        <div className="absolute -left-12 top-44 h-44 w-44 rounded-full bg-[#43e2c4]/25 blur-3xl" />
-        <div className="absolute right-0 top-40 h-56 w-56 rounded-full bg-[#f5ff66]/20 blur-3xl" />
+        <div className="absolute top-44 -left-12 h-44 w-44 rounded-full bg-[#43e2c4]/25 blur-3xl" />
+        <div className="absolute top-40 right-0 h-56 w-56 rounded-full bg-[#f5ff66]/20 blur-3xl" />
         <div className="absolute inset-x-0 bottom-0 h-36 bg-[linear-gradient(0deg,rgba(67,226,196,0.18),transparent)]" />
 
         <div className="relative p-5 sm:p-6">
@@ -96,10 +99,10 @@ export function TrainingShareCardPreview({
                 <Trophy className="size-3" />
                 {statusLabel}
               </div> */}
-              <p className=" text-[11px]  uppercase tracking-[0.2em] text-black/60">
+              <p className="text-[11px] tracking-[0.2em] text-black/60 uppercase">
                 KRATOS TRAINING
               </p>
-              <h3 className="mt-1 max-w-[20rem] text-3xl font-semibold leading-[1.04] text-black sm:text-4xl">
+              <h3 className="mt-1 max-w-[20rem] text-3xl leading-[1.04] font-semibold text-black sm:text-4xl">
                 {card.workout_title}
               </h3>
             </div>
@@ -116,15 +119,13 @@ export function TrainingShareCardPreview({
           <div className="mt-6 grid grid-cols-[1.1fr_0.9fr] gap-3">
             <HeroMetric
               label="本次训练"
+              segments={duration.segments}
               tone="light"
-              value={duration.value}
-              unit={duration.unit}
             />
             <HeroMetric
               label="热量消耗"
+              segments={[calories]}
               tone="hot"
-              value={calories.value}
-              unit={calories.unit}
             />
           </div>
 
@@ -149,10 +150,17 @@ export function TrainingShareCardPreview({
             />
           </div>
 
-
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <MiniFact label="周累计时长" value={weekDuration.value} unit={weekDuration.unit} />
-            <MiniFact label="累计训练" value={String(card.total_completed_count)} unit="次" />
+            <MiniFact
+              label="周累计时长"
+              value={weekDuration.value}
+              unit={weekDuration.unit}
+            />
+            <MiniFact
+              label="累计训练"
+              value={String(card.total_completed_count)}
+              unit="次"
+            />
           </div>
 
           {hasHeartRate ? (
@@ -175,15 +183,14 @@ export function TrainingShareCardPreview({
             </div>
           ) : null}
 
-          <blockquote className="mt-4 rounded-2xl bg-[#242424]/80 p-4 text-base font-semibold leading-7 text-white">
-            <span className="-mb-1 block text-[11px] font-black uppercase tracking-[0.2em] text-[#f5ff66]">
+          <blockquote className="mt-4 rounded-2xl bg-[#242424]/80 p-4 text-base leading-7 font-semibold text-white">
+            <span className="-mb-1 block text-[11px] font-black tracking-[0.2em] text-[#f5ff66] uppercase">
               Kratos says
             </span>
             {card.coach_comment}
           </blockquote>
 
-
-          <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4 text-[11px] uppercase tracking-[0.18em] text-white/50">
+          <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4 text-[11px] tracking-[0.18em] text-white/50 uppercase">
             <span>KRATOS</span>
             <span>让健身更智能，让训练更高效</span>
           </div>
@@ -195,26 +202,32 @@ export function TrainingShareCardPreview({
 
 function HeroMetric({
   label,
+  segments,
   tone,
-  unit,
-  value,
 }: {
   label: string
+  segments: Array<{ unit: string; value: string }>
   tone: "hot" | "light"
-  unit: string
-  value: string
 }) {
   const className =
     tone === "hot" ? "bg-[#f5ff66] text-black" : "bg-white text-black"
 
   return (
-    <div className={`${className} rounded-3xl p-4 shadow-[0_18px_40px_rgba(0,0,0,0.16)]`}>
+    <div
+      className={`${className} rounded-3xl p-4 shadow-[0_18px_40px_rgba(0,0,0,0.16)]`}
+    >
       <p className="text-sm font-medium text-black/55">{label}</p>
-      <p className="mt-3 font-black leading-none">
-        <span className="text-5xl sm:text-6xl">{value}</span>
-        <span className="ml-1 align-baseline text-base font-semibold text-black/60">
-          {unit}
-        </span>
+      <p className="mt-3 flex flex-wrap items-baseline gap-x-1.5 gap-y-2 leading-none font-black">
+        {segments.map((segment, index) => (
+          <span className="inline-flex items-baseline" key={`${segment.unit}-${index}`}>
+            <span className="text-5xl tracking-tight sm:text-6xl">
+              {segment.value}
+            </span>
+            <span className="ml-1 text-base font-semibold text-black/60 sm:text-lg">
+              {segment.unit}
+            </span>
+          </span>
+        ))}
       </p>
     </div>
   )
@@ -232,12 +245,12 @@ function StatTile({
   value: string
 }) {
   return (
-    <div className="rounded-2xl  bg-white/[0.08] p-3">
+    <div className="rounded-2xl bg-white/[0.08] p-3">
       <div className="flex items-center gap-1.5 text-white/55">
         {icon}
         <p className="text-xs">{label}</p>
       </div>
-      <p className="mt-2 font-semibold leading-none text-white">
+      <p className="mt-2 leading-none font-semibold text-white">
         <span className="text-3xl">{value}</span>
         <span className="ml-1 text-xs font-semibold text-white/55">{unit}</span>
       </p>
@@ -258,7 +271,9 @@ function MiniFact({
     <div className="rounded-2xl bg-white/[0.06] px-4 py-3">
       <p className="text-xs text-white/50">{label}</p>
       <p className="mt-1 font-semibold text-white">
-        <span className={value.length > 6 ? "text-base" : "text-2xl"}>{value}</span>
+        <span className={value.length > 6 ? "text-base" : "text-2xl"}>
+          {value}
+        </span>
         <span className="ml-1 text-xs font-semibold text-white/50">{unit}</span>
       </p>
     </div>
@@ -274,7 +289,13 @@ export function TrainingShareCardSaveButton({
   card: WorkoutShareCard
   captureRef: RefObject<HTMLElement | null>
   className?: string
-  variant?: "default" | "outline" | "ghost" | "link" | "destructive" | "secondary"
+  variant?:
+    | "default"
+    | "outline"
+    | "ghost"
+    | "link"
+    | "destructive"
+    | "secondary"
 }) {
   const [saving, setSaving] = useState(false)
   return (
@@ -322,6 +343,37 @@ async function downloadShareCardPng(
   link.remove()
 }
 
+function formatDetailedDurationParts(totalSeconds: number) {
+  const roundedSeconds = Math.max(0, Math.round(totalSeconds))
+
+  if (roundedSeconds < 60) {
+    return { segments: [{ unit: "秒", value: String(roundedSeconds) }] }
+  }
+
+  if (roundedSeconds < 3600) {
+    const minutes = Math.floor(roundedSeconds / 60)
+    const seconds = roundedSeconds % 60
+    return {
+      segments: [
+        { unit: "分", value: String(minutes) },
+        { unit: "秒", value: String(seconds) },
+      ],
+    }
+  }
+
+  const hours = Math.floor(roundedSeconds / 3600)
+  const minutes = Math.floor((roundedSeconds % 3600) / 60)
+  const seconds = roundedSeconds % 60
+
+  return {
+    segments: [
+      { unit: "时", value: String(hours) },
+      { unit: "分", value: String(minutes) },
+      { unit: "秒", value: String(seconds) },
+    ],
+  }
+}
+
 function formatDurationParts(totalSeconds: number) {
   if (totalSeconds <= 0) {
     return { unit: "秒", value: "0" }
@@ -336,7 +388,10 @@ function formatDurationParts(totalSeconds: number) {
   const hours = Math.floor(minutes / 60)
   const restMinutes = minutes % 60
   return restMinutes
-    ? { unit: "时 分", value: `${hours}:${String(restMinutes).padStart(2, "0")}` }
+    ? {
+        unit: "时 分",
+        value: `${hours}:${String(restMinutes).padStart(2, "0")}`,
+      }
     : { unit: "时", value: String(hours) }
 }
 

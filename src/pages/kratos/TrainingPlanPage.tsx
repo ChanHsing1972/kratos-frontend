@@ -1189,10 +1189,21 @@ function TodayTrainingHero({
 
           <div className="flex shrink-0 flex-wrap items-center gap-3 sm:justify-end pt-5">
             {selectedTrainingActive ? (
+              <LiveHeartRatePanel reading={liveHeartRate} />
+            ) : null}
+            {selectedTrainingActive ? (
               <ButtonGroup>
-                <Button variant="outline" onClick={trainingPaused ? onResumeTraining : onPauseTraining} className="py-5">
-                  {trainingPaused ? "已暂停" : "计时中"}{" "}
-                  {formatTimer(trainingElapsedSeconds)}
+                <Button
+                  variant="outline"
+                  onClick={trainingPaused ? onResumeTraining : onPauseTraining}
+                  className="w-32 justify-center py-5 font-normal tabular-nums"
+                >
+                  <span className="inline-block w-10 text-left">
+                    {trainingPaused ? "已暂停" : "计时中"}
+                  </span>
+                  <span className="inline-block w-20 text-left tabular-nums">
+                    {formatTimer(trainingElapsedSeconds)}
+                  </span>
                 </Button>
                 <Button
                   onClick={trainingPaused ? onResumeTraining : onPauseTraining}
@@ -1267,9 +1278,7 @@ function TodayTrainingHero({
           </div>
         </div>
 
-        {selectedTrainingActive ? (
-          <LiveHeartRatePanel reading={liveHeartRate} />
-        ) : null}
+
 
         <div className="max-w-150">
           <div className="flex items-start gap-3">
@@ -1396,54 +1405,64 @@ function TodayTrainingHero({
 }
 
 function LiveHeartRatePanel({ reading }: { reading: LiveHeartRateState }) {
-  const state = liveHeartRateDisplay(reading)
+  const [heartBeatActive, setHeartBeatActive] = useState(false)
   const bpmValue = reading.bpm && reading.status === "live"
     ? String(Math.round(reading.bpm))
     : "--"
+  const beatDurationMs = reading.bpm && reading.status === "live"
+    ? Math.max(350, Math.min(1200, Math.round(60_000 / reading.bpm)))
+    : 1000
+
+  useEffect(() => {
+    if (!reading.bpm || reading.status !== "live") {
+      setHeartBeatActive(false)
+      return undefined
+    }
+
+    setHeartBeatActive(true)
+    const beatTimer = window.setInterval(() => {
+      setHeartBeatActive(true)
+      window.setTimeout(() => setHeartBeatActive(false), 140)
+    }, beatDurationMs)
+
+    return () => window.clearInterval(beatTimer)
+  }, [beatDurationMs, reading.bpm, reading.status])
 
   return (
-    <div className="grid gap-3 rounded-[14px] border bg-background px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-full border bg-muted/40">
-          <HeartPulse className="size-4" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-medium">实时心率</p>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {state.label}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-baseline gap-2 sm:justify-end">
+    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center mr-2">
+      <div className="flex min-w-0 items-center gap-1">
         {reading.status === "connecting" ? (
           <Spinner className="size-4" />
         ) : null}
-        <span className="text-3xl font-semibold tabular-nums leading-none">
-          {bpmValue}
-        </span>
-        <span className="text-sm text-muted-foreground">bpm</span>
+        <HeartPulse
+          className="size-6 text-red-500 transition-transform duration-150 ease-out"
+          style={{ transform: heartBeatActive ? "scale(1.18)" : "scale(1)" }}
+        />
       </div>
+      <span className="inline-block text-left text-xl font-medium tabular-nums">
+        {bpmValue}
+      </span>
     </div>
   )
 }
 
 
-function liveHeartRateDisplay(reading: LiveHeartRateState) {
-  const labels: Record<LiveHeartRateState["status"], string> = {
-    connecting: "连接中",
-    disconnected: "连接中断",
-    idle: "连接中",
-    live: "实时心率",
-    no_data: "暂无数据",
-    unbound: "未绑定 HypeRate",
-  }
+// function liveHeartRateDisplay(reading: LiveHeartRateState) {
+//   const labels: Record<LiveHeartRateState["status"], string> = {
+//     connecting: "连接中",
+//     disconnected: "连接中断",
+//     idle: "连接中",
+//     live: "实时心率",
+//     no_data: "暂无数据",
+//     unbound: "未绑定 HypeRate",
+//   }
 
-  return {
-    label: reading.detail
-      ? `${labels[reading.status]} · ${reading.detail}`
-      : labels[reading.status],
-  }
-}
+//   return {
+//     label: reading.detail
+//       ? `${labels[reading.status]} · ${reading.detail}`
+//       : labels[reading.status],
+//   }
+// }
 
 function WeeklyTrainingTimeline({
   activePlan,
