@@ -5,7 +5,7 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
 } from "react"
-import { ArrowUp, Eye, ImageIcon, Paperclip, PencilLine, Plus, Square, X } from "lucide-react"
+import { ArrowUp, Eye, ImageIcon, Loader2, Paperclip, PencilLine, Plus, Soup, Square, X } from "lucide-react"
 
 import type { ChatAttachment } from "@/entities/kratos/model/types"
 import { MarkdownMessage } from "@/widgets/kratos/conversation/MarkdownMessage"
@@ -18,13 +18,21 @@ import {
   InputGroupTextarea,
 } from "@/shared/ui/input-group"
 import { Separator } from "@/shared/ui/separator"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/ui/tooltip"
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 
 type ConversationComposerProps = {
   attachments: ChatAttachment[]
+  dietEstimating: boolean
   maxLength?: number
   onAttachment: (event: ChangeEvent<HTMLInputElement>) => void
   onChange: (value: string) => void
+  onDietImage: (event: ChangeEvent<HTMLInputElement>) => void
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   onRemoveAttachment: (index: number) => void
   onSend: () => void
@@ -35,9 +43,11 @@ type ConversationComposerProps = {
 
 export function ConversationComposer({
   attachments,
+  dietEstimating,
   maxLength = 1000,
   onAttachment,
   onChange,
+  onDietImage,
   onKeyDown,
   onRemoveAttachment,
   onSend,
@@ -127,24 +137,67 @@ export function ConversationComposer({
       )}
 
       <InputGroupAddon align="block-end">
-        <InputGroupButton
-          aria-label="上传附件"
-          asChild
-          className="size-6 rounded-full p-0 shadow-none"
-          type="button"
-          variant="outline"
-        >
-          <label className="cursor-pointer">
-            <input
-              accept="image/*,.csv,.doc,.docx,.json,.pdf,.txt,.xls,.xlsx"
-              className="hidden"
-              multiple
-              onChange={onAttachment}
-              type="file"
-            />
-            <Plus className="size-3.5" />
-          </label>
-        </InputGroupButton>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <InputGroupButton
+                aria-label="上传附件"
+                asChild
+                className="size-6 rounded-full p-0 shadow-none"
+                type="button"
+                variant="outline"
+              >
+                <label className="cursor-pointer">
+                  <input
+                    accept="image/*,.csv,.doc,.docx,.json,.pdf,.txt,.xls,.xlsx"
+                    className="hidden"
+                    multiple
+                    onChange={onAttachment}
+                    type="file"
+                  />
+                  <Plus className="size-3.5" />
+                </label>
+              </InputGroupButton>
+            </TooltipTrigger>
+            <TooltipContent side="top">上传附件给 Agent</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <InputGroupButton
+                aria-label={dietEstimating ? "正在识别餐食热量" : "识别餐食热量"}
+                asChild
+                className="size-6 rounded-full p-0 shadow-none"
+                type="button"
+                variant="outline"
+              >
+                <label
+                  className={
+                    sending || dietEstimating
+                      ? "cursor-not-allowed opacity-60"
+                      : "cursor-pointer"
+                  }
+                >
+                  <input
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    disabled={sending || dietEstimating}
+                    onChange={onDietImage}
+                    type="file"
+                  />
+                  {dietEstimating ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Soup className="size-3.5" />
+                  )}
+                </label>
+              </InputGroupButton>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              {dietEstimating ? "正在估算热量" : "上传食物图估算热量"}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <ToggleGroup defaultValue="write" size="sm" type="single" variant="outline">
           <ToggleGroupItem onClick={() => setMode("write")} value="write">

@@ -27,6 +27,9 @@ import type {
   WorkoutLog,
   WorkoutLogPayload,
   ChatAttachment,
+  DietRecord,
+  DietRecordPayload,
+  FoodImageEstimateResponse,
   WorkoutShareCard,
   AgentToolConfig,
 } from "@/entities/kratos/model/types"
@@ -83,6 +86,33 @@ export async function uploadAttachment(token: string, file: File) {
 
 export async function uploadAvatar(token: string, file: File) {
   return uploadFile(token, "/uploads/avatar", file)
+}
+
+export async function estimateDietFromImage(token: string, file: File) {
+  const formData = new FormData()
+  formData.set("image", file)
+
+  const response = await fetch(`${API_BASE_URL}/diet/estimate-from-image`, {
+    body: formData,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: "POST",
+  })
+
+  const payload = await response.json().catch(() => null as unknown)
+  if (!response.ok) {
+    throw new Error(extractApiError(payload) ?? `识别失败：${response.status}`)
+  }
+
+  return payload as FoodImageEstimateResponse
+}
+
+export async function createDietRecords(token: string, payload: DietRecordPayload) {
+  return authorizedJson<DietRecord[]>("/diet/records", token, {
+    body: JSON.stringify(payload),
+    method: "POST",
+  })
 }
 
 export async function listTrainingPlans(token: string) {

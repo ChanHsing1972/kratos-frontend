@@ -13,6 +13,7 @@ import {
   Trash2,
   TrendingUp,
   Trophy,
+  Utensils,
   type LucideIcon,
 } from "lucide-react"
 import { Fragment, useState, type ReactNode } from "react"
@@ -28,6 +29,7 @@ import {
 import type {
   AgentCheckin,
   BodyMetric,
+  DietRecord,
   WorkoutLog,
 } from "@/entities/kratos/model/types"
 import { Badge } from "@/shared/ui/badge"
@@ -51,6 +53,7 @@ import { Separator } from "@/shared/ui/separator"
 type BodyDataPageProps = {
   bodyMetrics: BodyMetric[]
   checkins: AgentCheckin[]
+  dietRecords: DietRecord[]
   latestCheckin: AgentCheckin | null
   latestMetric: BodyMetric | null
   onEditBodyData: () => void
@@ -88,6 +91,7 @@ type BodyDataRecord = {
 export function BodyDataPage({
   bodyMetrics,
   checkins,
+  dietRecords,
   latestCheckin,
   latestMetric,
   onEditBodyData,
@@ -211,6 +215,8 @@ export function BodyDataPage({
 
         <WeeklyTrainingStats logs={completedWorkoutLogs} />
 
+        <TodayDietPanel records={dietRecords} />
+
         <TrendPanel
           additionalTrends={additionalTrends}
           coreTrends={coreTrends}
@@ -232,6 +238,69 @@ export function BodyDataPage({
         />
       </section>
     </main>
+  )
+}
+
+function TodayDietPanel({ records }: { records: DietRecord[] }) {
+  const todayRecords = records.filter((record) => isToday(record.meal_date))
+  const totalKcal = roundOne(todayRecords.reduce((sum, record) => sum + record.estimated_kcal, 0))
+  const protein = roundOne(todayRecords.reduce((sum, record) => sum + record.protein_g, 0))
+  const fat = roundOne(todayRecords.reduce((sum, record) => sum + record.fat_g, 0))
+  const carbs = roundOne(todayRecords.reduce((sum, record) => sum + record.carbs_g, 0))
+
+  return (
+    <section className="mt-10">
+      <SectionHeading
+        description="来自食物图片识别并确认保存的记录"
+        title="今日饮食"
+      />
+      {todayRecords.length ? (
+        <>
+          <div className="mt-5 grid gap-6 sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] sm:items-center sm:gap-x-4">
+            <StatusMetric icon={Utensils} label="摄入热量" value={`${formatNumber(totalKcal)} 千卡`} />
+            <Separator className="hidden h-12 sm:block" orientation="vertical" />
+            <StatusMetric icon={Activity} label="蛋白质" value={`${formatNumber(protein)} g`} />
+            <Separator className="hidden h-12 sm:block" orientation="vertical" />
+            <StatusMetric icon={Gauge} label="脂肪" value={`${formatNumber(fat)} g`} />
+            <Separator className="hidden h-12 sm:block" orientation="vertical" />
+            <StatusMetric icon={Flame} label="碳水" value={`${formatNumber(carbs)} g`} />
+          </div>
+          <div className="mt-5 divide-y rounded-lg border bg-background/60">
+            {todayRecords.map((record) => (
+              <div
+                className="flex flex-col gap-2 px-3 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+                key={record.id}
+              >
+                <div>
+                  <div className="font-medium">{record.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatNumber(record.estimated_weight_g)}g · {record.source}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <Badge variant="outline">{formatNumber(record.estimated_kcal)} kcal</Badge>
+                  <span>蛋白 {formatNumber(record.protein_g)}g</span>
+                  <span>脂肪 {formatNumber(record.fat_g)}g</span>
+                  <span>碳水 {formatNumber(record.carbs_g)}g</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <Empty className="mt-5 min-h-44 border border-dashed">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Utensils />
+            </EmptyMedia>
+            <EmptyTitle>今天还没有饮食记录</EmptyTitle>
+            <EmptyDescription>
+              在聊天输入框旁上传食物图片，确认后会自动汇总今日摄入。
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
+    </section>
   )
 }
 
@@ -1253,6 +1322,14 @@ function formatTrainingDuration(totalSeconds: number) {
     return remainder ? `${hours} 小时 ${remainder} 分` : `${hours} 小时`
   }
   return `${minutes} 分钟`
+}
+
+function formatNumber(value: number) {
+  return Number.isInteger(value) ? `${value}` : value.toFixed(1)
+}
+
+function roundOne(value: number) {
+  return Math.max(0, Math.round(value * 10) / 10)
 }
 
 function formatWeekRange(weekStart: Date) {

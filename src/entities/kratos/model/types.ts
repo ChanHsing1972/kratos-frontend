@@ -43,6 +43,53 @@ export type ChatAttachment = {
   url: string
 }
 
+export type FoodEstimateItem = {
+  name: string
+  estimated_weight_g: number
+  estimated_kcal: number
+  min_kcal: number
+  max_kcal: number
+  protein_g: number
+  fat_g: number
+  carbs_g: number
+  confidence: number
+  assumptions: string[]
+  source: "ai_estimated" | "database" | "mixed" | string
+}
+
+export type FoodEstimateTotal = {
+  estimated_kcal: number
+  min_kcal: number
+  max_kcal: number
+  protein_g: number
+  fat_g: number
+  carbs_g: number
+}
+
+export type FoodImageEstimateResult = {
+  items: FoodEstimateItem[]
+  total: FoodEstimateTotal
+  need_user_confirmation: boolean
+  warning: string
+}
+
+export type FoodImageEstimateResponse = {
+  success: boolean
+  data: FoodImageEstimateResult
+}
+
+export type DietRecord = FoodEstimateItem & {
+  id: number
+  user_id: number
+  meal_date: string
+  created_at: string
+}
+
+export type DietRecordPayload = {
+  meal_date?: string | null
+  items: FoodEstimateItem[]
+}
+
 export type Metric = {
   label: string
   value: string
@@ -504,6 +551,7 @@ export type FitnessContext = {
   latest_body_metric: BodyMetric | null
   recent_body_metrics: BodyMetric[]
   recent_workout_logs: WorkoutLog[]
+  recent_diet_records: DietRecord[]
   recent_checkins: AgentCheckin[]
   active_plan: TrainingPlan | null
   onboarding: OnboardingStatus

@@ -15,6 +15,7 @@ import {
   activateTrainingPlan,
   createAgentCheckin,
   createBodyMetric,
+  createDietRecords,
   createMyFitnessProfile,
   createSkill,
   createTrainingPlan,
@@ -24,6 +25,7 @@ import {
   deleteBodyMetric,
   deleteSkill,
   deleteTrainingPlan,
+  estimateDietFromImage,
   exportAgentRunRagas,
   getAgentSession,
   getCurrentUser,
@@ -108,6 +110,7 @@ import { BodyMetricModal } from "@/widgets/kratos/modals/BodyMetricModal"
 import { DetailModal } from "@/widgets/kratos/modals/DetailModal"
 import { OnboardingModal } from "@/widgets/kratos/modals/OnboardingModal"
 import { TrainingShareCardDialog } from "@/widgets/kratos/modals/TrainingShareCardDialog"
+import { DietEstimateDialog } from "@/widgets/kratos/modals/DietEstimateDialog"
 import { TrainingPlanModal } from "@/widgets/kratos/modals/TrainingPlanModal"
 import { Sidebar } from "@/widgets/kratos/sidebar/Sidebar"
 import { SidebarProvider } from "@/shared/ui/sidebar"
@@ -127,6 +130,9 @@ import type {
   ChatMessage,
   DetailPanel,
   FitnessContext,
+  DietRecord,
+  FoodEstimateItem,
+  FoodImageEstimateResult,
   FitnessProfile,
   FitnessProfilePayload,
   HeartRateSummary,
@@ -353,6 +359,10 @@ export function KratosPage() {
     }
   )
   const [composerAttachments, setComposerAttachments] = useState<ChatAttachment[]>([])
+  const [dietEstimating, setDietEstimating] = useState(false)
+  const [dietSaving, setDietSaving] = useState(false)
+  const [dietEstimateOpen, setDietEstimateOpen] = useState(false)
+  const [dietEstimate, setDietEstimate] = useState<FoodImageEstimateResult | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>(
     () => {
       const route = routeFromLocation()
@@ -389,6 +399,9 @@ export function KratosPage() {
   )
   const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>(
     () => cachedWorkspaceRef.current?.workoutLogs ?? []
+  )
+  const [dietRecords, setDietRecords] = useState<DietRecord[]>(
+    () => cachedWorkspaceRef.current?.fitnessContext?.recent_diet_records ?? []
   )
   const [agentCheckins, setAgentCheckins] = useState<AgentCheckin[]>(
     () => cachedWorkspaceRef.current?.agentCheckins ?? []
@@ -1523,6 +1536,7 @@ export function KratosPage() {
     setFitnessProfile(context.profile)
     setBodyMetrics(context.recent_body_metrics)
     setWorkoutLogs(context.recent_workout_logs)
+    setDietRecords(context.recent_diet_records)
     setAgentCheckins(context.recent_checkins)
   }
 
@@ -1892,6 +1906,75 @@ export function KratosPage() {
       .catch((error) => {
         sonnerToast.error(getErrorMessage(error), { richColors: true })
       })
+  }
+
+  const handleDietImageEstimate = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file) {
+      return
+    }
+
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      sonnerToast.info("登录后可以识别餐食热量")
+      return
+    }
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      sonnerToast.error("仅支持 JPG、PNG 或 WebP 图片")
+      return
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      sonnerToast.error("图片不能超过 8MB")
+      return
+    }
+
+    setDietEstimating(true)
+    const toastId = sonnerToast.loading("正在识别餐食热量...")
+    void estimateDietFromImage(token, file)
+      .then((response) => {
+        setDietEstimate(response.data)
+        setDietEstimateOpen(true)
+        sonnerToast.success("热量估算完成", { id: toastId })
+      })
+      .catch((error) => {
+        sonnerToast.error(getErrorMessage(error), { id: toastId, richColors: true })
+      })
+      .finally(() => {
+        setDietEstimating(false)
+      })
+  }
+
+  const handleSaveDietEstimate = async (items: FoodEstimateItem[]) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      openAuth("login")
+      sonnerToast.info("登录后可以保存饮食记录")
+      return
+    }
+    if (!items.length) {
+      sonnerToast.warning("请选择至少一项食物")
+      return
+    }
+
+    setDietSaving(true)
+    try {
+      const saved = await createDietRecords(token, {
+        meal_date: localDateValue(new Date()),
+        items,
+      })
+      setDietRecords((current) => [...saved, ...current])
+      setDietEstimateOpen(false)
+      await refreshDashboard(token, { preserveMessages: true })
+      sonnerToast.success("已保存到今日饮食")
+    } catch (error) {
+      sonnerToast.error(getErrorMessage(error), { richColors: true })
+    } finally {
+      setDietSaving(false)
+    }
   }
 
   const handleAvatarUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -2712,6 +2795,7 @@ export function KratosPage() {
           checkins={agentCheckins}
           latestCheckin={latestCheckin}
           latestMetric={latestMetric}
+          dietRecords={dietRecords}
           onEditBodyData={openBodyMetricEditor}
           onEditBodyMetric={openBodyMetricEditor}
           onDeleteCheckin={handleDeleteCheckin}
@@ -2758,12 +2842,14 @@ export function KratosPage() {
         composerAttachments={composerAttachments}
         composerValue={composerValue}
         conversationLoading={conversationLoading}
+        dietEstimating={dietEstimating}
         messages={messages}
         notifications={notifications}
         notificationsOpen={notificationsOpen}
         onAttachment={handleAttachment}
         onComposerChange={(value) => setComposerValue(value.slice(0, 1000))}
         onComposerKeyDown={handleComposerKeyDown}
+        onDietImage={handleDietImageEstimate}
         onCreateTrainingPlanFromMessage={handleCreateTrainingPlanFromChat}
         onEditTrainingPlanDraft={openTrainingPlanComposer}
         onConfirmHealthData={handleConfirmHealthData}
@@ -2904,6 +2990,13 @@ export function KratosPage() {
         card={trainingShareCard}
         onOpenChange={setTrainingShareCardOpen}
         open={trainingShareCardOpen}
+      />
+      <DietEstimateDialog
+        estimate={dietEstimate}
+        onOpenChange={setDietEstimateOpen}
+        onSave={handleSaveDietEstimate}
+        open={dietEstimateOpen}
+        saving={dietSaving}
       />
       <DetailModal panel={detailPanel} onClose={() => setDetailPanel(null)} />
       <Toaster position="bottom-right" />

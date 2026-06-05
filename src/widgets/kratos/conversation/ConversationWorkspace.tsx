@@ -25,12 +25,14 @@ export type ConversationWorkspaceProps = {
   composerValue: string
   composerAttachments: ChatAttachment[]
   conversationLoading: boolean
+  dietEstimating: boolean
   messages: ChatMessage[]
   notifications: NotificationItem[]
   notificationsOpen: boolean
   onAttachment: (event: ChangeEvent<HTMLInputElement>) => void
   onComposerChange: (value: string) => void
   onComposerKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
+  onDietImage: (event: ChangeEvent<HTMLInputElement>) => void
   onMarkNotificationsRead: () => void
   onRemoveAttachment: (index: number) => void
   onCreateTrainingPlanFromMessage: (
@@ -57,12 +59,14 @@ export function ConversationWorkspace({
   composerValue,
   composerAttachments,
   conversationLoading,
+  dietEstimating,
   messages,
   notifications,
   notificationsOpen,
   onAttachment,
   onComposerChange,
   onComposerKeyDown,
+  onDietImage,
   onMarkNotificationsRead,
   onRemoveAttachment,
   onCreateTrainingPlanFromMessage,
@@ -119,7 +123,9 @@ export function ConversationWorkspace({
             agentStreaming={agentStreaming}
             composerAttachments={composerAttachments}
             composerValue={composerValue}
+            dietEstimating={dietEstimating}
             onAttachment={onAttachment}
+            onDietImage={onDietImage}
             onComposerChange={onComposerChange}
             onComposerKeyDown={onComposerKeyDown}
             onQuickAction={onQuickAction}
@@ -160,7 +166,9 @@ export function ConversationWorkspace({
               <div className="mx-auto w-full max-w-[820px]">
                 <ConversationComposer
                   onAttachment={onAttachment}
+                  onDietImage={onDietImage}
                   attachments={composerAttachments}
+                  dietEstimating={dietEstimating}
                   onChange={onComposerChange}
                   onKeyDown={onComposerKeyDown}
                   onRemoveAttachment={onRemoveAttachment}
@@ -196,10 +204,12 @@ function LoadingConversation() {
 function EmptyConversationPanel({
   agentStreaming,
   composerValue,
+  dietEstimating,
   composerAttachments,
   onAttachment,
   onComposerChange,
   onComposerKeyDown,
+  onDietImage,
   onQuickAction,
   onRemoveAttachment,
   onSendMessage,
@@ -207,10 +217,12 @@ function EmptyConversationPanel({
 }: {
   agentStreaming: boolean
   composerValue: string
+  dietEstimating: boolean
   composerAttachments: ChatAttachment[]
   onAttachment: (event: ChangeEvent<HTMLInputElement>) => void
   onComposerChange: (value: string) => void
   onComposerKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
+  onDietImage: (event: ChangeEvent<HTMLInputElement>) => void
   onQuickAction: (action: QuickAction) => void
   onRemoveAttachment: (index: number) => void
   onSendMessage: () => void
@@ -223,7 +235,9 @@ function EmptyConversationPanel({
           composer={
             <ConversationComposer
               onAttachment={onAttachment}
+              onDietImage={onDietImage}
               attachments={composerAttachments}
+              dietEstimating={dietEstimating}
               onChange={onComposerChange}
               onKeyDown={onComposerKeyDown}
               onRemoveAttachment={onRemoveAttachment}
