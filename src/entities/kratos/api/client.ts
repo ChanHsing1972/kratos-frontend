@@ -94,13 +94,20 @@ export async function estimateDietFromImage(token: string, file: File) {
   const formData = new FormData()
   formData.set("image", file)
 
-  const response = await fetch(`${API_BASE_URL}/diet/estimate-from-image`, {
-    body: formData,
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    method: "POST",
-  })
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}/diet/estimate-from-image`, {
+      body: formData,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      method: "POST",
+    })
+  } catch {
+    throw new Error(
+      `饮食图片识别请求失败。当前接口：${API_BASE_URL}。请确认后端已允许本地开发源，且图片识别服务没有触发网关超时。`
+    )
+  }
 
   const payload = await response.json().catch(() => null as unknown)
   if (!response.ok) {

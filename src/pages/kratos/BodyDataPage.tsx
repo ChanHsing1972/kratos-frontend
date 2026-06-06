@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react"
 import {
   BarChart3,
   Download,
@@ -13,12 +13,12 @@ import {
   Trophy,
 } from "lucide-react"
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   XAxis,
@@ -40,7 +40,6 @@ import {
 } from "@/shared/ui/accordion"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import {
   ChartContainer,
   ChartTooltip,
@@ -147,12 +146,12 @@ const RANGE_OPTIONS: Array<{ id: RangeId; label: string; days: number }> = [
 ]
 
 const DONUT_COLORS = [
-  "var(--foreground)",
-  "var(--muted-foreground)",
-  "color-mix(in oklch, var(--foreground) 72%, transparent)",
-  "color-mix(in oklch, var(--muted-foreground) 72%, transparent)",
-  "color-mix(in oklch, var(--foreground) 48%, transparent)",
-  "color-mix(in oklch, var(--muted-foreground) 48%, transparent)",
+  "#111111",
+  "#333333",
+  "#555555",
+  "#777777",
+  "#999999",
+  "#bbbbbb",
 ]
 
 export function BodyDataPage({
@@ -182,7 +181,7 @@ export function BodyDataPage({
   )
 
   return (
-    <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
+    <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-background">
       <section className="mx-auto mt-20 flex min-h-full w-full max-w-[900px] flex-col px-6 pt-8 pb-16 sm:px-8">
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
           <h1 className="text-3xl font-medium tracking-[-0.05em]">数据中心</h1>
@@ -227,6 +226,7 @@ export function BodyDataPage({
           onLoadHeartRateSummary={onLoadWorkoutHeartRateSummary}
         />
 
+        {/* 删除！*/}
         {/* <BodyHistorySection
           metrics={bodyMetrics}
           onDeleteBodyMetric={onDeleteBodyMetric}
@@ -253,27 +253,35 @@ function ExerciseOverview({ logs }: { logs: WorkoutLog[] }) {
             description=""
             title="运动总览"
           />
-          <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-4">
+          <TabsList
+            className="grid h-auto w-full grid-cols-2 bg-transparent p-0 sm:w-auto sm:grid-cols-4"
+            variant="line"
+          >
             {RANGE_OPTIONS.map((item) => (
-              <TabsTrigger key={item.id} value={item.id} className="px-3">{item.label}</TabsTrigger>
+              <TabsTrigger
+                key={item.id}
+                value={item.id}
+              >
+                {item.label}
+              </TabsTrigger>
             ))}
           </TabsList>
         </div>
         {RANGE_OPTIONS.map((item) => (
-          <TabsContent className="mt-4" key={item.id} value={item.id}>
-            <div className="grid gap-4 sm:grid-cols-4">
+          <TabsContent className="mt-6" key={item.id} value={item.id}>
+            <div className="grid gap-x-8 gap-y-5 sm:grid-cols-4">
               <OverviewStat icon={<Dumbbell />} label="总运动次数" value={`${stats.count} 次`} />
               <OverviewStat icon={<Timer />} label="总运动时长" value={formatDuration(stats.seconds)} />
               <OverviewStat icon={<Flame />} label="总消耗热量" value={`${stats.calories} kcal`} />
               <OverviewStat icon={<Trophy />} label="累计运动天数" value={`${stats.days} 天`} />
             </div>
-            <div className="mt-6 grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
-              <ChartCard title="运动时间偏好">
+            <div className="mt-8 grid gap-10 lg:grid-cols-2">
+              <ChartPanel title="运动时间偏好">
                 <PreferenceBarChart data={timeData} />
-              </ChartCard>
-              <ChartCard title="训练类型偏好">
+              </ChartPanel>
+              <ChartPanel title="训练类型偏好">
                 <PreferenceDonutChart data={typeData} />
-              </ChartCard>
+              </ChartPanel>
             </div>
           </TabsContent>
         ))}
@@ -310,9 +318,9 @@ function MetricSection({
     <section className="mt-12">
       <SectionHeader description={`最近记录：${latestLabel}`} title={title} />
       {importantDefinitions.length ? (
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        <div className="mt-7 grid gap-x-10 gap-y-10 lg:grid-cols-2">
           {importantDefinitions.map((definition) => (
-            <MetricChartCard
+            <MetricChartPanel
               definition={definition}
               important
               key={definition.id}
@@ -322,7 +330,7 @@ function MetricSection({
           ))}
         </div>
       ) : (
-        <Empty className="mt-5 min-h-52 border border-dashed bg-background/60">
+        <Empty className="mt-5 min-h-52 bg-transparent border border-dashed">
           <EmptyHeader>
             <EmptyMedia variant="icon">{emptyIcon}</EmptyMedia>
             <EmptyTitle>暂无重要指标</EmptyTitle>
@@ -331,18 +339,18 @@ function MetricSection({
         </Empty>
       )}
 
-      <Accordion className="mt-5" collapsible type="single">
-        <AccordionItem value="more">
-          <AccordionTrigger>
+      <Accordion className="mt-2" collapsible type="single">
+        <AccordionItem className="border-0" value="more">
+          <AccordionTrigger className="px-0">
             <span className="flex items-center gap-2">
               更多指标
               <Badge variant="outline">{moreDefinitions.length}</Badge>
             </span>
           </AccordionTrigger>
           <AccordionContent>
-            <div className="grid gap-5 pt-3 lg:grid-cols-2">
+            <div className="grid gap-x-10 gap-y-10 pt-5 lg:grid-cols-2">
               {moreDefinitions.map((definition) => (
-                <MetricChartCard
+                <MetricChartPanel
                   definition={definition}
                   important={false}
                   key={definition.id}
@@ -358,7 +366,7 @@ function MetricSection({
   )
 }
 
-function MetricChartCard({
+function MetricChartPanel({
   definition,
   important,
   onToggleImportant,
@@ -370,10 +378,10 @@ function MetricChartCard({
   series: MetricPoint[]
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between">
+    <section className="min-w-0">
+      <div className="flex flex-row items-start justify-between gap-4">
         <div>
-          <CardTitle>{definition.label}</CardTitle>
+          <h3 className="text-sm font-medium text-muted-foreground">{definition.label}</h3>
           <p className="mt-1 text-2xl font-medium tracking-tight">
             {formatLatest(series, definition.unit)}
           </p>
@@ -385,18 +393,16 @@ function MetricChartCard({
           variant="ghost"
           className="text-muted-foreground"
         >
-          {important ? < Eye /> : <Pin />}
+          {important ? <Eye /> : <Pin />}
         </Button>
-      </CardHeader>
-      <CardContent>
-        <MetricMiniChart
-          kind={definition.kind}
-          label={definition.label}
-          series={series}
-          unit={definition.unit}
-        />
-      </CardContent>
-    </Card>
+      </div>
+      <MetricMiniChart
+        kind={definition.kind}
+        label={definition.label}
+        series={series}
+        unit={definition.unit}
+      />
+    </section>
   )
 }
 
@@ -411,9 +417,11 @@ function MetricMiniChart({
   series: MetricPoint[]
   unit: string
 }) {
+  const gradientId = useSvgId("metric-gradient")
+
   if (!series.length) {
     return (
-      <Empty className="min-h-40 border border-dashed bg-muted/20">
+      <Empty className="mt-4 min-h-40 bg-transparent border border-dashed">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <BarChart3 />
@@ -433,32 +441,54 @@ function MetricMiniChart({
 
   return (
     <ChartContainer
-      className="mt-2 h-48 w-full"
+      className="mt-4 h-56 w-full !aspect-auto"
       config={chartConfig}
-      initialDimension={{ height: 192, width: 460 }}
+      initialDimension={{ height: 224, width: 460 }}
     >
       {kind === "bar" ? (
-        <BarChart data={series} margin={{ bottom: 0, left: 0, right: 8, top: 12 }}>
-          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 12%, transparent)" strokeDasharray="3 8" vertical={false} />
+        <BarChart data={series} barCategoryGap="38%" margin={{ bottom: 0, left: 0, right: 8, top: 18 }}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="var(--foreground)" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="var(--foreground)" stopOpacity={0.38} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 20%, transparent)" strokeDasharray="4 8" vertical={false} />
           <XAxis axisLine={false} dataKey="label" minTickGap={18} tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
           <YAxis allowDecimals={false} axisLine={false} tick={{ fontSize: 12 }} tickFormatter={(value: number) => formatAxisTick(value, unit)} tickLine={false} tickMargin={8} width={48} />
-          <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ fill: "color-mix(in oklch, var(--muted) 50%, transparent)" }} />
-          <Bar dataKey="value" fill="var(--color-value)" radius={[6, 6, 0, 0]} />
+          <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ fill: "color-mix(in oklch, var(--muted-foreground) 6%, transparent)" }} />
+          <Bar dataKey="value" fill={`url(#${gradientId})`} maxBarSize={30} radius={[2, 2, 2, 2]} />
         </BarChart>
       ) : (
-        <LineChart data={series} margin={{ bottom: 0, left: 0, right: 12, top: 12 }}>
-          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 12%, transparent)" strokeDasharray="3 8" vertical={false} />
+        <AreaChart data={series} margin={{ bottom: 0, left: 0, right: 12, top: 18 }}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="var(--foreground)" stopOpacity={0.2} />
+              <stop offset="100%" stopColor="var(--foreground)" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground)20%, transparent)" strokeDasharray="4 8" vertical={false} />
           <XAxis axisLine={false} dataKey="label" minTickGap={18} tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
           <YAxis axisLine={false} domain={metricDomain(series, unit)} tick={{ fontSize: 12 }} tickCount={4} tickFormatter={(value: number) => formatAxisTick(value, unit)} tickLine={false} tickMargin={8} width={52} />
-          <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ stroke: "color-mix(in oklch, var(--muted-foreground) 22%, transparent)" }} />
-          <Line activeDot={{ r: 5, strokeWidth: 2 }} dataKey="value" dot={{ r: 3, strokeWidth: 2 }} stroke="var(--color-value)" strokeLinecap="round" strokeWidth={2.2} type="monotone" />
-        </LineChart>
+          <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ stroke: "color-mix(in oklch, var(--muted-foreground) 18%, transparent)" }} />
+          <Area
+            activeDot={{ r: 4, strokeWidth: 2 }}
+            dataKey="value"
+            dot={true}
+            fill={`url(#${gradientId})`}
+            stroke="var(--color-value)"
+            strokeLinecap="round"
+            strokeWidth={2.8}
+            type="monotone"
+          />
+        </AreaChart>
       )}
     </ChartContainer>
   )
 }
 
 function PreferenceBarChart({ data }: { data: Array<{ label: string; value: number }> }) {
+  const gradientId = useSvgId("time-gradient")
   if (!data.some((item) => item.value > 0)) {
     return <ChartEmpty icon={<Timer />} title="暂无运动时间数据" />
   }
@@ -466,13 +496,19 @@ function PreferenceBarChart({ data }: { data: Array<{ label: string; value: numb
     value: { color: "var(--foreground)", label: "次数" },
   } satisfies ChartConfig
   return (
-    <ChartContainer className="h-64 w-full" config={chartConfig} initialDimension={{ height: 256, width: 620 }}>
-      <BarChart data={data} margin={{ bottom: 0, left: 0, right: 8, top: 12 }}>
-        <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 12%, transparent)" strokeDasharray="3 8" vertical={false} />
+    <ChartContainer className="h-72 w-full !aspect-auto" config={chartConfig} initialDimension={{ height: 288, width: 620 }}>
+      <BarChart data={data} barCategoryGap="25%" margin={{ bottom: 0, left: 0, right: 8, top: 18 }}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="var(--foreground)" stopOpacity={0.9} />
+            <stop offset="100%" stopColor="var(--foreground)" stopOpacity={0.34} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 20%, transparent)" strokeDasharray="4 8" vertical={false} />
         <XAxis axisLine={false} dataKey="label" tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
         <YAxis allowDecimals={false} axisLine={false} tick={{ fontSize: 12 }} tickLine={false} tickMargin={8} width={36} />
-        <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ fill: "color-mix(in oklch, var(--muted) 50%, transparent)" }} />
-        <Bar dataKey="value" fill="var(--color-value)" radius={[8, 8, 0, 0]} />
+        <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ fill: "color-mix(in oklch, var(--muted-foreground) 6%, transparent)" }} />
+        <Bar dataKey="value" fill={`url(#${gradientId})`} maxBarSize={38} radius={[5,5,5,5]} />
       </BarChart>
     </ChartContainer>
   )
@@ -483,6 +519,7 @@ function PreferenceDonutChart({ data }: { data: Array<{ label: string; value: nu
   if (!hasData) {
     return <ChartEmpty icon={<Dumbbell />} title="暂无训练类型数据" />
   }
+  const chartData = data.filter((item) => item.value > 0)
   const chartConfig = {
     value: { color: "var(--foreground)", label: "次数" },
   } satisfies ChartConfig
@@ -492,7 +529,7 @@ function PreferenceDonutChart({ data }: { data: Array<{ label: string; value: nu
         <PieChart>
           <ChartTooltip content={<ChartTooltipContent hideLabel />} />
           <Pie
-            data={data}
+            data={chartData}
             dataKey="value"
             innerRadius={54}
             nameKey="label"
@@ -500,14 +537,14 @@ function PreferenceDonutChart({ data }: { data: Array<{ label: string; value: nu
             paddingAngle={2}
             strokeWidth={0}
           >
-            {data.map((entry, index) => (
+            {chartData.map((entry, index) => (
               <Cell fill={DONUT_COLORS[index % DONUT_COLORS.length]} key={entry.label} />
             ))}
           </Pie>
         </PieChart>
       </ChartContainer>
       <div className="space-y-2">
-        {data.map((item, index) => (
+        {chartData.map((item, index) => (
           <div className="flex items-center justify-between gap-3 text-sm" key={item.label}>
             <span className="flex min-w-0 items-center gap-2">
               <span
@@ -572,7 +609,7 @@ function WorkoutRecordsSection({
       <SectionHeader description="" title="运动记录" />
       {sortedLogs.length ? (
         <div className="overflow-x-auto mt-4">
-          <Table className="">
+          <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>训练名称</TableHead>
@@ -644,7 +681,7 @@ function WorkoutRecordsSection({
           ) : null}
         </div>
       ) : (
-        <Empty className="min-h-60 border border-dashed bg-muted/20">
+        <Empty className="min-h-60 bg-transparent border border-dashed">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Dumbbell />
@@ -699,7 +736,7 @@ function WorkoutDetailDialog({
               <h3 className="text-sm font-medium">训练动作</h3>
               <div className="mt-3 space-y-3">
                 {log.exercises.length ? log.exercises.map((exercise) => (
-                  <div className="rounded-lg border border-border/60 bg-background px-3 py-3" key={`${exercise.name}-${exercise.position}`}>
+                  <div className="py-2" key={`${exercise.name}-${exercise.position}`}>
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-medium">{exercise.name}</p>
                       <Badge variant={exercise.completed ? "default" : "secondary"}>
@@ -758,38 +795,34 @@ function BodyHistorySection({
       <SectionHeader description="最近 8 条身体指标记录。" title="身体记录" />
       <div className="mt-5 space-y-3">
         {sorted.map((metric) => (
-          <Card className="border-border/50 shadow-none" key={metric.id}>
-            <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-medium">{formatBodySummary(metric)}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{formatFullDate(metric.measured_at ?? metric.recorded_at)}</p>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={() => onEditBodyMetric(metric)} size="sm" type="button" variant="outline">编辑</Button>
-                <Button onClick={() => onDeleteBodyMetric(metric)} size="sm" type="button" variant="ghost">删除</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between" key={metric.id}>
+            <div>
+              <p className="text-sm font-medium">{formatBodySummary(metric)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{formatFullDate(metric.measured_at ?? metric.recorded_at)}</p>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => onEditBodyMetric(metric)} size="sm" type="button" variant="outline">编辑</Button>
+              <Button onClick={() => onDeleteBodyMetric(metric)} size="sm" type="button" variant="ghost">删除</Button>
+            </div>
+          </div>
         ))}
       </div>
     </section>
   )
 }
 
-function ChartCard({ children, title }: { children: ReactNode; title: string }) {
+function ChartPanel({ children, title }: { children: ReactNode; title: string }) {
   return (
-    <Card className="border-border/50 shadow-none">
-      <CardHeader>
-        <CardTitle className="text-base font-medium">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+    <section className="min-w-0">
+      <h3 className="text-base font-medium tracking-[-0.02em]">{title}</h3>
+      <div className="mt-4">{children}</div>
+    </section>
   )
 }
 
 function ChartEmpty({ icon, title }: { icon: ReactNode; title: string }) {
   return (
-    <Empty className="min-h-64 border border-dashed bg-muted/20">
+    <Empty className="min-h-64 bg-transparent border border-dashed">
       <EmptyHeader>
         <EmptyMedia variant="icon">{icon}</EmptyMedia>
         <EmptyTitle>{title}</EmptyTitle>
@@ -800,21 +833,19 @@ function ChartEmpty({ icon, title }: { icon: ReactNode; title: string }) {
 
 function OverviewStat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <Card className="shadow-none">
-      <CardContent className="flex gap-3">
-        <span className="mt-1 text-muted-foreground [&_svg]:size-4">{icon}</span>
-        <span>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="mt-1 text-xl font-medium tracking-tight">{value}</p>
-        </span>
-      </CardContent>
-    </Card>
+    <div className="flex gap-3">
+      <span className="mt-1 text-muted-foreground [&_svg]:size-4">{icon}</span>
+      <span>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="mt-1 text-xl font-medium tracking-tight">{value}</p>
+      </span>
+    </div>
   )
 }
 
 function DetailMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-muted/35 px-3 py-2">
+    <div className="min-w-0">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 font-medium">{value}</p>
     </div>
@@ -828,6 +859,30 @@ function SectionHeader({ description, title }: { description: string; title: str
       <p className="text-sm text-muted-foreground">{description}</p>
     </div>
   )
+}
+
+function useSvgId(prefix: string) {
+  return `${prefix}-${useId().replace(/:/g, "")}`
+}
+
+function buildConicGradient(data: Array<{ value: number }>) {
+  const total = data.reduce((sum, item) => sum + item.value, 0)
+  if (!total) return "var(--muted-foreground)"
+
+  let cursor = 0
+  return data
+    .map((item, index) => {
+      const start = cursor
+      const end = cursor + (item.value / total) * 360
+      cursor = end
+      return `${DONUT_COLORS[index % DONUT_COLORS.length]} ${start}deg ${end}deg`
+    })
+    .join(", ")
+}
+
+function formatPercent(value: number, total: number) {
+  if (!total) return "0%"
+  return `${Math.round((value / total) * 100)}%`
 }
 
 function useImportantMetrics(key: string, defaults: string[]) {
@@ -942,8 +997,7 @@ function buildTimePreferenceData(logs: WorkoutLog[]) {
     { label: "上午", max: 10, min: 6, value: 0 },
     { label: "中午", max: 13, min: 11, value: 0 },
     { label: "下午", max: 17, min: 14, value: 0 },
-    { label: "傍晚", max: 20, min: 18, value: 0 },
-    { label: "夜间", max: 23, min: 21, value: 0 },
+    { label: "傍晚", max: 24, min: 18, value: 0 },
   ]
   for (const log of logs) {
     const date = new Date(log.created_at)

@@ -4,7 +4,6 @@ import { Camera, Plus, Utensils } from "lucide-react"
 import type { DietRecord } from "@/entities/kratos/model/types"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import {
   Empty,
   EmptyDescription,
@@ -43,7 +42,7 @@ export function DietIntakePage({
   )
 
   return (
-    <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
+    <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-background">
       <section className="mx-auto mt-20 flex min-h-full w-full max-w-[900px] flex-col px-6 pt-8 pb-16 sm:px-8">
         <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
             <h1 className="text-3xl font-medium tracking-[-0.04em]">饮食摄入</h1>
@@ -67,20 +66,17 @@ export function DietIntakePage({
           </div>
         </header>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-4">
-          <SummaryCard label="今日热量" unit="kcal" value={todayTotal.kcal} />
-          <SummaryCard label="蛋白质" unit="g" value={todayTotal.protein} />
-          <SummaryCard label="脂肪" unit="g" value={todayTotal.fat} />
-          <SummaryCard label="碳水" unit="g" value={todayTotal.carbs} />
+        <div className="mt-10 grid gap-x-8 gap-y-5 sm:grid-cols-4">
+          <SummaryMetric label="今日热量" unit="kcal" value={todayTotal.kcal} />
+          <SummaryMetric label="蛋白质" unit="g" value={todayTotal.protein} />
+          <SummaryMetric label="脂肪" unit="g" value={todayTotal.fat} />
+          <SummaryMetric label="碳水" unit="g" value={todayTotal.carbs} />
         </div>
 
-        <Card className="mt-8 border-border/50 shadow-none">
-          <CardHeader>
-            <CardTitle className="text-lg font-medium">饮食记录</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <section className="mt-10">
+          <h2 className="text-xl font-medium tracking-[-0.03em]">饮食记录</h2>
             {recentRecords.length ? (
-              <div className="overflow-x-auto">
+              <div className="mt-4 overflow-x-auto">
                 <Table className="min-w-[760px]">
                   <TableHeader>
                     <TableRow>
@@ -113,7 +109,7 @@ export function DietIntakePage({
                 </Table>
               </div>
             ) : (
-              <Empty className="min-h-64 border border-dashed bg-muted/20">
+              <Empty className="mt-4 min-h-64 bg-transparent">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
                     <Utensils />
@@ -125,14 +121,13 @@ export function DietIntakePage({
                 </EmptyHeader>
               </Empty>
             )}
-          </CardContent>
-        </Card>
+        </section>
       </section>
     </main>
   )
 }
 
-function SummaryCard({
+function SummaryMetric({
   label,
   unit,
   value,
@@ -142,15 +137,13 @@ function SummaryCard({
   value: number
 }) {
   return (
-    <Card className="shadow-none">
-      <CardContent>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="mt-2 text-2xl font-medium tracking-tight">
-          {formatNumber(value)}
-          <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span>
-        </p>
-      </CardContent>
-    </Card>
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-2 text-2xl font-medium tracking-tight">
+        {formatNumber(value)}
+        <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span>
+      </p>
+    </div>
   )
 }
 
