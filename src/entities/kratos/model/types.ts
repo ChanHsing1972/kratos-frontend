@@ -384,7 +384,29 @@ export type BodyMetric = {
   chest_cm: number | null
   waist_cm: number | null
   hip_cm: number | null
+  thigh_cm: number | null
+  calf_cm: number | null
+  arm_cm: number | null
   sleep_hours: number | null
+  notes: string | null
+  recorded_at: string
+  measured_at: string | null
+  source: string
+  external_id: string | null
+}
+
+export type HealthMetric = {
+  id: number
+  user_id: number
+  metric_date: string | null
+  sleep_hours: number | null
+  active_kcal: number | null
+  dietary_kcal: number | null
+  hrv_ms: number | null
+  stress_level: number | null
+  resting_heart_rate: number | null
+  vo2_max: number | null
+  blood_oxygen_percentage: number | null
   notes: string | null
   recorded_at: string
   measured_at: string | null
@@ -508,6 +530,9 @@ export type BodyMetricForm = {
   skeletalMuscleMassKg: string
   bmi: string
   chestCm: string
+  thighCm: string
+  calfCm: string
+  armCm: string
   waistCm: string
   hipCm: string
   sleepHours: string
@@ -517,6 +542,30 @@ export type BodyMetricForm = {
   mood: string
   painNotes: string
   notes: string
+}
+
+export type HealthMetricForm = {
+  measuredAt: string
+  metricDate: string
+  sleepHours: string
+  activeKcal: string
+  dietaryKcal: string
+  hrvMs: string
+  stressLevel: string
+  restingHeartRate: string
+  vo2Max: string
+  bloodOxygenPercentage: string
+  notes: string
+}
+
+export type DietIntakeForm = {
+  mealDate: string
+  name: string
+  estimatedWeightG: string
+  estimatedKcal: string
+  proteinG: string
+  fatG: string
+  carbsG: string
 }
 
 export type BodyMetricPayload = {
@@ -529,7 +578,26 @@ export type BodyMetricPayload = {
   chest_cm?: number | null
   waist_cm?: number | null
   hip_cm?: number | null
+  thigh_cm?: number | null
+  calf_cm?: number | null
+  arm_cm?: number | null
   sleep_hours?: number | null
+  notes?: string | null
+  measured_at?: string | null
+  source?: string
+  external_id?: string | null
+}
+
+export type HealthMetricPayload = {
+  metric_date?: string | null
+  sleep_hours?: number | null
+  active_kcal?: number | null
+  dietary_kcal?: number | null
+  hrv_ms?: number | null
+  stress_level?: number | null
+  resting_heart_rate?: number | null
+  vo2_max?: number | null
+  blood_oxygen_percentage?: number | null
   notes?: string | null
   measured_at?: string | null
   source?: string
@@ -549,7 +617,9 @@ export type FitnessContext = {
   user: UserProfile
   profile: FitnessProfile | null
   latest_body_metric: BodyMetric | null
+  latest_health_metric: HealthMetric | null
   recent_body_metrics: BodyMetric[]
+  recent_health_metrics: HealthMetric[]
   recent_workout_logs: WorkoutLog[]
   recent_diet_records: DietRecord[]
   recent_checkins: AgentCheckin[]
@@ -636,6 +706,7 @@ export type ChatMessage = {
 export type SuggestedHealthData = {
   body_metric?: BodyMetricPayload
   checkin?: AgentCheckinPayload
+  health_metric?: HealthMetricPayload
   profile?: FitnessProfilePayload
 }
 

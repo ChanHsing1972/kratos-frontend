@@ -1,39 +1,44 @@
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import {
-  Activity,
-  ChevronDown,
+  BarChart3,
   Download,
   Dumbbell,
   Flame,
-  Gauge,
-  MoonStar,
-  Pencil,
+  HeartPulse,
   Plus,
   Scale,
   Timer,
-  Trash2,
-  TrendingUp,
   Trophy,
-  Utensils,
-  type LucideIcon,
 } from "lucide-react"
-import { Fragment, useState, type ReactNode } from "react"
 import {
-  Area,
-  AreaChart as RechartsAreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
+  Cell,
   Line,
+  LineChart,
+  Pie,
+  PieChart,
   XAxis,
   YAxis,
 } from "recharts"
 
 import type {
-  AgentCheckin,
   BodyMetric,
   DietRecord,
+  HealthMetric,
+  HeartRateSummary,
   WorkoutLog,
 } from "@/entities/kratos/model/types"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/shared/ui/accordion"
 import { Badge } from "@/shared/ui/badge"
 import { Button } from "@/shared/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import {
   ChartContainer,
   ChartTooltip,
@@ -41,198 +46,183 @@ import {
   type ChartConfig,
 } from "@/shared/ui/chart"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/ui/dialog"
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from "@/shared/ui/empty"
-import { Progress } from "@/shared/ui/progress"
-import { Separator } from "@/shared/ui/separator"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/shared/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
 
 type BodyDataPageProps = {
   bodyMetrics: BodyMetric[]
-  checkins: AgentCheckin[]
   dietRecords: DietRecord[]
-  latestCheckin: AgentCheckin | null
+  healthMetrics: HealthMetric[]
+  latestHealthMetric: HealthMetric | null
   latestMetric: BodyMetric | null
-  onEditBodyData: () => void
+  onAddData: () => void
   onEditBodyMetric: (metric: BodyMetric) => void
-  onDeleteCheckin: (checkin: AgentCheckin) => void
   onDeleteBodyMetric: (metric: BodyMetric) => void
-  onDeleteBodyDataRecord: (record: {
-    checkin: AgentCheckin | null
-    metric: BodyMetric | null
-  }) => void
   onExportBodyData: () => void
+  onLoadWorkoutHeartRateSummary: (log: WorkoutLog) => Promise<HeartRateSummary | null>
   workoutLogs: WorkoutLog[]
 }
 
 type MetricPoint = {
   date: string
+  label: string
   value: number
 }
 
-type TrendOption = {
-  icon: LucideIcon
-  id: string
+type RangeId = "week" | "month" | "half-year" | "year"
+type MetricKind = "line" | "bar"
+
+type MetricDefinition<T extends string> = {
+  id: T
+  key: string
+  kind: MetricKind
   label: string
-  series: MetricPoint[]
   unit: string
 }
 
-type BodyDataRecord = {
-  checkin: AgentCheckin | null
-  id: string
-  metric: BodyMetric | null
-  sortTime: number
-}
+const BODY_IMPORTANT_KEY = "kratos-important-body-metrics-v1"
+const HEALTH_IMPORTANT_KEY = "kratos-important-health-metrics-v1"
+const DEFAULT_BODY_IMPORTANT = ["weight", "bmi"]
+const DEFAULT_HEALTH_IMPORTANT = ["sleep", "active-kcal", "diet-kcal"]
+
+const BODY_METRIC_DEFS: MetricDefinition<string>[] = [
+  { id: "weight", key: "weight_kg", kind: "line", label: "体重", unit: "kg" },
+  { id: "bmi", key: "bmi", kind: "line", label: "BMI", unit: "" },
+  { id: "body-fat", key: "body_fat_percentage", kind: "line", label: "体脂率", unit: "%" },
+  { id: "waist", key: "waist_cm", kind: "line", label: "腰围", unit: "cm" },
+  { id: "hip", key: "hip_cm", kind: "line", label: "臀围", unit: "cm" },
+  { id: "thigh", key: "thigh_cm", kind: "line", label: "大腿围", unit: "cm" },
+  { id: "calf", key: "calf_cm", kind: "line", label: "小腿围", unit: "cm" },
+  { id: "chest", key: "chest_cm", kind: "line", label: "胸围", unit: "cm" },
+  { id: "arm", key: "arm_cm", kind: "line", label: "臂围", unit: "cm" },
+]
+
+const HEALTH_METRIC_DEFS: MetricDefinition<string>[] = [
+  { id: "sleep", key: "sleep_hours", kind: "bar", label: "睡眠时长", unit: "h" },
+  { id: "active-kcal", key: "active_kcal", kind: "bar", label: "活动消耗", unit: "kcal" },
+  { id: "diet-kcal", key: "dietary_kcal", kind: "bar", label: "饮食摄入", unit: "kcal" },
+  { id: "hrv", key: "hrv_ms", kind: "line", label: "HRV", unit: "ms" },
+  { id: "stress", key: "stress_level", kind: "line", label: "压力", unit: "/10" },
+  { id: "resting-hr", key: "resting_heart_rate", kind: "line", label: "静息心率", unit: "bpm" },
+  { id: "vo2", key: "vo2_max", kind: "line", label: "最大摄氧量", unit: "" },
+  { id: "spo2", key: "blood_oxygen_percentage", kind: "line", label: "血氧饱和度", unit: "%" },
+]
+
+const RANGE_OPTIONS: Array<{ id: RangeId; label: string; days: number }> = [
+  { id: "week", label: "最近一周", days: 7 },
+  { id: "month", label: "最近一月", days: 31 },
+  { id: "half-year", label: "最近半年", days: 183 },
+  { id: "year", label: "最近一年", days: 365 },
+]
+
+const DONUT_COLORS = [
+  "var(--foreground)",
+  "var(--muted-foreground)",
+  "color-mix(in oklch, var(--foreground) 72%, transparent)",
+  "color-mix(in oklch, var(--muted-foreground) 72%, transparent)",
+  "color-mix(in oklch, var(--foreground) 48%, transparent)",
+  "color-mix(in oklch, var(--muted-foreground) 48%, transparent)",
+]
 
 export function BodyDataPage({
   bodyMetrics,
-  checkins,
   dietRecords,
-  latestCheckin,
+  healthMetrics,
+  latestHealthMetric,
   latestMetric,
-  onEditBodyData,
-  onEditBodyMetric,
-  onDeleteCheckin,
+  onAddData,
   onDeleteBodyMetric,
-  onDeleteBodyDataRecord,
+  onEditBodyMetric,
   onExportBodyData,
+  onLoadWorkoutHeartRateSummary,
   workoutLogs,
 }: BodyDataPageProps) {
-  const weightSeries = getMetricSeries(bodyMetrics, "weight_kg")
-  const bodyFatSeries = getMetricSeries(bodyMetrics, "body_fat_percentage")
-  const muscleSeries = getMetricSeries(bodyMetrics, "skeletal_muscle_mass_kg")
-  const sleepSeries = getCheckinSeries(checkins, "sleep_hours")
-  const energySeries = getCheckinSeries(checkins, "energy_level")
-  const sorenessSeries = getCheckinSeries(checkins, "soreness_level")
-  const todayCheckin = isToday(
-    latestCheckin?.checkin_date ?? latestCheckin?.created_at
+  const savedWorkoutLogs = useMemo(
+    () => workoutLogs.filter(isSavedWorkoutLog),
+    [workoutLogs]
   )
-    ? latestCheckin
-    : null
-  const todayMetric = isToday(
-    latestMetric?.measured_at ?? latestMetric?.recorded_at
+  const [importantBody, setImportantBody] = useImportantMetrics(
+    BODY_IMPORTANT_KEY,
+    DEFAULT_BODY_IMPORTANT
   )
-    ? latestMetric
-    : null
-  const completedWorkoutLogs = workoutLogs.filter((log) => log.completed)
-  const targetProgress = calculateTargetProgress(
-    weightSeries[0]?.value ?? null,
-    latestMetric?.weight_kg ?? null,
-    latestMetric?.target_weight_kg ?? null
+  const [importantHealth, setImportantHealth] = useImportantMetrics(
+    HEALTH_IMPORTANT_KEY,
+    DEFAULT_HEALTH_IMPORTANT
   )
-
-  const coreTrends: TrendOption[] = [
-    {
-      icon: Scale,
-      id: "weight",
-      label: "体重",
-      unit: "kg",
-      series: weightSeries,
-    },
-    {
-      icon: Gauge,
-      id: "soreness",
-      label: "酸痛",
-      unit: "/10",
-      series: sorenessSeries,
-    },
-    {
-      icon: MoonStar,
-      id: "sleep",
-      label: "睡眠",
-      unit: "h",
-      series: sleepSeries,
-    },
-    {
-      icon: Activity,
-      id: "energy",
-      label: "精力",
-      unit: "/10",
-      series: energySeries,
-    },
-  ]
-  const additionalTrends: TrendOption[] = [
-    {
-      icon: TrendingUp,
-      id: "body-fat",
-      label: "体脂率",
-      unit: "%",
-      series: bodyFatSeries,
-    },
-    {
-      icon: TrendingUp,
-      id: "muscle",
-      label: "骨骼肌",
-      unit: "kg",
-      series: muscleSeries,
-    },
-    {
-      icon: TrendingUp,
-      id: "bmi",
-      label: "BMI",
-      unit: "",
-      series: getBmiSeries(bodyMetrics),
-    },
-    {
-      icon: TrendingUp,
-      id: "waist",
-      label: "腰围",
-      unit: "cm",
-      series: getMetricSeries(bodyMetrics, "waist_cm"),
-    },
-    {
-      icon: TrendingUp,
-      id: "chest",
-      label: "胸围",
-      unit: "cm",
-      series: getMetricSeries(bodyMetrics, "chest_cm"),
-    },
-    {
-      icon: TrendingUp,
-      id: "hip",
-      label: "臀围",
-      unit: "cm",
-      series: getMetricSeries(bodyMetrics, "hip_cm"),
-    },
-  ]
 
   return (
     <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
-      <section className="mx-auto mt-20 flex min-h-full w-full max-w-[900px] flex-col px-6 pt-8 pb-16 sm:px-8">
+      <section className="mx-auto mt-20 flex min-h-full w-full max-w-[1080px] flex-col px-6 pt-8 pb-16 sm:px-8">
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
-          <h1 className="text-3xl font-medium tracking-[-0.05em]">
-            数据中心
-          </h1>
-          <Button onClick={onExportBodyData} type="button" variant="ghost">
-            <Download />
-            导出
-          </Button>
+          <div>
+            <h1 className="text-3xl font-medium tracking-[-0.04em]">数据中心</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              运动、身体与健康数据的综合面板。
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={onAddData} type="button">
+              <Plus />
+              添加数据
+            </Button>
+            <Button onClick={onExportBodyData} type="button" variant="outline">
+              <Download />
+              导出
+            </Button>
+          </div>
         </header>
 
-        <WeeklyTrainingStats logs={completedWorkoutLogs} />
+        <ExerciseOverview logs={savedWorkoutLogs} />
 
-        <TodayDietPanel records={dietRecords} />
-
-        <TrendPanel
-          additionalTrends={additionalTrends}
-          coreTrends={coreTrends}
-          latestMetric={latestMetric}
-          onRecord={onEditBodyData}
-          targetProgress={targetProgress}
-          todayCheckin={todayCheckin}
-          todayMetric={todayMetric}
+        <MetricSection
+          definitions={BODY_METRIC_DEFS}
+          emptyIcon={<Scale />}
+          importantIds={importantBody}
+          latestLabel={latestMetric ? formatFullDate(latestMetric.measured_at ?? latestMetric.recorded_at) : "暂无记录"}
+          onToggleImportant={(id) => setImportantBody(toggleMetricId(importantBody, id))}
+          renderSeries={(definition) => getBodySeries(bodyMetrics, definition.key)}
+          title="身体指标"
         />
 
-        <HistoryPanel
-          bodyMetrics={bodyMetrics}
-          checkins={checkins}
-          logs={completedWorkoutLogs}
-          onDeleteCheckin={onDeleteCheckin}
-          onDeleteBodyDataRecord={onDeleteBodyDataRecord}
+        <MetricSection
+          definitions={HEALTH_METRIC_DEFS}
+          emptyIcon={<HeartPulse />}
+          importantIds={importantHealth}
+          latestLabel={latestHealthMetric ? formatFullDate(latestHealthMetric.measured_at ?? latestHealthMetric.recorded_at) : "暂无记录"}
+          onToggleImportant={(id) => setImportantHealth(toggleMetricId(importantHealth, id))}
+          renderSeries={(definition) =>
+            getHealthSeries(healthMetrics, dietRecords, definition.key)
+          }
+          title="健康数据"
+        />
+
+        <WorkoutRecordsSection
+          logs={savedWorkoutLogs}
+          onLoadHeartRateSummary={onLoadWorkoutHeartRateSummary}
+        />
+
+        <BodyHistorySection
+          metrics={bodyMetrics}
           onDeleteBodyMetric={onDeleteBodyMetric}
           onEditBodyMetric={onEditBodyMetric}
         />
@@ -241,430 +231,190 @@ export function BodyDataPage({
   )
 }
 
-function TodayDietPanel({ records }: { records: DietRecord[] }) {
-  const todayRecords = records.filter((record) => isToday(record.meal_date))
-  const totalKcal = roundOne(todayRecords.reduce((sum, record) => sum + record.estimated_kcal, 0))
-  const protein = roundOne(todayRecords.reduce((sum, record) => sum + record.protein_g, 0))
-  const fat = roundOne(todayRecords.reduce((sum, record) => sum + record.fat_g, 0))
-  const carbs = roundOne(todayRecords.reduce((sum, record) => sum + record.carbs_g, 0))
+function ExerciseOverview({ logs }: { logs: WorkoutLog[] }) {
+  const [range, setRange] = useState<RangeId>("week")
+  const rangeOption = RANGE_OPTIONS.find((item) => item.id === range) ?? RANGE_OPTIONS[0]
+  const rangeLogs = filterLogsByRange(logs, rangeOption.days)
+  const stats = buildExerciseStats(rangeLogs)
+  const timeData = buildTimePreferenceData(rangeLogs)
+  const typeData = buildWorkoutTypeData(rangeLogs)
 
   return (
     <section className="mt-10">
-      <SectionHeading
-        description="来自食物图片识别并确认保存的记录"
-        title="今日饮食"
+      <SectionHeader
+        description="切换时间范围后，统计和图表会同步更新。"
+        title="运动总览"
       />
-      {todayRecords.length ? (
-        <>
-          <div className="mt-5 grid gap-6 sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] sm:items-center sm:gap-x-4">
-            <StatusMetric icon={Utensils} label="摄入热量" value={`${formatNumber(totalKcal)} 千卡`} />
-            <Separator className="hidden h-12 sm:block" orientation="vertical" />
-            <StatusMetric icon={Activity} label="蛋白质" value={`${formatNumber(protein)} g`} />
-            <Separator className="hidden h-12 sm:block" orientation="vertical" />
-            <StatusMetric icon={Gauge} label="脂肪" value={`${formatNumber(fat)} g`} />
-            <Separator className="hidden h-12 sm:block" orientation="vertical" />
-            <StatusMetric icon={Flame} label="碳水" value={`${formatNumber(carbs)} g`} />
-          </div>
-          <div className="mt-5 divide-y rounded-lg border bg-background/60">
-            {todayRecords.map((record) => (
-              <div
-                className="flex flex-col gap-2 px-3 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
-                key={record.id}
-              >
-                <div>
-                  <div className="font-medium">{record.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatNumber(record.estimated_weight_g)}g · {record.source}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline">{formatNumber(record.estimated_kcal)} kcal</Badge>
-                  <span>蛋白 {formatNumber(record.protein_g)}g</span>
-                  <span>脂肪 {formatNumber(record.fat_g)}g</span>
-                  <span>碳水 {formatNumber(record.carbs_g)}g</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      ) : (
-        <Empty className="mt-5 min-h-44 border border-dashed">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Utensils />
-            </EmptyMedia>
-            <EmptyTitle>今天还没有饮食记录</EmptyTitle>
-            <EmptyDescription>
-              在聊天输入框旁上传食物图片，确认后会自动汇总今日摄入。
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      )}
-    </section>
-  )
-}
-
-function StatusMetric({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Activity
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex gap-3">
-      <Icon
-        className="size-4 shrink-0 text-muted-foreground"
-        strokeWidth={1.8}
-      />
-      <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="mt-1 text-xl font-medium tracking-tight">{value}</p>
-      </div>
-    </div>
-  )
-}
-
-function WeeklyTrainingStats({ logs }: { logs: WorkoutLog[] }) {
-  const weekLogs = getCurrentWeekLogs(logs)
-  const weekSeconds = weekLogs.reduce(
-    (sum, log) => sum + getWorkoutSeconds(log),
-    0
-  )
-  const weekCalories = weekLogs.reduce(
-    (sum, log) => sum + (log.calories_burned ?? 0),
-    0
-  )
-  const streakDays = calculateTrainingStreak(logs)
-  const weekStart = startOfWeek(new Date())
-  const stats = [
-    {
-      icon: Dumbbell,
-      label: "完成训练",
-      value: `${weekLogs.length} 次`,
-    },
-    {
-      icon: Timer,
-      label: "训练时长",
-      value: formatTrainingDuration(weekSeconds),
-    },
-    {
-      icon: Flame,
-      label: "训练消耗",
-      value: `${weekCalories} 千卡`,
-    },
-    {
-      icon: Trophy,
-      label: "连续训练",
-      value: `${streakDays} 天`,
-    },
-  ]
-
-  return (
-    <section className="mt-10">
-      <SectionHeading
-        description={`${formatWeekRange(weekStart)}`}
-        title="本周统计"
-      />
-      <div className="mt-5 grid gap-6 sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] sm:items-center sm:gap-x-4">
-        {stats.map(({ icon: Icon, label, value }, index) => (
-          <Fragment key={label}>
-            <StatusMetric icon={Icon} label={label} value={value} />
-            {index < stats.length - 1 ? (
-              <Separator
-                className="hidden h-12 sm:block"
-                orientation="vertical"
-              />
-            ) : null}
-          </Fragment>
+      <Tabs value={range} onValueChange={(value) => setRange(value as RangeId)} className="mt-5">
+        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-4">
+          {RANGE_OPTIONS.map((item) => (
+            <TabsTrigger key={item.id} value={item.id}>{item.label}</TabsTrigger>
+          ))}
+        </TabsList>
+        {RANGE_OPTIONS.map((item) => (
+          <TabsContent className="mt-6" key={item.id} value={item.id}>
+            <div className="grid gap-4 sm:grid-cols-4">
+              <OverviewStat icon={<Dumbbell />} label="总运动次数" value={`${stats.count} 次`} />
+              <OverviewStat icon={<Timer />} label="总运动时长" value={formatDuration(stats.seconds)} />
+              <OverviewStat icon={<Flame />} label="总消耗热量" value={`${stats.calories} kcal`} />
+              <OverviewStat icon={<Trophy />} label="累计运动天数" value={`${stats.days} 天`} />
+            </div>
+            <div className="mt-6 grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
+              <ChartCard title="运动时间偏好">
+                <PreferenceBarChart data={timeData} />
+              </ChartCard>
+              <ChartCard title="训练类型偏好">
+                <PreferenceDonutChart data={typeData} />
+              </ChartCard>
+            </div>
+          </TabsContent>
         ))}
-      </div>
+      </Tabs>
     </section>
   )
 }
 
-function TrendPanel({
-  additionalTrends,
-  coreTrends,
-  latestMetric,
-  onRecord,
-  targetProgress,
-  todayCheckin,
-  todayMetric,
+function MetricSection({
+  definitions,
+  emptyIcon,
+  importantIds,
+  latestLabel,
+  onToggleImportant,
+  renderSeries,
+  title,
 }: {
-  additionalTrends: TrendOption[]
-  coreTrends: TrendOption[]
-  latestMetric: BodyMetric | null
-  onRecord: () => void
-  targetProgress: number | null
-  todayCheckin: AgentCheckin | null
-  todayMetric: BodyMetric | null
+  definitions: MetricDefinition<string>[]
+  emptyIcon: ReactNode
+  importantIds: string[]
+  latestLabel: string
+  onToggleImportant: (id: string) => void
+  renderSeries: (definition: MetricDefinition<string>) => MetricPoint[]
+  title: string
 }) {
-  const [additionalOpen, setAdditionalOpen] = useState(false)
-  const hasTodayData = Boolean(todayCheckin || todayMetric)
+  const importantDefinitions = definitions.filter((definition) =>
+    importantIds.includes(definition.id)
+  )
+  const moreDefinitions = definitions.filter((definition) =>
+    !importantIds.includes(definition.id)
+  )
 
   return (
-    <section className="mt-10">
-      <SectionHeading
-        action={
-          <Button onClick={onRecord} size="sm" type="button" variant="outline">
-            {hasTodayData ? "更新记录" : "记录今日状态"}
-          </Button>
-        }
-        description=""
-        title="今日状态"
-      />
-
-      {hasTodayData ? (
-        null
-        // <div className="mt-5 grid gap-y-6 sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] sm:items-center sm:gap-x-4">
-        //   <StatusMetric
-        //     icon={MoonStar}
-        //     label="睡眠"
-        //     value={formatMetricWithUnit(todayCheckin?.sleep_hours, "小时")}
-        //   />
-        //   <Separator
-        //     className="hidden h-12 sm:block"
-        //     orientation="vertical"
-        //   />
-        //   <StatusMetric
-        //     icon={Activity}
-        //     label="精力"
-        //     value={formatScore(todayCheckin?.energy_level)}
-        //   />
-        //   <Separator
-        //     className="hidden h-12 sm:block"
-        //     orientation="vertical"
-        //   />
-        //   <StatusMetric
-        //     icon={Gauge}
-        //     label="酸痛"
-        //     value={formatScore(todayCheckin?.soreness_level)}
-        //   />
-        //   <Separator
-        //     className="hidden h-12 sm:block"
-        //     orientation="vertical"
-        //   />
-        //   <StatusMetric
-        //     icon={Scale}
-        //     label="体重"
-        //     value={formatMetricWithUnit(todayMetric?.weight_kg, "千克")}
-        //   />
-        // </div>
-      ) : (
-        <Empty className="mt-5 min-h-50 border border-dashed">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Plus />
-            </EmptyMedia>
-            <EmptyTitle>今天还没有状态记录</EmptyTitle>
-            <EmptyDescription>
-              记录睡眠、精力、酸痛与体重，获得更贴合今日状态的训练建议。
-            </EmptyDescription>
-          </EmptyHeader>
-          <Button onClick={onRecord} type="button">
-            记录今日状态
-          </Button>
-        </Empty>
-      )}
-
-      <div className="mt-5 space-y-12">
-        {coreTrends
-          .filter((trend) => trend.id === "weight")
-          .map((trend) => (
-            <CoreTrendChart
-              emphasis="primary"
-              key={trend.id}
-              latestMetric={latestMetric}
-              targetProgress={targetProgress}
-              trend={trend}
+    <section className="mt-12">
+      <SectionHeader description={`最近记录：${latestLabel}`} title={title} />
+      {importantDefinitions.length ? (
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          {importantDefinitions.map((definition) => (
+            <MetricChartCard
+              definition={definition}
+              important
+              key={definition.id}
+              onToggleImportant={onToggleImportant}
+              series={renderSeries(definition)}
             />
           ))}
-
-        <div className="grid gap-x-8 gap-y-12 md:grid-cols-3">
-          {coreTrends
-            .filter((trend) => trend.id !== "weight")
-            .map((trend) => (
-              <CoreTrendChart
-                key={trend.id}
-                latestMetric={latestMetric}
-                targetProgress={targetProgress}
-                trend={trend}
-              />
-            ))}
         </div>
-      </div>
+      ) : (
+        <Empty className="mt-5 min-h-52 border border-dashed bg-background/60">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">{emptyIcon}</EmptyMedia>
+            <EmptyTitle>暂无重要指标</EmptyTitle>
+            <EmptyDescription>在更多指标中标记重要后会显示在这里。</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
 
-      <section className="mt-4">
-        <Button
-          aria-expanded={additionalOpen}
-          onClick={() => setAdditionalOpen((current) => !current)}
-          type="button"
-          variant="ghost"
-        >
-          更多指标
-          <ChevronDown
-            className={
-              additionalOpen
-                ? "size-4 rotate-180 transition-transform"
-                : "size-4 transition-transform"
-            }
-          />
-        </Button>
-
-        {additionalOpen ? (
-          <div className="mt-8 grid gap-x-8 gap-y-12 md:grid-cols-3">
-            {additionalTrends.map((trend) => (
-              <CoreTrendChart
-                key={trend.id}
-                latestMetric={latestMetric}
-                targetProgress={targetProgress}
-                trend={trend}
-              />
-            ))}
-          </div>
-        ) : null}
-      </section>
+      <Accordion className="mt-5" collapsible type="single">
+        <AccordionItem value="more">
+          <AccordionTrigger className="px-0 hover:no-underline">
+            <span className="flex items-center gap-2">
+              更多指标
+              <Badge variant="outline">{moreDefinitions.length}</Badge>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="grid gap-5 pt-3 lg:grid-cols-2">
+              {moreDefinitions.map((definition) => (
+                <MetricChartCard
+                  definition={definition}
+                  important={false}
+                  key={definition.id}
+                  onToggleImportant={onToggleImportant}
+                  series={renderSeries(definition)}
+                />
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </section>
   )
 }
 
-function HistoryPanel({
-  bodyMetrics,
-  checkins,
-  logs,
-  onDeleteCheckin,
-  onDeleteBodyDataRecord,
-  onDeleteBodyMetric,
-  onEditBodyMetric,
+function MetricChartCard({
+  definition,
+  important,
+  onToggleImportant,
+  series,
 }: {
-  bodyMetrics: BodyMetric[]
-  checkins: AgentCheckin[]
-  logs: WorkoutLog[]
-  onDeleteCheckin: (checkin: AgentCheckin) => void
-  onDeleteBodyDataRecord: (record: {
-    checkin: AgentCheckin | null
-    metric: BodyMetric | null
-  }) => void
-  onDeleteBodyMetric: (metric: BodyMetric) => void
-  onEditBodyMetric: (metric: BodyMetric) => void
+  definition: MetricDefinition<string>
+  important: boolean
+  onToggleImportant: (id: string) => void
+  series: MetricPoint[]
 }) {
   return (
-    <section className="mt-10">
-      <SectionHeading
-        description=""
-        title="历史记录"
-      />
-      <div className="mt-6 grid gap-12 lg:grid-cols-2">
-        <TrainingFeedbackPanel logs={logs} />
-        <RecordsPanel
-          bodyMetrics={bodyMetrics}
-          checkins={checkins}
-          onDeleteCheckin={onDeleteCheckin}
-          onDeleteBodyDataRecord={onDeleteBodyDataRecord}
-          onDeleteBodyMetric={onDeleteBodyMetric}
-          onEditBodyMetric={onEditBodyMetric}
-        />
-      </div>
-    </section>
-  )
-}
-
-function CoreTrendChart({
-  emphasis = "secondary",
-  latestMetric,
-  targetProgress,
-  trend,
-}: {
-  emphasis?: "primary" | "secondary"
-  latestMetric: BodyMetric | null
-  targetProgress: number | null
-  trend: TrendOption
-}) {
-  const isPrimary = emphasis === "primary"
-  const TrendIcon = trend.icon
-  return (
-    <section className={isPrimary ? "max-w-none" : undefined}>
-      <div className="flex items-end justify-between gap-3">
+    <Card className="border-border/50 shadow-none">
+      <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
         <div>
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <span>{trend.label}</span>
-            <TrendIcon className="size-3.5" strokeWidth={1.8} />
-          </div>
-          <p
-            className={
-              isPrimary
-                ? "mt-1 text-xl font-medium tracking-[-0.03em]"
-                : "mt-1 text-xl font-medium tracking-[-0.03em]"
-            }
-          >
-            {formatSeriesLatest(trend.series, trend.unit)}
+          <CardTitle className="text-base font-medium">{definition.label}</CardTitle>
+          <p className="mt-1 text-2xl font-medium tracking-tight">
+            {formatLatest(series, definition.unit)}
           </p>
         </div>
-        <p className="pb-1 text-xs text-muted-foreground">
-          {formatMetricChange(trend.series, trend.unit)}
-        </p>
-      </div>
-      <MetricChart
-        compact={!isPrimary}
-        label={trend.label}
-        series={trend.series}
-        unit={trend.unit}
-      />
-      {trend.id === "weight" && typeof targetProgress === "number" ? (
-        <div className="mt-5">
-          <div className="mb-3 flex items-center justify-between text-xs">
-            <span>
-              目标体重{" "}
-              {formatMetricWithUnit(latestMetric?.target_weight_kg, "kg")}
-            </span>
-            <span className="text-muted-foreground">{targetProgress}%</span>
-          </div>
-          <Progress value={targetProgress} />
-        </div>
-      ) : null}
-    </section>
+        <Button
+          onClick={() => onToggleImportant(definition.id)}
+          size="sm"
+          type="button"
+          variant={important ? "secondary" : "outline"}
+        >
+          {important ? "重要" : "标记重要"}
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <MetricMiniChart
+          kind={definition.kind}
+          label={definition.label}
+          series={series}
+          unit={definition.unit}
+        />
+      </CardContent>
+    </Card>
   )
 }
-function MetricChart({
-  compact = false,
+
+function MetricMiniChart({
+  kind,
   label,
   series,
   unit,
 }: {
-  compact?: boolean
+  kind: MetricKind
   label: string
   series: MetricPoint[]
   unit: string
 }) {
-  if (series.length < 2) {
+  if (!series.length) {
     return (
-      <Empty
-        className={
-          compact ? "mt-5 min-h-40 border border-dashed" : "mt-7 min-h-56 border border-dashed"
-        }
-      >
+      <Empty className="min-h-40 border border-dashed bg-muted/20">
         <EmptyHeader>
-          {!compact ? (<EmptyMedia variant="icon">
-            <TrendingUp />
-          </EmptyMedia>) : null}
+          <EmptyMedia variant="icon">
+            <BarChart3 />
+          </EmptyMedia>
           <EmptyTitle>无数据</EmptyTitle>
-          {!compact ? (
-            <EmptyDescription>
-              再记录一次即可查看趋势。
-            </EmptyDescription>
-          ) : null}
         </EmptyHeader>
       </Empty>
     )
   }
 
-  const chartData = series.map((point) => ({
-    date: formatShortDate(point.date),
-    value: point.value,
-  }))
   const chartConfig = {
     value: {
       color: "var(--foreground)",
@@ -672,589 +422,499 @@ function MetricChart({
     },
   } satisfies ChartConfig
 
-  const yAxisDomain = getMetricChartDomain(series, unit)
-  const yAxisTicks = getMetricChartTicks(yAxisDomain, unit)
-
   return (
     <ChartContainer
-      className={
-        compact
-          ? "mt-5 aspect-auto h-40 w-full"
-          : "mt-7 aspect-auto h-64 w-full"
-      }
+      className="mt-2 h-48 w-full"
       config={chartConfig}
-      initialDimension={
-        compact ? { height: 160, width: 390 } : { height: 256, width: 820 }
-      }
+      initialDimension={{ height: 192, width: 460 }}
     >
-      <RechartsAreaChart
-        accessibilityLayer
-        data={chartData}
-        margin={{ bottom: 0, left: compact ? 0 : -14, right: 12, top: 10 }}
-      >
-        <defs>
-          <linearGradient id={`metric-fill-${label}`} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.1} />
-            <stop offset="90%" stopColor="var(--color-value)" stopOpacity={0.0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid
-          stroke="hsl(var(--muted-foreground) / 0.16)"
-          strokeDasharray="3 8"
-          vertical={false}
-        />
-        <XAxis
-          axisLine={false}
-          dataKey="date"
-          minTickGap={compact ? 18 : 36}
-          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-          tickLine={false}
-          tickMargin={12}
-        />
-        <YAxis
-          allowDecimals={unit !== "/10"}
-          axisLine={false}
-          domain={yAxisDomain}
-          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-          tickFormatter={(value: number) => `${value}${unit}`}
-          tickLine={false}
-          ticks={yAxisTicks}
-          width={compact ? 42 : 64}
-        />
-        <ChartTooltip
-          content={<ChartTooltipContent indicator="dot" />}
-          cursor={{ stroke: "hsl(var(--muted-foreground) / 0.22)", strokeWidth: 1 }}
-        />
-        <Area
-          dataKey="value"
-          fill={`url(#metric-fill-${label})`}
-          fillOpacity={1}
-          stroke="none"
-          tooltipType="none"
-          type="monotone"
-        />
-        <Line
-          activeDot={{ r: 5, strokeWidth: 2 }}
-          dataKey="value"
-          dot={{ r: compact ? 2.5 : 3, strokeWidth: 2 }}
-          stroke="var(--color-value)"
-          strokeLinecap="round"
-          strokeWidth={compact ? 2 : 2.4}
-          type="monotone"
-        />
-      </RechartsAreaChart>
+      {kind === "bar" ? (
+        <BarChart data={series} margin={{ bottom: 0, left: -18, right: 8, top: 12 }}>
+          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 16%, transparent)" strokeDasharray="3 8" vertical={false} />
+          <XAxis axisLine={false} dataKey="label" minTickGap={18} tickLine={false} tickMargin={10} />
+          <YAxis axisLine={false} tickFormatter={(value: number) => `${value}${unit}`} tickLine={false} width={56} />
+          <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ fill: "color-mix(in oklch, var(--muted) 50%, transparent)" }} />
+          <Bar dataKey="value" fill="var(--color-value)" radius={[6, 6, 0, 0]} />
+        </BarChart>
+      ) : (
+        <LineChart data={series} margin={{ bottom: 0, left: -18, right: 12, top: 12 }}>
+          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 16%, transparent)" strokeDasharray="3 8" vertical={false} />
+          <XAxis axisLine={false} dataKey="label" minTickGap={18} tickLine={false} tickMargin={10} />
+          <YAxis axisLine={false} domain={metricDomain(series, unit)} tickFormatter={(value: number) => `${value}${unit}`} tickLine={false} width={56} />
+          <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ stroke: "color-mix(in oklch, var(--muted-foreground) 22%, transparent)" }} />
+          <Line activeDot={{ r: 5, strokeWidth: 2 }} dataKey="value" dot={{ r: 3, strokeWidth: 2 }} stroke="var(--color-value)" strokeLinecap="round" strokeWidth={2.2} type="monotone" />
+        </LineChart>
+      )}
     </ChartContainer>
   )
 }
 
-function getMetricChartDomain(series: MetricPoint[], unit: string): [number, number] {
-  if (unit === "/10") {
-    return [0, 10]
+function PreferenceBarChart({ data }: { data: Array<{ label: string; value: number }> }) {
+  if (!data.some((item) => item.value > 0)) {
+    return <ChartEmpty icon={<Timer />} title="暂无运动时间数据" />
   }
-
-  if (unit === "h") {
-    return [0, 12]
-  }
-
-  const values = series.map((point) => point.value)
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-
-  if (!Number.isFinite(min) || !Number.isFinite(max)) {
-    return [0, 1]
-  }
-
-  const range = Math.max(max - min, 1)
-  const padding = Math.max(range * 0.35, unit === "kg" ? 1 : range * 0.2)
-  const lower = Math.max(0, Math.floor((min - padding) * 10) / 10)
-  const upper = Math.ceil((max + padding) * 10) / 10
-
-  if (upper <= lower) {
-    return [Math.max(0, lower - 1), lower + 1]
-  }
-
-  return [lower, upper]
-}
-
-function getMetricChartTicks(domain: [number, number], unit: string) {
-  if (unit === "/10") {
-    return [0, 3, 6, 9, 10]
-  }
-
-  if (unit === "h") {
-    return [0, 3, 6, 9, 12]
-  }
-
-  const [min, max] = domain
-  const step = (max - min) / 4
-
-  return Array.from({ length: 5 }, (_, index) =>
-    Number((min + step * index).toFixed(1))
+  const chartConfig = {
+    value: { color: "var(--foreground)", label: "次数" },
+  } satisfies ChartConfig
+  return (
+    <ChartContainer className="h-64 w-full" config={chartConfig} initialDimension={{ height: 256, width: 620 }}>
+      <BarChart data={data} margin={{ bottom: 0, left: -18, right: 8, top: 12 }}>
+        <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 16%, transparent)" strokeDasharray="3 8" vertical={false} />
+        <XAxis axisLine={false} dataKey="label" tickLine={false} tickMargin={10} />
+        <YAxis allowDecimals={false} axisLine={false} tickLine={false} width={42} />
+        <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ fill: "color-mix(in oklch, var(--muted) 50%, transparent)" }} />
+        <Bar dataKey="value" fill="var(--color-value)" radius={[8, 8, 0, 0]} />
+      </BarChart>
+    </ChartContainer>
   )
 }
 
-function TrainingFeedbackPanel({ logs }: { logs: WorkoutLog[] }) {
-  const sortedLogs = [...logs].sort(
-    (left, right) => dateTime(right.workout_date) - dateTime(left.workout_date)
+function PreferenceDonutChart({ data }: { data: Array<{ label: string; value: number }> }) {
+  const hasData = data.some((item) => item.value > 0)
+  if (!hasData) {
+    return <ChartEmpty icon={<Dumbbell />} title="暂无训练类型数据" />
+  }
+  const chartConfig = {
+    value: { color: "var(--foreground)", label: "次数" },
+  } satisfies ChartConfig
+  return (
+    <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center">
+      <ChartContainer className="h-64 w-full" config={chartConfig} initialDimension={{ height: 256, width: 320 }}>
+        <PieChart>
+          <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+          <Pie
+            data={data}
+            dataKey="value"
+            innerRadius={62}
+            nameKey="label"
+            outerRadius={94}
+            paddingAngle={2}
+            strokeWidth={0}
+          >
+            {data.map((entry, index) => (
+              <Cell fill={DONUT_COLORS[index % DONUT_COLORS.length]} key={entry.label} />
+            ))}
+          </Pie>
+        </PieChart>
+      </ChartContainer>
+      <div className="space-y-2">
+        {data.map((item, index) => (
+          <div className="flex items-center justify-between gap-3 text-sm" key={item.label}>
+            <span className="flex min-w-0 items-center gap-2">
+              <span
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }}
+              />
+              <span className="truncate">{item.label}</span>
+            </span>
+            <span className="text-muted-foreground">{item.value} 次</span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
-  const totalMinutes = Math.round(
-    logs.reduce((total, log) => total + getWorkoutSeconds(log), 0) / 60
-  )
-  const setCount = logs.reduce(
-    (total, log) =>
-      total +
-      log.exercises.reduce(
-        (count, exercise) => count + exercise.sets.length,
-        0
-      ),
-    0
-  )
+}
+
+function WorkoutRecordsSection({
+  logs,
+  onLoadHeartRateSummary,
+}: {
+  logs: WorkoutLog[]
+  onLoadHeartRateSummary: (log: WorkoutLog) => Promise<HeartRateSummary | null>
+}) {
+  const [selectedLog, setSelectedLog] = useState<WorkoutLog | null>(null)
+  const [heartRateSummary, setHeartRateSummary] = useState<HeartRateSummary | null>(null)
+  const [heartRateLoading, setHeartRateLoading] = useState(false)
+  const sortedLogs = [...logs].sort((left, right) => dateTime(right.workout_date) - dateTime(left.workout_date))
+
+  useEffect(() => {
+    let cancelled = false
+    if (!selectedLog) {
+      setHeartRateSummary(null)
+      return undefined
+    }
+    setHeartRateLoading(true)
+    void onLoadHeartRateSummary(selectedLog)
+      .then((summary) => {
+        if (!cancelled) setHeartRateSummary(summary)
+      })
+      .catch(() => {
+        if (!cancelled) setHeartRateSummary(null)
+      })
+      .finally(() => {
+        if (!cancelled) setHeartRateLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [onLoadHeartRateSummary, selectedLog])
 
   return (
-    <section>
-      <h2 className="font-medium tracking-[-0.03em]">训练反馈</h2>
+    <section className="mt-12">
+      <SectionHeader description="保存过的训练都会进入这里。" title="运动记录" />
+      <Card className="mt-5 border-border/50 shadow-none">
+        <CardContent className="pt-6">
+          {sortedLogs.length ? (
+            <div className="overflow-x-auto">
+              <Table className="min-w-[820px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>训练名称</TableHead>
+                    <TableHead>训练时间</TableHead>
+                    <TableHead>类型</TableHead>
+                    <TableHead className="text-right">时长</TableHead>
+                    <TableHead className="text-right">热量</TableHead>
+                    <TableHead className="text-right">状态</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedLogs.map((log) => (
+                    <TableRow className="cursor-pointer" key={log.id} onClick={() => setSelectedLog(log)}>
+                      <TableCell className="font-medium">{log.title || "未命名训练"}</TableCell>
+                      <TableCell>{formatFullDate(log.workout_date)}</TableCell>
+                      <TableCell>{formatWorkoutType(log.workout_type)}</TableCell>
+                      <TableCell className="text-right">{formatDuration(getWorkoutSeconds(log))}</TableCell>
+                      <TableCell className="text-right">{log.calories_burned ?? 0} kcal</TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={log.completed ? "default" : "secondary"}>
+                          {log.completed ? "完成" : "已保存"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <Empty className="min-h-60 border border-dashed bg-muted/20">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Dumbbell />
+                </EmptyMedia>
+                <EmptyTitle>还没有运动记录</EmptyTitle>
+                <EmptyDescription>训练计划中点击保存后会生成记录。</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
+        </CardContent>
+      </Card>
 
-      {!logs.length ? (
-        <Empty className="mt-6 min-h-48 bg-muted/25">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Dumbbell />
-            </EmptyMedia>
-            <EmptyTitle>完成训练后，这里会显示反馈</EmptyTitle>
-            <EmptyDescription>
-              训练时长、RPE 与疼痛记录将作为下一次调整的依据。
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <>
-          <div className="mt-6 grid gap-x-8 gap-y-6 sm:grid-cols-3">
-            <SummaryValue label="已完成训练" value={`${logs.length} 次`} />
-            <SummaryValue label="累计训练时长" value={`${totalMinutes} 分钟`} />
-            <SummaryValue label="已记录组次" value={`${setCount} 组`} />
-          </div>
-          <div className="mt-6 space-y-5">
-            {sortedLogs.slice(0, 5).map((log) => (
-              <div
-                className="flex items-center justify-between gap-4"
-                key={log.id}
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm">
-                    {log.title ?? "训练记录"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formatFullDate(log.workout_date)} ·{" "}
-                    {formatTrainingDuration(getWorkoutSeconds(log))}
-                  </p>
-                </div>
-                <Badge variant="secondary">
-                  RPE {log.perceived_exertion ?? "未填"}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+      <WorkoutDetailDialog
+        heartRateLoading={heartRateLoading}
+        heartRateSummary={heartRateSummary}
+        log={selectedLog}
+        onOpenChange={(open) => {
+          if (!open) setSelectedLog(null)
+        }}
+      />
     </section>
   )
 }
 
-function RecordsPanel({
-  bodyMetrics,
-  checkins,
-  onDeleteCheckin,
-  onDeleteBodyDataRecord,
+function WorkoutDetailDialog({
+  heartRateLoading,
+  heartRateSummary,
+  log,
+  onOpenChange,
+}: {
+  heartRateLoading: boolean
+  heartRateSummary: HeartRateSummary | null
+  log: WorkoutLog | null
+  onOpenChange: (open: boolean) => void
+}) {
+  return (
+    <Dialog open={Boolean(log)} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[88svh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{log?.title || "运动详情"}</DialogTitle>
+          <DialogDescription>
+            {log ? `${formatFullDate(log.workout_date)} · ${formatWorkoutType(log.workout_type)} · ${formatDuration(getWorkoutSeconds(log))}` : ""}
+          </DialogDescription>
+        </DialogHeader>
+        {log ? (
+          <div className="space-y-6">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <DetailMetric label="完成状态" value={log.completed ? "完成" : "已保存"} />
+              <DetailMetric label="消耗热量" value={`${log.calories_burned ?? 0} kcal`} />
+              <DetailMetric label="RPE" value={log.perceived_exertion ? `${log.perceived_exertion}/10` : "未记录"} />
+            </div>
+
+            <section>
+              <h3 className="text-sm font-medium">训练动作</h3>
+              <div className="mt-3 space-y-3">
+                {log.exercises.length ? log.exercises.map((exercise) => (
+                  <div className="rounded-lg border border-border/60 bg-background px-3 py-3" key={`${exercise.name}-${exercise.position}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium">{exercise.name}</p>
+                      <Badge variant={exercise.completed ? "default" : "secondary"}>
+                        {exercise.completed ? "完成" : "未完成"}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {exercise.sets.length ? exercise.sets.map(formatSet).join("；") : "未记录组次"}
+                    </p>
+                    {exercise.notes ? <p className="mt-2 text-sm">{exercise.notes}</p> : null}
+                  </div>
+                )) : (
+                  <p className="text-sm text-muted-foreground">未记录训练动作。</p>
+                )}
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-sm font-medium">心率摘要</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {heartRateLoading
+                  ? "正在加载心率摘要..."
+                  : heartRateSummary?.sample_count
+                    ? `平均 ${heartRateSummary.avg_bpm ?? "--"} bpm，最高 ${heartRateSummary.max_bpm ?? "--"} bpm，主要区间 ${heartRateSummary.dominant_zone_label ?? "未识别"}`
+                    : "本次暂无心率样本。"}
+              </p>
+            </section>
+
+            <section>
+              <h3 className="text-sm font-medium">训练反馈与备注</h3>
+              <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+                {log.notes || "暂无备注。"}
+              </p>
+            </section>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function BodyHistorySection({
+  metrics,
   onDeleteBodyMetric,
   onEditBodyMetric,
 }: {
-  bodyMetrics: BodyMetric[]
-  checkins: AgentCheckin[]
-  onDeleteCheckin: (checkin: AgentCheckin) => void
-  onDeleteBodyDataRecord: (record: {
-    checkin: AgentCheckin | null
-    metric: BodyMetric | null
-  }) => void
+  metrics: BodyMetric[]
   onDeleteBodyMetric: (metric: BodyMetric) => void
   onEditBodyMetric: (metric: BodyMetric) => void
 }) {
-  const records = getBodyDataRecords(bodyMetrics, checkins).slice(0, 10)
+  const sorted = [...metrics].sort((left, right) => dateTime(right.measured_at ?? right.recorded_at) - dateTime(left.measured_at ?? left.recorded_at)).slice(0, 8)
+  if (!sorted.length) return null
 
   return (
-    <RecordSection
-      title="数据历史"
-    >
-      {records.length ? (
-        <div className="mt-6 space-y-6">
-          {records.map((record) => (
-            <div className="flex items-center gap-1" key={record.id}>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm">
-                  {formatBodyDataRecordSummary(record)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatFullDate(getBodyDataRecordDate(record))} · {formatBodyDataRecordMeta(record)}
-                </p>
+    <section className="mt-12">
+      <SectionHeader description="最近 8 条身体指标记录。" title="身体记录" />
+      <div className="mt-5 space-y-3">
+        {sorted.map((metric) => (
+          <Card className="border-border/50 shadow-none" key={metric.id}>
+            <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium">{formatBodySummary(metric)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{formatFullDate(metric.measured_at ?? metric.recorded_at)}</p>
               </div>
-              {record.metric ? (
-                <Button
-                  aria-label="编辑身体数据记录"
-                  onClick={() => onEditBodyMetric(record.metric!)}
-                  size="icon-sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  <Pencil />
-                </Button>
-              ) : null}
-              {record.metric && record.checkin ? (
-                <Button
-                  aria-label="删除身体数据记录"
-                  onClick={() => onDeleteBodyDataRecord(record)}
-                  size="icon-sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  <Trash2 />
-                </Button>
-              ) : record.metric ? (
-                <Button
-                  aria-label="删除测量记录"
-                  onClick={() => onDeleteBodyMetric(record.metric!)}
-                  size="icon-sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  <Trash2 />
-                </Button>
-              ) : record.checkin ? (
-                <Button
-                  aria-label="删除恢复打卡"
-                  onClick={() => onDeleteCheckin(record.checkin!)}
-                  size="icon-sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  <Trash2 />
-                </Button>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-8 text-sm text-muted-foreground">
-          还没有身体数据记录。
-        </p>
-      )}
-    </RecordSection>
-  )
-}
-
-function SectionHeading({
-  action,
-  description,
-  title,
-}: {
-  action?: ReactNode
-  description: string
-  title: string
-}) {
-  return (
-    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-      <div>
-        <h2 className="text-xl font-medium tracking-[-0.03em]">{title}</h2>
+              <div className="flex gap-2">
+                <Button onClick={() => onEditBodyMetric(metric)} size="sm" type="button" variant="outline">编辑</Button>
+                <Button onClick={() => onDeleteBodyMetric(metric)} size="sm" type="button" variant="ghost">删除</Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
-      <p className="text-sm text-muted-foreground">{description}</p>
-      {action}
-    </div>
-  )
-}
-
-function RecordSection({
-  children,
-  title,
-}: {
-  children: ReactNode
-  title: string
-}) {
-  return (
-    <section>
-      <h2 className="font-medium tracking-[-0.03em]">{title}</h2>
-      {children}
     </section>
   )
 }
 
-const BODY_DATA_PAIR_WINDOW_MS = 10 * 60 * 1000
-
-function getBodyDataRecords(
-  bodyMetrics: BodyMetric[],
-  checkins: AgentCheckin[]
-): BodyDataRecord[] {
-  const unpairedMetrics = [...bodyMetrics].sort(
-    (left, right) => getMetricSortTime(right) - getMetricSortTime(left)
-  )
-  const records: BodyDataRecord[] = []
-
-  for (const checkin of [...checkins].sort(
-    (left, right) => getCheckinSortTime(right) - getCheckinSortTime(left)
-  )) {
-    const matchIndex = findPairedMetricIndex(checkin, unpairedMetrics)
-    const metric =
-      matchIndex >= 0 ? unpairedMetrics.splice(matchIndex, 1)[0] : null
-
-    records.push({
-      checkin,
-      id: bodyDataRecordId(metric, checkin),
-      metric,
-      sortTime: Math.max(
-        metric ? getMetricSortTime(metric) : Number.NEGATIVE_INFINITY,
-        getCheckinSortTime(checkin)
-      ),
-    })
-  }
-
-  for (const metric of unpairedMetrics) {
-    records.push({
-      checkin: null,
-      id: bodyDataRecordId(metric, null),
-      metric,
-      sortTime: getMetricSortTime(metric),
-    })
-  }
-
-  return records.sort((left, right) => right.sortTime - left.sortTime)
-}
-
-function findPairedMetricIndex(
-  checkin: AgentCheckin,
-  metrics: BodyMetric[]
-) {
-  const checkinDate = dateKey(localDate(checkin.checkin_date ?? checkin.created_at))
-  const checkinTime = dateTime(checkin.created_at)
-  let closestIndex = -1
-  let closestDistance = Number.POSITIVE_INFINITY
-
-  metrics.forEach((metric, index) => {
-    const metricDate = dateKey(localDate(metric.measured_at ?? metric.recorded_at))
-    if (metricDate !== checkinDate) {
-      return
-    }
-
-    const distance = Math.abs(dateTime(metric.recorded_at) - checkinTime)
-    if (distance <= BODY_DATA_PAIR_WINDOW_MS && distance < closestDistance) {
-      closestDistance = distance
-      closestIndex = index
-    }
-  })
-
-  return closestIndex
-}
-
-function bodyDataRecordId(
-  metric: BodyMetric | null,
-  checkin: AgentCheckin | null
-) {
-  return `body-data-${metric?.id ?? "none"}-${checkin?.id ?? "none"}`
-}
-
-function getBodyDataRecordDate(record: BodyDataRecord) {
+function ChartCard({ children, title }: { children: ReactNode; title: string }) {
   return (
-    record.metric?.measured_at ??
-    record.metric?.recorded_at ??
-    record.checkin?.checkin_date ??
-    record.checkin?.created_at ??
-    ""
+    <Card className="border-border/50 shadow-none">
+      <CardHeader>
+        <CardTitle className="text-base font-medium">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
   )
 }
 
-function getMetricSortTime(metric: BodyMetric) {
-  return dateTime(metric.measured_at ?? metric.recorded_at)
-}
-
-function getCheckinSortTime(checkin: AgentCheckin) {
-  return dateTime(checkin.created_at)
-}
-
-function formatBodyDataRecordSummary(record: BodyDataRecord) {
-  return [
-    record.metric ? formatBodyMetricSummary(record.metric) : null,
-    record.checkin ? formatCheckinSummary(record.checkin) : null,
-  ]
-    .filter(Boolean)
-    .join("，")
-}
-
-function formatBodyMetricSummary(metric: BodyMetric) {
-  const parts = [
-    typeof metric.weight_kg === "number"
-      ? `体重 ${metric.weight_kg.toFixed(1)} kg`
-      : null,
-    typeof metric.body_fat_percentage === "number"
-      ? `体脂 ${metric.body_fat_percentage.toFixed(1)}%`
-      : null,
-    typeof metric.skeletal_muscle_mass_kg === "number"
-      ? `骨骼肌 ${metric.skeletal_muscle_mass_kg.toFixed(1)} kg`
-      : null,
-    typeof metric.waist_cm === "number"
-      ? `腰围 ${metric.waist_cm.toFixed(1)} cm`
-      : null,
-    typeof metric.chest_cm === "number"
-      ? `胸围 ${metric.chest_cm.toFixed(1)} cm`
-      : null,
-    typeof metric.hip_cm === "number"
-      ? `臀围 ${metric.hip_cm.toFixed(1)} cm`
-      : null,
-  ].filter(Boolean)
-
-  return parts.join("，") || "身体测量记录"
-}
-
-function formatBodyDataRecordMeta(record: BodyDataRecord) {
-  const sources = Array.from(
-    new Set(
-      [record.metric?.source, record.checkin?.source]
-        .filter(Boolean)
-        .map((source) => formatMetricSource(source))
-    )
-  )
-  const recordType =
-    record.metric && record.checkin
-      ? "恢复 + 测量"
-      : record.metric
-        ? "测量"
-        : "恢复"
-  const details = [
-    ...sources,
-    recordType,
-    record.metric?.notes,
-    record.checkin?.pain_notes,
-  ].filter(Boolean)
-
-  return details.join(" · ")
-}
-
-function SummaryValue({ label, value }: { label: string; value: string }) {
+function ChartEmpty({ icon, title }: { icon: ReactNode; title: string }) {
   return (
-    <div>
+    <Empty className="min-h-64 border border-dashed bg-muted/20">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">{icon}</EmptyMedia>
+        <EmptyTitle>{title}</EmptyTitle>
+      </EmptyHeader>
+    </Empty>
+  )
+}
+
+function OverviewStat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return (
+    <Card className="border-border/50 shadow-none">
+      <CardContent className="flex gap-3 pt-6">
+        <span className="mt-1 text-muted-foreground [&_svg]:size-4">{icon}</span>
+        <span>
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="mt-1 text-xl font-medium tracking-tight">{value}</p>
+        </span>
+      </CardContent>
+    </Card>
+  )
+}
+
+function DetailMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-muted/35 px-3 py-2">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl">{value}</p>
+      <p className="mt-1 font-medium">{value}</p>
     </div>
   )
 }
 
-function getMetricSeries(
-  metrics: BodyMetric[],
-  key: keyof Pick<
-    BodyMetric,
-    | "body_fat_percentage"
-    | "chest_cm"
-    | "hip_cm"
-    | "skeletal_muscle_mass_kg"
-    | "waist_cm"
-    | "weight_kg"
-  >
-): MetricPoint[] {
-  return metrics
-    .filter((metric) => metric[key] !== null && metric[key] !== undefined)
-    .sort(
-      (a, b) =>
-        dateTime(a.measured_at ?? a.recorded_at) -
-        dateTime(b.measured_at ?? b.recorded_at)
-    )
-    .slice(-30)
-    .map((metric) => ({
-      date: metric.measured_at ?? metric.recorded_at,
-      value: Number(metric[key]),
-    }))
-}
-
-function getCheckinSeries(
-  checkins: AgentCheckin[],
-  key: keyof Pick<
-    AgentCheckin,
-    "energy_level" | "sleep_hours" | "soreness_level"
-  >
-): MetricPoint[] {
-  return checkins
-    .filter((checkin) => checkin[key] !== null && checkin[key] !== undefined)
-    .sort(
-      (left, right) =>
-        dateTime(left.checkin_date ?? left.created_at) -
-        dateTime(right.checkin_date ?? right.created_at)
-    )
-    .slice(-30)
-    .map((checkin) => ({
-      date: checkin.checkin_date ?? checkin.created_at,
-      value: Number(checkin[key]),
-    }))
-}
-
-function getBmiSeries(metrics: BodyMetric[]): MetricPoint[] {
-  return metrics
-    .map((metric) => ({
-      date: metric.measured_at ?? metric.recorded_at,
-      value: metric.bmi ?? calculateBmi(metric),
-    }))
-    .filter((point): point is MetricPoint => typeof point.value === "number")
-    .sort((left, right) => dateTime(left.date) - dateTime(right.date))
-    .slice(-30)
-}
-
-function getCurrentWeekLogs(logs: WorkoutLog[]) {
-  const weekStart = startOfWeek(new Date())
-  const weekEnd = addDays(weekStart, 7)
-
-  return logs.filter((log) => {
-    const date = localDate(log.workout_date)
-    return date >= weekStart && date < weekEnd
-  })
-}
-
-function calculateTrainingStreak(logs: WorkoutLog[]) {
-  const trainedDates = new Set(
-    logs.map((log) => dateKey(localDate(log.workout_date)))
+function SectionHeader({ description, title }: { description: string; title: string }) {
+  return (
+    <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+      <h2 className="text-xl font-medium tracking-[-0.03em]">{title}</h2>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
   )
-  let cursor = new Date()
-  cursor.setHours(0, 0, 0, 0)
+}
 
-  if (!trainedDates.has(dateKey(cursor))) {
-    cursor = addDays(cursor, -1)
+function useImportantMetrics(key: string, defaults: string[]) {
+  const [value, setValue] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(key)
+      const parsed = raw ? JSON.parse(raw) : null
+      return Array.isArray(parsed) && parsed.every((item) => typeof item === "string")
+        ? parsed
+        : defaults
+    } catch {
+      return defaults
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value))
+    } catch {
+      // Local preference persistence is optional.
+    }
+  }, [key, value])
+
+  return [value, setValue] as const
+}
+
+function toggleMetricId(current: string[], id: string) {
+  return current.includes(id)
+    ? current.filter((item) => item !== id)
+    : [...current, id]
+}
+
+function getBodySeries(metrics: BodyMetric[], key: string): MetricPoint[] {
+  return metrics
+    .map((metric) => {
+      const date = metric.measured_at ?? metric.recorded_at
+      const rawValue =
+        key === "bmi"
+          ? metric.bmi ?? calculateBmi(metric)
+          : metric[key as keyof BodyMetric]
+      const value = typeof rawValue === "number" ? rawValue : null
+      return value !== null && Number.isFinite(value)
+        ? { date, label: formatShortDate(date), value }
+        : null
+    })
+    .filter((point): point is MetricPoint => Boolean(point))
+    .sort((left, right) => dateTime(left.date) - dateTime(right.date))
+    .slice(-40)
+}
+
+function getHealthSeries(
+  metrics: HealthMetric[],
+  dietRecords: DietRecord[],
+  key: string
+): MetricPoint[] {
+  if (key === "dietary_kcal") {
+    return getDietKcalSeries(metrics, dietRecords)
   }
+  return metrics
+    .map((metric) => {
+      const date = metric.measured_at ?? metric.recorded_at
+      const rawValue = metric[key as keyof HealthMetric]
+      const value = typeof rawValue === "number" ? rawValue : null
+      return value !== null && Number.isFinite(value)
+        ? { date, label: formatShortDate(date), value }
+        : null
+    })
+    .filter((point): point is MetricPoint => Boolean(point))
+    .sort((left, right) => dateTime(left.date) - dateTime(right.date))
+    .slice(-40)
+}
 
-  let streak = 0
-  while (trainedDates.has(dateKey(cursor))) {
-    streak += 1
-    cursor = addDays(cursor, -1)
+function getDietKcalSeries(metrics: HealthMetric[], records: DietRecord[]): MetricPoint[] {
+  const byDate = new Map<string, number>()
+  for (const record of records) {
+    const date = dateKey(record.meal_date)
+    byDate.set(date, (byDate.get(date) ?? 0) + record.estimated_kcal)
   }
+  for (const metric of metrics) {
+    if (typeof metric.dietary_kcal === "number") {
+      const date = dateKey(metric.metric_date ?? metric.measured_at ?? metric.recorded_at)
+      byDate.set(date, metric.dietary_kcal)
+    }
+  }
+  return [...byDate.entries()]
+    .map(([date, value]) => ({ date, label: formatShortDate(date), value: roundOne(value) }))
+    .sort((left, right) => dateTime(left.date) - dateTime(right.date))
+    .slice(-40)
+}
 
-  return streak
+function filterLogsByRange(logs: WorkoutLog[], days: number) {
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  start.setDate(start.getDate() - days + 1)
+  return logs.filter((log) => localDate(log.workout_date) >= start)
+}
+
+function buildExerciseStats(logs: WorkoutLog[]) {
+  const trainedDates = new Set(logs.map((log) => dateKey(log.workout_date)))
+  const seconds = logs.reduce((sum, log) => sum + getWorkoutSeconds(log), 0)
+  return {
+    calories: logs.reduce((sum, log) => sum + (log.calories_burned ?? 0), 0),
+    count: logs.length,
+    days: trainedDates.size,
+    seconds,
+  }
+}
+
+function buildTimePreferenceData(logs: WorkoutLog[]) {
+  const buckets = [
+    { label: "凌晨", max: 5, min: 0, value: 0 },
+    { label: "上午", max: 10, min: 6, value: 0 },
+    { label: "中午", max: 13, min: 11, value: 0 },
+    { label: "下午", max: 17, min: 14, value: 0 },
+    { label: "傍晚", max: 20, min: 18, value: 0 },
+    { label: "夜间", max: 23, min: 21, value: 0 },
+  ]
+  for (const log of logs) {
+    const date = new Date(log.created_at)
+    const hour = Number.isNaN(date.getTime()) ? 12 : date.getHours()
+    const bucket = buckets.find((item) => hour >= item.min && hour <= item.max) ?? buckets[2]
+    bucket.value += 1
+  }
+  return buckets.map(({ label, value }) => ({ label, value }))
+}
+
+function buildWorkoutTypeData(logs: WorkoutLog[]) {
+  const byType = new Map<string, number>()
+  for (const log of logs) {
+    const label = formatWorkoutType(log.workout_type)
+    byType.set(label, (byType.get(label) ?? 0) + 1)
+  }
+  return [...byType.entries()]
+    .map(([label, value]) => ({ label, value }))
+    .sort((left, right) => right.value - left.value)
+}
+
+function isSavedWorkoutLog(log: WorkoutLog) {
+  return getWorkoutSeconds(log) > 0 || Boolean(log.completed)
 }
 
 function getWorkoutSeconds(log: WorkoutLog) {
   return log.duration_seconds ?? (log.duration_minutes ?? 0) * 60
-}
-
-function calculateTargetProgress(
-  start: number | null,
-  current: number | null,
-  target: number | null
-) {
-  if (
-    start === null ||
-    current === null ||
-    target === null ||
-    Math.abs(start - target) < 0.1
-  ) {
-    return null
-  }
-  return Math.max(
-    0,
-    Math.min(
-      100,
-      Math.round((Math.abs(start - current) / Math.abs(start - target)) * 100)
-    )
-  )
 }
 
 function calculateBmi(metric: BodyMetric | null) {
@@ -1262,122 +922,95 @@ function calculateBmi(metric: BodyMetric | null) {
   return Number((metric.weight_kg / (metric.height_cm / 100) ** 2).toFixed(1))
 }
 
-function formatMetricSource(source: string | null | undefined) {
-  if (source === "chat_confirmation") return "对话确认"
-  if (source === "onboarding") return "建档录入"
-  return "手动录入"
+function metricDomain(series: MetricPoint[], unit: string): [number, number] {
+  if (unit === "/10") return [0, 10]
+  if (unit === "h") return [0, 12]
+  const values = series.map((point) => point.value)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1]
+  const range = Math.max(max - min, 1)
+  const padding = Math.max(range * 0.3, 1)
+  return [Math.max(0, Math.floor((min - padding) * 10) / 10), Math.ceil((max + padding) * 10) / 10]
 }
 
-function formatCheckinSummary(checkin: AgentCheckin) {
-  const parts = [
-    typeof checkin.sleep_hours === "number"
-      ? `睡眠 ${checkin.sleep_hours.toFixed(1)} h`
-      : null,
-    typeof checkin.energy_level === "number"
-      ? `精力 ${checkin.energy_level}/10`
-      : null,
-    typeof checkin.soreness_level === "number"
-      ? `酸痛 ${checkin.soreness_level}/10`
-      : null,
-  ].filter(Boolean)
-
-  return parts.join(" · ") || "恢复状态记录"
-}
-
-function formatMetricWithUnit(value: number | null | undefined, unit: string) {
-  return typeof value === "number" ? `${value.toFixed(1)} ${unit}` : "暂无记录"
-}
-
-function formatSeriesLatest(series: MetricPoint[], unit: string) {
+function formatLatest(series: MetricPoint[], unit: string) {
   const latest = series[series.length - 1]
-  return latest
-    ? `${latest.value.toFixed(1)}${unit ? ` ${unit}` : ""}`
-    : "未记录"
+  return latest ? `${formatNumber(latest.value)}${unit ? ` ${unit}` : ""}` : "未记录"
 }
 
-function formatMetricChange(series: MetricPoint[], unit: string) {
-  if (series.length < 2) return "暂无周期变化"
-  const change = series[series.length - 1].value - series[0].value
-  if (Math.abs(change) < 0.05) return `持平`
-  return `${change > 0 ? "↑" : "↓"} ${Math.abs(change).toFixed(1)}${unit ? ` ${unit}` : ""}`
+function formatSet(set: WorkoutLog["exercises"][number]["sets"][number]) {
+  const reps = set.reps ? `${set.reps} 次` : "未填次数"
+  const weight = set.weight_kg ? `${set.weight_kg} kg` : null
+  const rpe = set.rpe ? `RPE ${set.rpe}` : null
+  return [`第 ${set.set_number} 组`, reps, weight, rpe].filter(Boolean).join(" · ")
+}
+
+function formatBodySummary(metric: BodyMetric) {
+  return [
+    typeof metric.weight_kg === "number" ? `体重 ${formatNumber(metric.weight_kg)} kg` : null,
+    typeof metric.bmi === "number" ? `BMI ${formatNumber(metric.bmi)}` : null,
+    typeof metric.body_fat_percentage === "number" ? `体脂 ${formatNumber(metric.body_fat_percentage)}%` : null,
+    typeof metric.waist_cm === "number" ? `腰围 ${formatNumber(metric.waist_cm)} cm` : null,
+  ].filter(Boolean).join("，") || "身体指标记录"
+}
+
+function formatWorkoutType(type: string | null | undefined) {
+  const map: Record<string, string> = {
+    cardio: "有氧",
+    mobility: "灵活性",
+    running: "跑步",
+    strength: "力量",
+    yoga: "瑜伽",
+  }
+  return type ? (map[type] ?? type) : "未分类"
+}
+
+function formatDuration(totalSeconds: number) {
+  const minutes = Math.round(totalSeconds / 60)
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60)
+    const rest = minutes % 60
+    return rest ? `${hours} 小时 ${rest} 分钟` : `${hours} 小时`
+  }
+  return `${minutes} 分钟`
 }
 
 function formatShortDate(date: string) {
   const parsed = localDate(date)
-  if (Number.isNaN(parsed.getTime())) return "--.--"
-  return `${(parsed.getMonth() + 1).toString().padStart(2, "0")}.${parsed.getDate().toString().padStart(2, "0")}`
+  if (Number.isNaN(parsed.getTime())) return date.slice(5, 10)
+  return `${`${parsed.getMonth() + 1}`.padStart(2, "0")}.${`${parsed.getDate()}`.padStart(2, "0")}`
 }
 
 function formatFullDate(date: string) {
   const parsed = localDate(date)
   if (Number.isNaN(parsed.getTime())) return date.slice(0, 10)
-  return `${parsed.getFullYear()}.${(parsed.getMonth() + 1).toString().padStart(2, "0")}.${parsed.getDate().toString().padStart(2, "0")}`
+  return `${parsed.getFullYear()}.${`${parsed.getMonth() + 1}`.padStart(2, "0")}.${`${parsed.getDate()}`.padStart(2, "0")}`
 }
 
-function formatTrainingDuration(totalSeconds: number) {
-  const minutes = Math.round(totalSeconds / 60)
-  if (minutes >= 60) {
-    const hours = Math.floor(minutes / 60)
-    const remainder = minutes % 60
-    return remainder ? `${hours} 小时 ${remainder} 分` : `${hours} 小时`
-  }
-  return `${minutes} 分钟`
-}
-
-function formatNumber(value: number) {
-  return Number.isInteger(value) ? `${value}` : value.toFixed(1)
-}
-
-function roundOne(value: number) {
-  return Math.max(0, Math.round(value * 10) / 10)
-}
-
-function formatWeekRange(weekStart: Date) {
-  const weekEnd = addDays(weekStart, 6)
-  return `${weekStart.getMonth() + 1}.${weekStart.getDate()} - ${weekEnd.getMonth() + 1}.${weekEnd.getDate()}`
-}
-
-function isToday(value: string | null | undefined) {
-  if (!value) return false
+function dateKey(value: string) {
   const parsed = localDate(value)
-  if (Number.isNaN(parsed.getTime())) return false
-  const today = new Date()
-  return (
-    parsed.getFullYear() === today.getFullYear() &&
-    parsed.getMonth() === today.getMonth() &&
-    parsed.getDate() === today.getDate()
-  )
-}
-
-function startOfWeek(date: Date) {
-  const next = new Date(date)
-  next.setHours(0, 0, 0, 0)
-  next.setDate(next.getDate() - ((next.getDay() + 6) % 7))
-  return next
-}
-
-function addDays(date: Date, days: number) {
-  const next = new Date(date)
-  next.setDate(next.getDate() + days)
-  return next
+  if (Number.isNaN(parsed.getTime())) return value.slice(0, 10)
+  return `${parsed.getFullYear()}-${`${parsed.getMonth() + 1}`.padStart(2, "0")}-${`${parsed.getDate()}`.padStart(2, "0")}`
 }
 
 function localDate(value: string) {
-  const plainDate = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (plainDate) {
-    return new Date(
-      Number(plainDate[1]),
-      Number(plainDate[2]) - 1,
-      Number(plainDate[3])
-    )
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number)
+    return new Date(year, month - 1, day)
   }
   return new Date(value)
 }
 
-function dateKey(date: Date) {
-  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+function dateTime(value: string) {
+  const parsed = localDate(value)
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime()
 }
 
-function dateTime(value: string) {
-  return localDate(value).getTime()
+function formatNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+function roundOne(value: number) {
+  return Math.round(value * 10) / 10
 }

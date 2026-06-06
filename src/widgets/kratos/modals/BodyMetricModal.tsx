@@ -35,6 +35,8 @@ const emptyBodyMetricForm: BodyMetricForm = {
   measuredAt: localDatetimeValue(new Date()),
   bmi: "",
   bodyFatPercentage: "",
+  armCm: "",
+  calfCm: "",
   chestCm: "",
   energyLevel: "",
   heightCm: "",
@@ -47,6 +49,7 @@ const emptyBodyMetricForm: BodyMetricForm = {
   sleepQuality: "",
   sorenessLevel: "",
   targetWeightKg: "",
+  thighCm: "",
   waistCm: "",
   weightKg: "",
 }

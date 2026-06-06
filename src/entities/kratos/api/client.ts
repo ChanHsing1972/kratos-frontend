@@ -9,6 +9,8 @@ import type {
   FitnessContext,
   FitnessProfile,
   FitnessProfilePayload,
+  HealthMetric,
+  HealthMetricPayload,
   HeartRateSample,
   HeartRateSamplePayload,
   HeartRateSummary,
@@ -115,6 +117,13 @@ export async function createDietRecords(token: string, payload: DietRecordPayloa
   })
 }
 
+export async function listDietRecords(token: string, limit = 200) {
+  return authorizedJson<DietRecord[]>(
+    `/diet/records?limit=${encodeURIComponent(limit)}`,
+    token
+  )
+}
+
 export async function listTrainingPlans(token: string) {
   return authorizedJson<TrainingPlan[]>("/plans", token)
 }
@@ -192,6 +201,34 @@ export async function updateBodyMetric(
 
 export async function deleteBodyMetric(token: string, metricId: number) {
   return authorizedJson<null>(`/body-metrics/${metricId}`, token, {
+    method: "DELETE",
+  })
+}
+
+export async function listHealthMetrics(token: string) {
+  return authorizedJson<HealthMetric[]>("/health-metrics", token)
+}
+
+export async function createHealthMetric(token: string, payload: HealthMetricPayload) {
+  return authorizedJson<HealthMetric>("/health-metrics", token, {
+    body: JSON.stringify(payload),
+    method: "POST",
+  })
+}
+
+export async function updateHealthMetric(
+  token: string,
+  metricId: number,
+  payload: HealthMetricPayload
+) {
+  return authorizedJson<HealthMetric>(`/health-metrics/${metricId}`, token, {
+    body: JSON.stringify(payload),
+    method: "PATCH",
+  })
+}
+
+export async function deleteHealthMetric(token: string, metricId: number) {
+  return authorizedJson<null>(`/health-metrics/${metricId}`, token, {
     method: "DELETE",
   })
 }

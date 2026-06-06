@@ -3,7 +3,11 @@ import type {
   AgentCheckinPayload,
   BodyMetricForm,
   BodyMetricPayload,
+  DietIntakeForm,
   FitnessProfilePayload,
+  FoodEstimateItem,
+  HealthMetricForm,
+  HealthMetricPayload,
   ProfileForm,
 } from "@/entities/kratos/model/types"
 
@@ -12,6 +16,17 @@ type BodyPayload = {
   hasCheckinData: boolean
   hasMetricData: boolean
   metric: BodyMetricPayload
+}
+
+type HealthPayload = {
+  hasHealthData: boolean
+  metric: HealthMetricPayload
+}
+
+type DietPayload = {
+  hasDietData: boolean
+  item: FoodEstimateItem | null
+  mealDate: string | null
 }
 
 export function buildProfilePayload(
@@ -122,6 +137,21 @@ export function buildBodyPayload(
     setError(hipCm)
     return null
   }
+  const thighCm = parseOptionalNumber(form.thighCm, "大腿围")
+  if (typeof thighCm === "string") {
+    setError(thighCm)
+    return null
+  }
+  const calfCm = parseOptionalNumber(form.calfCm, "小腿围")
+  if (typeof calfCm === "string") {
+    setError(calfCm)
+    return null
+  }
+  const armCm = parseOptionalNumber(form.armCm, "臂围")
+  if (typeof armCm === "string") {
+    setError(armCm)
+    return null
+  }
   const sleepHours = parseOptionalNumber(form.sleepHours, "睡眠时长")
   if (typeof sleepHours === "string") {
     setError(sleepHours)
@@ -183,6 +213,9 @@ export function buildBodyPayload(
       chestCm !== null ||
       waistCm !== null ||
       hipCm !== null ||
+      thighCm !== null ||
+      calfCm !== null ||
+      armCm !== null ||
       notes !== null,
     metric: compactPayload({
       height_cm: heightCm,
@@ -194,8 +227,159 @@ export function buildBodyPayload(
       chest_cm: chestCm,
       waist_cm: waistCm,
       hip_cm: hipCm,
+      thigh_cm: thighCm,
+      calf_cm: calfCm,
+      arm_cm: armCm,
       notes,
     }),
+  }
+}
+
+export function buildHealthPayload(
+  form: HealthMetricForm,
+  setError: (message: string | null) => void
+): HealthPayload | null {
+  const sleepHours = parseOptionalNumber(form.sleepHours, "睡眠时长")
+  if (typeof sleepHours === "string") {
+    setError(sleepHours)
+    return null
+  }
+  const activeKcal = parseOptionalNumber(form.activeKcal, "活动消耗")
+  if (typeof activeKcal === "string") {
+    setError(activeKcal)
+    return null
+  }
+  const dietaryKcal = parseOptionalNumber(form.dietaryKcal, "饮食摄入")
+  if (typeof dietaryKcal === "string") {
+    setError(dietaryKcal)
+    return null
+  }
+  const hrvMs = parseOptionalNumber(form.hrvMs, "HRV")
+  if (typeof hrvMs === "string") {
+    setError(hrvMs)
+    return null
+  }
+  const stressLevel = parseOptionalInteger(form.stressLevel, "压力")
+  if (typeof stressLevel === "string") {
+    setError(stressLevel)
+    return null
+  }
+  const restingHeartRate = parseOptionalInteger(form.restingHeartRate, "静息心率")
+  if (typeof restingHeartRate === "string") {
+    setError(restingHeartRate)
+    return null
+  }
+  const vo2Max = parseOptionalNumber(form.vo2Max, "最大摄氧量")
+  if (typeof vo2Max === "string") {
+    setError(vo2Max)
+    return null
+  }
+  const bloodOxygenPercentage = parseOptionalNumber(form.bloodOxygenPercentage, "血氧饱和度")
+  if (typeof bloodOxygenPercentage === "string") {
+    setError(bloodOxygenPercentage)
+    return null
+  }
+  const notes = compactOptionalText(form.notes)
+
+  if (stressLevel !== null && (stressLevel < 0 || stressLevel > 10)) {
+    setError("压力必须在 0 到 10 之间")
+    return null
+  }
+
+  return {
+    hasHealthData:
+      sleepHours !== null ||
+      activeKcal !== null ||
+      dietaryKcal !== null ||
+      hrvMs !== null ||
+      stressLevel !== null ||
+      restingHeartRate !== null ||
+      vo2Max !== null ||
+      bloodOxygenPercentage !== null ||
+      notes !== null,
+    metric: compactPayload({
+      sleep_hours: sleepHours,
+      active_kcal: activeKcal,
+      dietary_kcal: dietaryKcal,
+      hrv_ms: hrvMs,
+      stress_level: stressLevel,
+      resting_heart_rate: restingHeartRate,
+      vo2_max: vo2Max,
+      blood_oxygen_percentage: bloodOxygenPercentage,
+      notes,
+    }),
+  }
+}
+
+export function buildDietPayload(
+  form: DietIntakeForm,
+  setError: (message: string | null) => void
+): DietPayload | null {
+  const name = compactOptionalText(form.name)
+  const estimatedWeightG = parseOptionalNumber(form.estimatedWeightG, "食物重量")
+  const estimatedKcal = parseOptionalNumber(form.estimatedKcal, "摄入热量")
+  const proteinG = parseOptionalNumber(form.proteinG, "蛋白质")
+  const fatG = parseOptionalNumber(form.fatG, "脂肪")
+  const carbsG = parseOptionalNumber(form.carbsG, "碳水")
+
+  if (typeof estimatedWeightG === "string") {
+    setError(estimatedWeightG)
+    return null
+  }
+  if (typeof estimatedKcal === "string") {
+    setError(estimatedKcal)
+    return null
+  }
+  if (typeof proteinG === "string") {
+    setError(proteinG)
+    return null
+  }
+  if (typeof fatG === "string") {
+    setError(fatG)
+    return null
+  }
+  if (typeof carbsG === "string") {
+    setError(carbsG)
+    return null
+  }
+
+  const hasDietData =
+    name !== null ||
+    estimatedWeightG !== null ||
+    estimatedKcal !== null ||
+    proteinG !== null ||
+    fatG !== null ||
+    carbsG !== null
+
+  if (!hasDietData) {
+    return {
+      hasDietData: false,
+      item: null,
+      mealDate: compactOptionalText(form.mealDate),
+    }
+  }
+
+  if (!name) {
+    setError("饮食记录需要填写食物名称")
+    return null
+  }
+
+  return {
+    hasDietData: true,
+    item: {
+      assumptions: [],
+      carbs_g: carbsG ?? 0,
+      confidence: 1,
+      estimated_kcal: estimatedKcal ?? 0,
+      estimated_weight_g: estimatedWeightG ?? 0,
+      fat_g: fatG ?? 0,
+      max_kcal: estimatedKcal ?? 0,
+      min_kcal: estimatedKcal ?? 0,
+      name,
+      protein_g: proteinG ?? 0,
+      source: "manual",
+    },
+    mealDate: compactOptionalText(form.mealDate),
   }
 }
 

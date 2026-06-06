@@ -16,11 +16,11 @@ import {
   createAgentCheckin,
   createBodyMetric,
   createDietRecords,
+  createHealthMetric,
   createMyFitnessProfile,
   createSkill,
   createTrainingPlan,
   createWorkoutLog,
-  deleteAgentCheckin,
   deleteAgentSession,
   deleteBodyMetric,
   deleteSkill,
@@ -75,6 +75,8 @@ import {
 } from "@/features/kratos/lib/conversationExport"
 import {
   buildBodyPayload,
+  buildDietPayload,
+  buildHealthPayload,
   buildProfilePayload,
 } from "@/features/kratos/lib/formPayloads"
 import {
@@ -101,12 +103,19 @@ import { createId } from "@/shared/lib/id"
 import { useLiveHeartRate } from "@/shared/hooks/useLiveHeartRate"
 import { BodyDataPage } from "@/pages/kratos/BodyDataPage"
 import { ConversationDetailPage } from "@/pages/kratos/ConversationDetailPage"
+import { DietIntakePage } from "@/pages/kratos/DietIntakePage"
 import { EvaluationPage } from "@/pages/kratos/EvaluationPage"
 import { NewConversationPage } from "@/pages/kratos/NewConversationPage"
 import { SkillPanelPage } from "@/pages/kratos/SkillPanelPage"
 import { TrainingPlanPage } from "@/pages/kratos/TrainingPlanPage"
 import { AuthModal } from "@/widgets/kratos/modals/AuthModal"
-import { BodyMetricModal } from "@/widgets/kratos/modals/BodyMetricModal"
+import {
+  AddDataModal,
+  emptyDietIntakeForm,
+  emptyHealthMetricForm,
+  type AddDataCategory,
+  type AddDataSubmitPayload,
+} from "@/widgets/kratos/modals/AddDataModal"
 import { DetailModal } from "@/widgets/kratos/modals/DetailModal"
 import { OnboardingModal } from "@/widgets/kratos/modals/OnboardingModal"
 import { TrainingShareCardDialog } from "@/widgets/kratos/modals/TrainingShareCardDialog"
@@ -135,6 +144,8 @@ import type {
   FoodImageEstimateResult,
   FitnessProfile,
   FitnessProfilePayload,
+  HealthMetric,
+  HealthMetricForm,
   HeartRateSummary,
   OnboardingStatus,
   NotificationItem,
@@ -181,6 +192,7 @@ function routeFromLocation() {
   }
   if (path === "/training") return { nav: "训练计划", sessionId: null }
   if (path === "/body") return { nav: "数据中心", sessionId: null }
+  if (path === "/diet") return { nav: "饮食摄入", sessionId: null }
   if (path === "/capabilities") return { nav: "工具技能", sessionId: null }
   return { nav: "new", sessionId: null }
 }
@@ -260,6 +272,8 @@ function bodyMetricFormFromRecord(metric: BodyMetric): BodyMetricForm {
     measuredAt: new Date(validDate.getTime() - offset).toISOString().slice(0, 16),
     bmi: metric.bmi?.toString() ?? "",
     bodyFatPercentage: metric.body_fat_percentage?.toString() ?? "",
+    armCm: metric.arm_cm?.toString() ?? "",
+    calfCm: metric.calf_cm?.toString() ?? "",
     chestCm: metric.chest_cm?.toString() ?? "",
     energyLevel: "",
     heightCm: metric.height_cm?.toString() ?? "",
@@ -267,14 +281,81 @@ function bodyMetricFormFromRecord(metric: BodyMetric): BodyMetricForm {
     mood: "",
     notes: metric.notes ?? "",
     painNotes: "",
-    skeletalMuscleMassKg: metric.skeletal_muscle_mass_kg?.toString() ?? "",
+    skeletalMuscleMassKg: "",
     sleepHours: "",
     sleepQuality: "",
     sorenessLevel: "",
     targetWeightKg: metric.target_weight_kg?.toString() ?? "",
+    thighCm: metric.thigh_cm?.toString() ?? "",
     waistCm: metric.waist_cm?.toString() ?? "",
     weightKg: metric.weight_kg?.toString() ?? "",
   }
+}
+
+function bodyMetricFormFromLatest(metric: BodyMetric | null): BodyMetricForm {
+  if (!metric) {
+    return {
+      ...bodyMetricFormFromRecord({
+        arm_cm: null,
+        bmi: null,
+        body_fat_percentage: null,
+        calf_cm: null,
+        chest_cm: null,
+        external_id: null,
+        height_cm: null,
+        hip_cm: null,
+        id: 0,
+        measured_at: new Date().toISOString(),
+        notes: null,
+        recorded_at: new Date().toISOString(),
+        skeletal_muscle_mass_kg: null,
+        sleep_hours: null,
+        source: "manual",
+        target_weight_kg: null,
+        thigh_cm: null,
+        user_id: 0,
+        waist_cm: null,
+        weight_kg: null,
+      }),
+      measuredAt: localDatetimeValue(new Date()),
+    }
+  }
+  return {
+    ...bodyMetricFormFromRecord(metric),
+    measuredAt: localDatetimeValue(new Date()),
+  }
+}
+
+function healthMetricFormFromRecord(metric: HealthMetric | null): HealthMetricForm {
+  const measuredAt = metric?.measured_at ?? metric?.recorded_at ?? new Date().toISOString()
+  const date = new Date(measuredAt)
+  const validDate = Number.isNaN(date.getTime()) ? new Date() : date
+  return {
+    activeKcal: metric?.active_kcal?.toString() ?? "",
+    bloodOxygenPercentage: metric?.blood_oxygen_percentage?.toString() ?? "",
+    dietaryKcal: metric?.dietary_kcal?.toString() ?? "",
+    hrvMs: metric?.hrv_ms?.toString() ?? "",
+    measuredAt: localDatetimeValue(validDate),
+    metricDate: metric?.metric_date ?? localDateValue(validDate),
+    notes: metric?.notes ?? "",
+    restingHeartRate: metric?.resting_heart_rate?.toString() ?? "",
+    sleepHours: metric?.sleep_hours?.toString() ?? "",
+    stressLevel: metric?.stress_level?.toString() ?? "",
+    vo2Max: metric?.vo2_max?.toString() ?? "",
+  }
+}
+
+function healthMetricFormFromLatest(metric: HealthMetric | null): HealthMetricForm {
+  return {
+    ...healthMetricFormFromRecord(metric),
+    measuredAt: localDatetimeValue(new Date()),
+    metricDate: localDateValue(new Date()),
+  }
+}
+
+function localDatetimeValue(date: Date) {
+  const offset = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
 }
 
 function readFileAsDataUrl(file: File) {
@@ -329,6 +410,7 @@ export function KratosPage() {
   const [onboardingError, setOnboardingError] = useState<string | null>(null)
   const [bodyMetricModalOpen, setBodyMetricModalOpen] = useState(false)
   const [editingBodyMetric, setEditingBodyMetric] = useState<BodyMetric | null>(null)
+  const [addDataInitialTab, setAddDataInitialTab] = useState<AddDataCategory>("body")
   const [bodyMetricSubmitting, setBodyMetricSubmitting] = useState(false)
   const [bodyMetricError, setBodyMetricError] = useState<string | null>(null)
   const [trainingPlanModalOpen, setTrainingPlanModalOpen] = useState(false)
@@ -397,11 +479,14 @@ export function KratosPage() {
   const [bodyMetrics, setBodyMetrics] = useState<BodyMetric[]>(
     () => cachedWorkspaceRef.current?.bodyMetrics ?? []
   )
+  const [healthMetrics, setHealthMetrics] = useState<HealthMetric[]>(
+    () => cachedWorkspaceRef.current?.healthMetrics ?? []
+  )
   const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>(
     () => cachedWorkspaceRef.current?.workoutLogs ?? []
   )
   const [dietRecords, setDietRecords] = useState<DietRecord[]>(
-    () => cachedWorkspaceRef.current?.fitnessContext?.recent_diet_records ?? []
+    () => cachedWorkspaceRef.current?.dietRecords ?? cachedWorkspaceRef.current?.fitnessContext?.recent_diet_records ?? []
   )
   const [agentCheckins, setAgentCheckins] = useState<AgentCheckin[]>(
     () => cachedWorkspaceRef.current?.agentCheckins ?? []
@@ -493,6 +578,8 @@ export function KratosPage() {
     getLatestByDate(bodyMetrics, (metric) => metric.measured_at ?? metric.recorded_at) ?? null
   const latestCheckin =
     getLatestByDate(agentCheckins, (checkin) => checkin.checkin_date ?? checkin.created_at) ?? null
+  const latestHealthMetric =
+    getLatestByDate(healthMetrics, (metric) => metric.measured_at ?? metric.recorded_at) ?? null
   const onboardingStatus: OnboardingStatus | null =
     fitnessContext?.onboarding ?? null
   const authToken = localStorage.getItem(AUTH_TOKEN_KEY)
@@ -689,8 +776,10 @@ export function KratosPage() {
       bodyMetrics,
       chatSessions,
       composerValue,
+      dietRecords,
       fitnessContext,
       fitnessProfile,
+      healthMetrics,
       messages,
       notifications,
       skills,
@@ -708,8 +797,10 @@ export function KratosPage() {
     chatSessions,
     composerValue,
     currentUser,
+    dietRecords,
     fitnessContext,
     fitnessProfile,
+    healthMetrics,
     messages,
     notifications,
     skills,
@@ -774,7 +865,7 @@ export function KratosPage() {
         }
 
         if (!selectedSessionId) {
-          if (route.nav !== "训练计划" && route.nav !== "数据中心" && route.nav !== "工具技能") {
+          if (route.nav !== "训练计划" && route.nav !== "数据中心" && route.nav !== "饮食摄入" && route.nav !== "工具技能") {
             setMessages(initialMessages)
             setActiveSessionId(null)
             setActiveNav("new")
@@ -961,7 +1052,9 @@ export function KratosPage() {
     setSkillError(null)
     setFitnessProfile(null)
     setBodyMetrics([])
+    setHealthMetrics([])
     setWorkoutLogs([])
+    setDietRecords([])
     setAgentCheckins([])
     setTools([])
     setMessages(initialMessages)
@@ -983,6 +1076,18 @@ export function KratosPage() {
     sonnerToast.info("已退出登录")
   }
 
+  const openAddDataModal = (category: AddDataCategory = "body") => {
+    if (!currentUser) {
+      openAuth("login")
+      return
+    }
+
+    setBodyMetricError(null)
+    setEditingBodyMetric(null)
+    setAddDataInitialTab(category)
+    setBodyMetricModalOpen(true)
+  }
+
   const openBodyMetricEditor = (metric: BodyMetric | null = null) => {
     if (!currentUser) {
       openAuth("login")
@@ -992,6 +1097,7 @@ export function KratosPage() {
     const record = metric && typeof metric.id === "number" ? metric : null
     setBodyMetricError(null)
     setEditingBodyMetric(record)
+    setAddDataInitialTab("body")
     setBodyMetricModalOpen(true)
   }
 
@@ -1034,9 +1140,11 @@ export function KratosPage() {
         ? "/training"
         : label === "数据中心"
           ? "/body"
-          : label === "工具技能"
-            ? "/capabilities"
-            : "/chat/new"
+          : label === "饮食摄入"
+            ? "/diet"
+            : label === "工具技能"
+              ? "/capabilities"
+              : "/chat/new"
     )
     setSidebarDrawerOpen(false)
   }
@@ -1371,15 +1479,15 @@ export function KratosPage() {
     }
   }
 
-  const handleBodyMetricSubmit = async (form: BodyMetricForm) => {
+  const handleAddDataSubmit = async ({
+    bodyForm,
+    category,
+    dietForm,
+    healthForm,
+  }: AddDataSubmitPayload) => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
-      return
-    }
-
-    const bodyPayload = buildBodyPayload(form, setBodyMetricError)
-    if (!bodyPayload) {
       return
     }
 
@@ -1387,78 +1495,104 @@ export function KratosPage() {
     setBodyMetricError(null)
 
     try {
-      if (bodyPayload.hasMetricData) {
+      if (category === "body") {
+        const bodyPayload = buildBodyPayload(bodyForm, setBodyMetricError)
+        if (!bodyPayload) {
+          return
+        }
+        if (!bodyPayload.hasMetricData && !bodyPayload.hasCheckinData) {
+          setBodyMetricError("请至少填写一项身体指标")
+          return
+        }
+
         const metricPayload = {
           ...bodyPayload.metric,
-          measured_at: form.measuredAt
-            ? new Date(form.measuredAt).toISOString()
+          measured_at: bodyForm.measuredAt
+            ? new Date(bodyForm.measuredAt).toISOString()
             : new Date().toISOString(),
           source: editingBodyMetric?.source ?? "manual",
         }
-        const metric = editingBodyMetric
-          ? await updateBodyMetric(token, editingBodyMetric.id, metricPayload)
-          : await createBodyMetric(token, metricPayload)
-        setBodyMetrics((current) =>
-          editingBodyMetric
-            ? current.map((item) => item.id === metric.id ? metric : item)
-            : [metric, ...current]
-        )
+        if (bodyPayload.hasMetricData) {
+          const metric = editingBodyMetric
+            ? await updateBodyMetric(token, editingBodyMetric.id, metricPayload)
+            : await createBodyMetric(token, metricPayload)
+          setBodyMetrics((current) =>
+            editingBodyMetric
+              ? current.map((item) => item.id === metric.id ? metric : item)
+              : [metric, ...current]
+          )
+        }
+
+        if (bodyPayload.hasCheckinData) {
+          const measuredDate = bodyForm.measuredAt ? new Date(bodyForm.measuredAt) : null
+          const checkinDate =
+            measuredDate && !Number.isNaN(measuredDate.getTime())
+              ? localDateValue(measuredDate)
+              : localDateValue(new Date())
+          const checkin = await createAgentCheckin(token, {
+            ...bodyPayload.checkin,
+            checkin_date: checkinDate,
+            source: "manual",
+            summary: "手动记录恢复状态",
+            training_plan_id: activePlan?.id ?? null,
+          })
+          setAgentCheckins((current) => [checkin, ...current])
+        }
       }
 
-      if (bodyPayload.hasCheckinData) {
-        const measuredDate = form.measuredAt ? new Date(form.measuredAt) : null
-        const checkinDate =
-          measuredDate && !Number.isNaN(measuredDate.getTime())
-            ? localDateValue(measuredDate)
-            : localDateValue(new Date())
-        const checkin = await createAgentCheckin(token, {
-          ...bodyPayload.checkin,
-          checkin_date: checkinDate,
+      if (category === "health") {
+        const healthPayload = buildHealthPayload(healthForm, setBodyMetricError)
+        if (!healthPayload) {
+          return
+        }
+        if (!healthPayload.hasHealthData) {
+          setBodyMetricError("请至少填写一项健康数据")
+          return
+        }
+        const measuredAt = healthForm.measuredAt
+          ? new Date(healthForm.measuredAt).toISOString()
+          : new Date().toISOString()
+        const metric = await createHealthMetric(token, {
+          ...healthPayload.metric,
+          measured_at: measuredAt,
+          metric_date: healthForm.metricDate || localDateValue(new Date(measuredAt)),
           source: "manual",
-          summary: "手动记录恢复状态",
-          training_plan_id: activePlan?.id ?? null,
         })
-        setAgentCheckins((current) => [checkin, ...current])
+        setHealthMetrics((current) => [metric, ...current])
+      }
+
+      if (category === "diet") {
+        const dietPayload = buildDietPayload(dietForm, setBodyMetricError)
+        if (!dietPayload) {
+          return
+        }
+        if (!dietPayload.hasDietData || !dietPayload.item) {
+          setBodyMetricError("请至少填写一条饮食记录")
+          return
+        }
+        const saved = await createDietRecords(token, {
+          meal_date: dietPayload.mealDate ?? localDateValue(new Date()),
+          items: [dietPayload.item],
+        })
+        setDietRecords((current) => [...saved, ...current])
       }
 
       await refreshDashboard(token, { preserveMessages: true })
       setBodyMetricModalOpen(false)
       setEditingBodyMetric(null)
-      sonnerToast.success(editingBodyMetric ? "身体测量记录已修正" : "身体数据已更新")
+      sonnerToast.success(
+        category === "diet"
+          ? "饮食摄入已保存"
+          : category === "health"
+            ? "健康数据已保存"
+            : editingBodyMetric
+              ? "身体测量记录已修正"
+              : "身体指标已保存"
+      )
     } catch (error) {
       setBodyMetricError(getErrorMessage(error))
     } finally {
       setBodyMetricSubmitting(false)
-    }
-  }
-
-  const handleDeleteBodyDataRecord = async (record: {
-    checkin: AgentCheckin | null
-    metric: BodyMetric | null
-  }) => {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY)
-    if (!token) return
-    try {
-      if (record.metric) {
-        await deleteBodyMetric(token, record.metric.id)
-      }
-      if (record.checkin) {
-        await deleteAgentCheckin(token, record.checkin.id)
-      }
-      if (record.metric) {
-        setBodyMetrics((current) =>
-          current.filter((item) => item.id !== record.metric?.id)
-        )
-      }
-      if (record.checkin) {
-        setAgentCheckins((current) =>
-          current.filter((item) => item.id !== record.checkin?.id)
-        )
-      }
-      await refreshDashboard(token, { preserveMessages: true })
-      sonnerToast.success("身体数据记录已删除")
-    } catch (error) {
-      sonnerToast.error(getErrorMessage(error), { richColors: true })
     }
   }
 
@@ -1475,24 +1609,13 @@ export function KratosPage() {
     }
   }
 
-  const handleDeleteCheckin = async (checkin: AgentCheckin) => {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY)
-    if (!token) return
-    try {
-      await deleteAgentCheckin(token, checkin.id)
-      setAgentCheckins((current) => current.filter((item) => item.id !== checkin.id))
-      await refreshDashboard(token, { preserveMessages: true })
-      sonnerToast.success("恢复打卡记录已删除")
-    } catch (error) {
-      sonnerToast.error(getErrorMessage(error), { richColors: true })
-    }
-  }
-
   const handleExportBodyData = () => {
     downloadJsonFile(
       {
         exported_at: new Date().toISOString(),
         body_metrics: bodyMetrics,
+        health_metrics: healthMetrics,
+        diet_records: dietRecords,
         recovery_checkins: agentCheckins,
         workout_logs: workoutLogs,
       },
@@ -1535,6 +1658,7 @@ export function KratosPage() {
     setSkillError(null)
     setFitnessProfile(context.profile)
     setBodyMetrics(context.recent_body_metrics)
+    setHealthMetrics(context.recent_health_metrics)
     setWorkoutLogs(context.recent_workout_logs)
     setDietRecords(context.recent_diet_records)
     setAgentCheckins(context.recent_checkins)
@@ -1839,6 +1963,14 @@ export function KratosPage() {
         await createBodyMetric(token, {
           ...data.body_metric,
           measured_at: new Date().toISOString(),
+          source: "chat_confirmation",
+        })
+      }
+      if (data.health_metric && Object.keys(data.health_metric).length) {
+        await createHealthMetric(token, {
+          ...data.health_metric,
+          measured_at: new Date().toISOString(),
+          metric_date: localDateValue(new Date()),
           source: "chat_confirmation",
         })
       }
@@ -2792,17 +2924,27 @@ export function KratosPage() {
       return (
         <BodyDataPage
           bodyMetrics={bodyMetrics}
-          checkins={agentCheckins}
-          latestCheckin={latestCheckin}
-          latestMetric={latestMetric}
           dietRecords={dietRecords}
-          onEditBodyData={openBodyMetricEditor}
-          onEditBodyMetric={openBodyMetricEditor}
-          onDeleteCheckin={handleDeleteCheckin}
-          onDeleteBodyDataRecord={handleDeleteBodyDataRecord}
+          healthMetrics={healthMetrics}
+          latestHealthMetric={latestHealthMetric}
+          latestMetric={latestMetric}
+          onAddData={() => openAddDataModal("body")}
           onDeleteBodyMetric={handleDeleteBodyMetric}
+          onEditBodyMetric={openBodyMetricEditor}
           onExportBodyData={handleExportBodyData}
+          onLoadWorkoutHeartRateSummary={(log) => getWorkoutHeartRateSummary(localStorage.getItem(AUTH_TOKEN_KEY) ?? "", log.id)}
           workoutLogs={workoutLogs}
+        />
+      )
+    }
+
+    if (activeNav === "饮食摄入") {
+      return (
+        <DietIntakePage
+          dietEstimating={dietEstimating}
+          onAddDiet={() => openAddDataModal("diet")}
+          onDietImage={handleDietImageEstimate}
+          records={dietRecords}
         />
       )
     }
@@ -2955,16 +3097,19 @@ export function KratosPage() {
         profile={fitnessProfile}
         status={onboardingStatus}
       />
-      <BodyMetricModal
+      <AddDataModal
+        bodyForm={editingBodyMetric ? bodyMetricFormFromRecord(editingBodyMetric) : bodyMetricFormFromLatest(latestMetric)}
+        dietForm={emptyDietIntakeForm()}
         error={bodyMetricError}
-        initialForm={editingBodyMetric ? bodyMetricFormFromRecord(editingBodyMetric) : null}
-        key={`${bodyMetricModalOpen ? "body-open" : "body-closed"}-${editingBodyMetric?.id ?? "new"}`}
+        healthForm={latestHealthMetric ? healthMetricFormFromLatest(latestHealthMetric) : emptyHealthMetricForm()}
+        initialTab={addDataInitialTab}
+        key={`${bodyMetricModalOpen ? "data-open" : "data-closed"}-${addDataInitialTab}-${editingBodyMetric?.id ?? "new"}-${latestMetric?.id ?? "no-body"}-${latestHealthMetric?.id ?? "no-health"}`}
         loading={bodyMetricSubmitting}
         onClose={() => {
           setBodyMetricModalOpen(false)
           setEditingBodyMetric(null)
         }}
-        onSubmit={handleBodyMetricSubmit}
+        onSubmit={handleAddDataSubmit}
         open={bodyMetricModalOpen}
       />
       <TrainingPlanModal

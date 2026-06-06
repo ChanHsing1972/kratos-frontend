@@ -5,8 +5,10 @@ import type {
   BodyMetric,
   ChatMessage,
   ChatSession,
+  DietRecord,
   FitnessContext,
   FitnessProfile,
+  HealthMetric,
   NotificationItem,
   Skill,
   TrainingPlan,
@@ -26,8 +28,10 @@ export type KratosWorkspaceSnapshot = {
   bodyMetrics: BodyMetric[]
   chatSessions: ChatSession[]
   composerValue: string
+  dietRecords: DietRecord[]
   fitnessContext: FitnessContext | null
   fitnessProfile: FitnessProfile | null
+  healthMetrics: HealthMetric[]
   messages: ChatMessage[]
   notifications: NotificationItem[]
   skills: Skill[]
@@ -121,8 +125,10 @@ export function readWorkspaceSnapshot(): KratosWorkspaceSnapshot | null {
       chatSessions: Array.isArray(parsed.chatSessions) ? parsed.chatSessions : [],
       composerValue:
         typeof parsed.composerValue === "string" ? parsed.composerValue : "",
+      dietRecords: Array.isArray(parsed.dietRecords) ? parsed.dietRecords : [],
       fitnessContext: parsed.fitnessContext ?? null,
       fitnessProfile: parsed.fitnessProfile ?? null,
+      healthMetrics: Array.isArray(parsed.healthMetrics) ? parsed.healthMetrics : [],
       messages: Array.isArray(parsed.messages) ? parsed.messages : [],
       notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
       skills: Array.isArray(parsed.skills) ? parsed.skills : [],

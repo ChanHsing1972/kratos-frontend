@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ChevronRight,
   MessageCirclePlus,
+  Utensils,
 } from "lucide-react"
 
 import {
@@ -26,6 +27,7 @@ const primaryNavItems = [
   { id: "new", label: "新建对话", icon: MessageCirclePlus },
   { id: "训练计划", label: "训练计划", icon: CalendarDays },
   { id: "数据中心", label: "数据中心", icon: Activity },
+  { id: "饮食摄入", label: "饮食摄入", icon: Utensils },
   { id: "工具技能", label: "工具技能", icon: BrainCircuit },
   { id: "评估平台", label: "评估平台", icon: BarChart3, external: true },
 ]
