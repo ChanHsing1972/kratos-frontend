@@ -17,6 +17,9 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
   XAxis,
   YAxis,
 } from "recharts"
@@ -133,19 +136,20 @@ const HEALTH_METRIC_DEFS: MetricDefinition<string>[] = [
 ]
 
 const RANGE_OPTIONS: Array<{ id: RangeId; label: string; days: number }> = [
-  { id: "week", label: "最近一周", days: 7 },
-  { id: "month", label: "最近一月", days: 31 },
-  { id: "half-year", label: "最近半年", days: 183 },
-  { id: "year", label: "最近一年", days: 365 },
+  { id: "week", label: "近一周", days: 7 },
+  { id: "month", label: "近一月", days: 31 },
+  { id: "half-year", label: "近半年", days: 183 },
+  { id: "year", label: "近一年", days: 365 },
 ]
 
-const DONUT_COLORS = [
-  "#111111",
-  "#333333",
-  "#555555",
-  "#777777",
-  "#999999",
-  "#bbbbbb",
+const DONUT_OPACITIES = [1, 0.78, 0.6, 0.45, 0.34, 0.26]
+
+const EMPTY_CHART_POINTS: MetricPoint[] = [
+  { date: "", label: "", value: 0 },
+  { date: "", label: "", value: 0.25 },
+  { date: "", label: "", value: 0.5 },
+  { date: "", label: "", value: 0.75 },
+  { date: "", label: "", value: 1 },
 ]
 
 export function BodyDataPage({
@@ -403,10 +407,7 @@ function MetricMiniChart({
   unit: string
 }) {
   const gradientId = useSvgId("metric-gradient")
-
-  if (!series.length) {
-    return <NoDataChart className="mt-4 h-56" />
-  }
+  const hasData = series.length > 0
 
   const chartConfig = {
     value: {
@@ -415,51 +416,78 @@ function MetricMiniChart({
     },
   } satisfies ChartConfig
 
+  const chartData = hasData ? series : EMPTY_CHART_POINTS
+  const yDomain = hasData ? metricDomain(series, unit) : [0, 1]
+  const yTicks = hasData ? undefined : [0, 0.25, 0.5, 0.75, 1]
+
   return (
-    <ChartContainer
-      className="mt-4 h-56 w-full !aspect-auto"
-      config={chartConfig}
-      initialDimension={{ height: 224, width: 460 }}
-    >
-      {kind === "bar" ? (
-        <BarChart data={series} barCategoryGap="38%" margin={{ bottom: 0, left: 0, right: 8, top: 18 }}>
-          <defs>
-            <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="var(--foreground)" stopOpacity={0.9} />
-              <stop offset="100%" stopColor="var(--foreground)" stopOpacity={0.38} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 20%, transparent)" strokeDasharray="4 8" vertical={false} />
-          <XAxis axisLine={false} dataKey="label" minTickGap={18} tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
-          <YAxis allowDecimals={false} axisLine={false} tick={{ fontSize: 12 }} tickFormatter={(value: number) => formatAxisTick(value, unit)} tickLine={false} tickMargin={8} width={48} />
-          <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ fill: "color-mix(in oklch, var(--muted-foreground) 6%, transparent)" }} />
-          <Bar dataKey="value" fill={`url(#${gradientId})`} maxBarSize={30} radius={[2, 2, 2, 2]} />
-        </BarChart>
-      ) : (
-        <AreaChart data={series} margin={{ bottom: 0, left: 0, right: 12, top: 18 }}>
-          <defs>
-            <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="var(--foreground)" stopOpacity={0.2} />
-              <stop offset="100%" stopColor="var(--foreground)" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 20%, transparent)" strokeDasharray="4 8" vertical={false} />
-          <XAxis axisLine={false} dataKey="label" minTickGap={18} tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
-          <YAxis axisLine={false} domain={metricDomain(series, unit)} tick={{ fontSize: 12 }} tickCount={4} tickFormatter={(value: number) => formatAxisTick(value, unit)} tickLine={false} tickMargin={8} width={52} />
-          <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ stroke: "color-mix(in oklch, var(--muted-foreground) 18%, transparent)" }} />
-          <Area
-            activeDot={{ r: 4, strokeWidth: 2 }}
-            dataKey="value"
-            dot={true}
-            fill={`url(#${gradientId})`}
-            stroke="var(--color-value)"
-            strokeLinecap="round"
-            strokeWidth={2.8}
-            type="monotone"
-          />
-        </AreaChart>
-      )}
-    </ChartContainer>
+    <div className="relative mt-4 h-56 w-full">
+      <ChartContainer
+        className="h-full w-full !aspect-auto"
+        config={chartConfig}
+        initialDimension={{ height: 224, width: 460 }}
+      >
+        {kind === "bar" ? (
+          <BarChart data={chartData} barCategoryGap="25%" margin={{ bottom: 0, left: 0, right: 8, top: 18 }}>
+            <defs>
+              <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="var(--foreground)" stopOpacity={0.9} />
+                <stop offset="100%" stopColor="var(--foreground)" stopOpacity={0.34} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 20%, transparent)" strokeDasharray="4 8" vertical={false} />
+            <XAxis axisLine={false} dataKey="label" minTickGap={18} tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
+            <YAxis allowDecimals={hasData} axisLine={false} domain={yDomain} tick={{ fontSize: 12 }} tickFormatter={(value: number) => hasData ? formatAxisTick(value, unit) : formatNumber(value)} tickLine={false} tickMargin={8} ticks={yTicks} width={36} />
+            {hasData ? (
+              <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ fill: "color-mix(in oklch, var(--muted-foreground) 6%, transparent)" }} />
+            ) : null}
+            <Bar dataKey="value" fill={`url(#${gradientId})`} fillOpacity={hasData ? 1 : 0} maxBarSize={38} radius={[5, 5, 5, 5]} />
+          </BarChart>
+        ) : (
+          <AreaChart data={chartData} margin={{ bottom: 0, left: 0, right: 12, top: 18 }}>
+            <defs>
+              <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="var(--foreground)" stopOpacity={0.2} />
+                <stop offset="100%" stopColor="var(--foreground)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 22%, transparent)" strokeDasharray="3 5" vertical={false} />
+            <XAxis axisLine={false} dataKey="label" minTickGap={18} tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
+            <YAxis axisLine={false} domain={yDomain} tick={{ fontSize: 12 }} tickCount={hasData ? 4 : undefined} tickFormatter={(value: number) => hasData ? formatAxisTick(value, unit) : formatNumber(value)} tickLine={false} tickMargin={8} ticks={yTicks} width={52} />
+            {hasData ? (
+              <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={<ChartCursorBand />} />
+            ) : null}
+            <Area
+              activeDot={hasData ? {
+                fill: "var(--color-value)",
+                r: 4,
+                strokeWidth: 2,
+              } : false}
+              connectNulls={false}
+              dataKey="value"
+              dot={hasData ? {
+                fill: "var(--background)",
+                r: 4,
+                stroke: "var(--color-value)",
+                strokeWidth: 2,
+              } : false}
+              fill={`url(#${gradientId})`}
+              fillOpacity={hasData ? 1 : 0}
+              stroke="var(--color-value)"
+              strokeLinecap="round"
+              strokeOpacity={hasData ? 1 : 0}
+              strokeWidth={2.8}
+              type="monotone"
+            />
+          </AreaChart>
+        )}
+      </ChartContainer>
+      {!hasData ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+          无数据
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -495,45 +523,73 @@ function PreferenceDonutChart({ data }: { data: Array<{ label: string; value: nu
   if (!hasData) {
     return <NoDataChart className="h-72" />
   }
+
   const chartData = data.filter((item) => item.value > 0)
   const total = chartData.reduce((sum, item) => sum + item.value, 0)
-  const gradient = buildConicGradient(chartData)
+  const chartConfig = {
+    value: { color: "var(--foreground)", label: "次数" },
+  } satisfies ChartConfig
+
   return (
-    <div className="grid gap-7 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-center">
-      <div
-        aria-label="训练类型偏好"
-        className="relative mx-auto size-56 rounded-full"
-        role="img"
-        style={{ background: gradient }}
+    <div className="grid gap-7 lg:grid-cols-[240px_minmax(0,0.8fr)] lg:items-center">
+      <ChartContainer
+        className="mx-auto h-56 w-56 !aspect-auto"
+        config={chartConfig}
+        initialDimension={{ height: 224, width: 224 }}
       >
-        <div className="absolute inset-8 flex flex-col items-center justify-center rounded-full bg-background">
-          <span className="text-3xl font-medium tracking-tight">{total}</span>
-          <span className="mt-1 text-xs text-muted-foreground">次训练</span>
-        </div>
-      </div>
+        <PieChart>
+          <ChartTooltip
+            content={<ChartTooltipContent hideLabel indicator="dot" />}
+          />
+          <Pie
+            data={chartData}
+            dataKey="value"
+            innerRadius={72}
+            nameKey="label"
+            outerRadius={104}
+            minAngle={4}
+            paddingAngle={2}
+            stroke="var(--background)"
+            strokeWidth={3}
+          >
+            {chartData.map((item, index) => (
+              <Cell
+                fill="var(--foreground)"
+                fillOpacity={DONUT_OPACITIES[index % DONUT_OPACITIES.length]}
+                key={item.label}
+              />
+            ))}
+          </Pie>
+          <text
+            dominantBaseline="central"
+            textAnchor="middle"
+            x="50%"
+            y="46%"
+          >
+            <tspan className="fill-foreground text-3xl font-medium tracking-tight" x="50%">
+              {total}
+            </tspan>
+            <tspan className="fill-muted-foreground text-xs" dy="22" x="50%">
+              次训练
+            </tspan>
+          </text>
+        </PieChart>
+      </ChartContainer>
+
       <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-1">
         {chartData.map((item, index) => (
           <div className="grid gap-1 text-sm" key={item.label}>
             <div className="flex items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-2">
                 <span
-                  className="size-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }}
+                  className="size-2.5 shrink-0 rounded-full bg-foreground"
+                  style={{ opacity: DONUT_OPACITIES[index % DONUT_OPACITIES.length] }}
                 />
                 <span className="truncate">{item.label}</span>
               </span>
               <span className="text-muted-foreground">
-                {item.value} 次 · {formatPercent(item.value, total)}
+                {formatPercent(item.value, total)}
               </span>
-            </div>
-            <div className="h-1 overflow-hidden rounded-full bg-foreground/5">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length],
-                  width: `${total ? (item.value / total) * 100 : 0}%`,
-                }}
-              />
             </div>
           </div>
         ))}
@@ -768,6 +824,30 @@ function ChartPanel({ children, title }: { children: ReactNode; title: string })
   )
 }
 
+function ChartCursorBand({
+  height,
+  points,
+  y,
+}: {
+  height?: number
+  points?: Array<{ x?: number }>
+  y?: number
+}) {
+  const x = points?.[0]?.x
+  if (typeof x !== "number" || typeof height !== "number") return null
+
+  return (
+    <rect
+      fill="color-mix(in oklch, var(--muted-foreground) 6%, transparent)"
+      height={height + 18}
+      rx={8}
+      width={34}
+      x={x - 17}
+      y={y ?? 0}
+    />
+  )
+}
+
 function NoDataChart({ className }: { className: string }) {
   return (
     <div className={`flex w-full items-center justify-center text-sm text-muted-foreground ${className}`}>
@@ -810,24 +890,14 @@ function useSvgId(prefix: string) {
   return `${prefix}-${useId().replace(/:/g, "")}`
 }
 
-function buildConicGradient(data: Array<{ value: number }>) {
-  const total = data.reduce((sum, item) => sum + item.value, 0)
-  if (!total) return "var(--muted-foreground)"
-
-  let cursor = 0
-  return data
-    .map((item, index) => {
-      const start = cursor
-      const end = cursor + (item.value / total) * 360
-      cursor = end
-      return `${DONUT_COLORS[index % DONUT_COLORS.length]} ${start}deg ${end}deg`
-    })
-    .join(", ")
-}
 
 function formatPercent(value: number, total: number) {
-  if (!total) return "0%"
-  return `${Math.round((value / total) * 100)}%`
+  if (!total || value <= 0) return "0%"
+
+  const percent = (value / total) * 100
+  if (percent < 1) return "<1%"
+
+  return `${Math.round(percent)}%`
 }
 
 function useImportantMetrics(key: string, defaults: string[]) {

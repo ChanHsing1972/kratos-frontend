@@ -179,7 +179,7 @@ function BodyFields({
       <div className="grid gap-4 sm:grid-cols-3">
         <NumberInput label="体重 kg" onChange={(value) => onChange("weightKg", value)} value={form.weightKg} />
         <NumberInput label="身高 cm" onChange={(value) => onChange("heightCm", value)} value={form.heightCm} />
-        <ReadOnlyMetric label="BMI" value={bmi || "自动计算"} />
+        <NumberInput label="BMI" onChange={(value) => onChange("bmi", value)} value={bmi || "自动计算"} disabled={true} />
         <NumberInput label="目标体重 kg" onChange={(value) => onChange("targetWeightKg", value)} value={form.targetWeightKg} />
         <NumberInput label="体脂率 %" onChange={(value) => onChange("bodyFatPercentage", value)} value={form.bodyFatPercentage} />
         <NumberInput label="腰围 cm" onChange={(value) => onChange("waistCm", value)} value={form.waistCm} />
@@ -196,17 +196,6 @@ function BodyFields({
         value={form.notes}
       />
     </div>
-  )
-}
-
-function ReadOnlyMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <label className="block space-y-2">
-      <span className="text-sm font-medium">{label}</span>
-      <div className="flex h-9 items-center px-0 text-sm text-muted-foreground">
-        {value}
-      </div>
-    </label>
   )
 }
 
@@ -291,10 +280,12 @@ function NumberInput({
   label,
   onChange,
   value,
+  disabled = false,
 }: {
   label: string
   onChange: (value: string) => void
   value: string
+  disabled?: boolean
 }) {
   const { name, unit } = splitNumberInputLabel(label)
   return (
@@ -306,6 +297,7 @@ function NumberInput({
           min={0}
           onChange={(event) => onChange(event.target.value)}
           value={value}
+          disabled={disabled}
         />
         {unit ? (
           <InputGroupAddon align="inline-end">
