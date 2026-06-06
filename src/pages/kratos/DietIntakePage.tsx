@@ -42,10 +42,10 @@ export function DietIntakePage({
   )
 
   return (
-    <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-background">
+    <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
       <section className="mx-auto mt-20 flex min-h-full w-full max-w-[900px] flex-col px-6 pt-8 pb-16 sm:px-8">
         <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-            <h1 className="text-3xl font-medium tracking-[-0.04em]">饮食摄入</h1>
+          <h1 className="text-3xl font-medium tracking-[-0.04em]">饮食摄入</h1>
           <div className="flex flex-wrap gap-2">
             <Button onClick={onAddDiet} type="button" variant="outline">
               <Plus />
@@ -75,52 +75,52 @@ export function DietIntakePage({
 
         <section className="mt-10">
           <h2 className="text-xl font-medium tracking-[-0.03em]">饮食记录</h2>
-            {recentRecords.length ? (
-              <div className="mt-4 overflow-x-auto">
-                <Table className="min-w-[760px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>日期</TableHead>
-                      <TableHead>食物</TableHead>
-                      <TableHead className="text-right">重量</TableHead>
-                      <TableHead className="text-right">热量</TableHead>
-                      <TableHead className="text-right">蛋白质</TableHead>
-                      <TableHead className="text-right">脂肪</TableHead>
-                      <TableHead className="text-right">碳水</TableHead>
-                      <TableHead className="text-right">来源</TableHead>
+          {recentRecords.length ? (
+            <div className="mt-4 overflow-x-auto">
+              <Table className="min-w-[760px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>日期</TableHead>
+                    <TableHead>食物</TableHead>
+                    <TableHead className="text-right">重量</TableHead>
+                    <TableHead className="text-right">热量</TableHead>
+                    <TableHead className="text-right">蛋白质</TableHead>
+                    <TableHead className="text-right">脂肪</TableHead>
+                    <TableHead className="text-right">碳水</TableHead>
+                    <TableHead className="text-right">来源</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentRecords.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell>{formatDate(record.meal_date)}</TableCell>
+                      <TableCell className="font-medium">{record.name}</TableCell>
+                      <TableCell className="text-right">{formatNumber(record.estimated_weight_g)}g</TableCell>
+                      <TableCell className="text-right">{formatNumber(record.estimated_kcal)} kcal</TableCell>
+                      <TableCell className="text-right">{formatNumber(record.protein_g)}g</TableCell>
+                      <TableCell className="text-right">{formatNumber(record.fat_g)}g</TableCell>
+                      <TableCell className="text-right">{formatNumber(record.carbs_g)}g</TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant="outline">{formatSource(record.source)}</Badge>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {recentRecords.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell>{formatDate(record.meal_date)}</TableCell>
-                        <TableCell className="font-medium">{record.name}</TableCell>
-                        <TableCell className="text-right">{formatNumber(record.estimated_weight_g)}g</TableCell>
-                        <TableCell className="text-right">{formatNumber(record.estimated_kcal)} kcal</TableCell>
-                        <TableCell className="text-right">{formatNumber(record.protein_g)}g</TableCell>
-                        <TableCell className="text-right">{formatNumber(record.fat_g)}g</TableCell>
-                        <TableCell className="text-right">{formatNumber(record.carbs_g)}g</TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant="outline">{formatSource(record.source)}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <Empty className="mt-4 min-h-64 bg-transparent">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <Utensils />
-                  </EmptyMedia>
-                  <EmptyTitle>还没有饮食记录</EmptyTitle>
-                  <EmptyDescription>
-                    手动添加或上传餐食图片后，这里会显示摄入明细。
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <Empty className="mt-4 min-h-64 bg-transparent border border-dashed">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Utensils />
+                </EmptyMedia>
+                <EmptyTitle>暂无饮食记录</EmptyTitle>
+                <EmptyDescription>
+                  手动添加或上传餐食图片后，这里会显示摄入明细。
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
         </section>
       </section>
     </main>

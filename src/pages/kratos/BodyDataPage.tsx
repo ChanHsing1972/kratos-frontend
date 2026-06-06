@@ -177,7 +177,7 @@ export function BodyDataPage({
   )
 
   return (
-    <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-background">
+    <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
       <section className="mx-auto mt-20 flex min-h-full w-full max-w-[900px] flex-col px-6 pt-8 pb-16 sm:px-8">
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
           <h1 className="text-3xl font-medium tracking-[-0.05em]">数据中心</h1>
@@ -494,11 +494,22 @@ function MetricMiniChart({
 function PreferenceBarChart({ data }: { data: Array<{ label: string; value: number }> }) {
   const gradientId = useSvgId("time-gradient")
   if (!data.some((item) => item.value > 0)) {
-    return <NoDataChart className="h-72" />
+    return (
+      <Empty className="h-72 bg-transparent border border-dashed">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Dumbbell />
+          </EmptyMedia>
+          <EmptyTitle>暂无运动时间偏好</EmptyTitle>
+          <EmptyDescription>保存训练记录后会生成运动时间偏好。</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
   }
   const chartConfig = {
     value: { color: "var(--foreground)", label: "次数" },
   } satisfies ChartConfig
+
   return (
     <ChartContainer className="h-72 w-full !aspect-auto" config={chartConfig} initialDimension={{ height: 288, width: 620 }}>
       <BarChart data={data} barCategoryGap="25%" margin={{ bottom: 0, left: 0, right: 8, top: 18 }}>
@@ -521,7 +532,17 @@ function PreferenceBarChart({ data }: { data: Array<{ label: string; value: numb
 function PreferenceDonutChart({ data }: { data: Array<{ label: string; value: number }> }) {
   const hasData = data.some((item) => item.value > 0)
   if (!hasData) {
-    return <NoDataChart className="h-72" />
+    return (
+      <Empty className="h-72 bg-transparent border border-dashed">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Dumbbell />
+          </EmptyMedia>
+          <EmptyTitle>暂无训练类型偏好</EmptyTitle>
+          <EmptyDescription>保存训练记录后会生成训练类型偏好。</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
   }
 
   const chartData = data.filter((item) => item.value > 0)
@@ -718,12 +739,12 @@ function WorkoutRecordsSection({
           ) : null}
         </div>
       ) : (
-        <Empty className="min-h-60 bg-transparent border border-dashed">
+        <Empty className="mt-6 min-h-60 bg-transparent border border-dashed">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Dumbbell />
             </EmptyMedia>
-            <EmptyTitle>还没有运动记录</EmptyTitle>
+            <EmptyTitle>暂无运动记录</EmptyTitle>
             <EmptyDescription>训练计划中点击保存后会生成记录。</EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -848,13 +869,6 @@ function ChartCursorBand({
   )
 }
 
-function NoDataChart({ className }: { className: string }) {
-  return (
-    <div className={`flex w-full items-center justify-center text-sm text-muted-foreground ${className}`}>
-      无数据
-    </div>
-  )
-}
 
 function OverviewStat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (

@@ -16,14 +16,6 @@ import {
   DialogTitle,
 } from "@/shared/ui/dialog"
 import { Input } from "@/shared/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/ui/table"
 
 type EditableFoodEstimateItem = FoodEstimateItem & {
   selected: boolean
@@ -79,83 +71,36 @@ export function DietEstimateDialog({
               <SummaryMetric label="碳水" value={total.carbs_g} unit="g" />
             </div>
 
-            <div className="overflow-x-auto rounded-lg border">
-              <Table className="min-w-[760px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10"></TableHead>
-                    <TableHead>食物</TableHead>
-                    <TableHead className="w-28 text-right">吃了多少</TableHead>
-                    <TableHead className="w-28 text-right">热量</TableHead>
-                    <TableHead className="w-24 text-right">蛋白质</TableHead>
-                    <TableHead className="w-24 text-right">脂肪</TableHead>
-                    <TableHead className="w-24 text-right">碳水</TableHead>
-                    <TableHead className="w-24 text-right">置信度</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.length ? (
-                    items.map((item, index) => (
-                      <TableRow key={`${item.name}-${index}`}>
-                        <TableCell>
-                          <Checkbox
-                            checked={item.selected}
-                            onCheckedChange={(checked) =>
-                              updateItem(index, { selected: checked === true })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <span className="font-medium">{item.name || "未知食物"}</span>
-                            {item.assumptions.length ? (
-                              <span className="max-w-64 text-xs text-muted-foreground">
-                                {item.assumptions.join("；")}
-                              </span>
-                            ) : null}
-                          </div>
-                        </TableCell>
-                        <EditableNumberCell
-                          suffix="g"
-                          value={item.estimated_weight_g}
-                          onChange={(value) => updateWeight(index, value)}
-                        />
-                        <EditableNumberCell
-                          suffix="kcal"
-                          value={item.estimated_kcal}
-                          onChange={(value) => updateItem(index, { estimated_kcal: value })}
-                        />
-                        <EditableNumberCell
-                          suffix="g"
-                          value={item.protein_g}
-                          onChange={(value) => updateItem(index, { protein_g: value })}
-                        />
-                        <EditableNumberCell
-                          suffix="g"
-                          value={item.fat_g}
-                          onChange={(value) => updateItem(index, { fat_g: value })}
-                        />
-                        <EditableNumberCell
-                          suffix="g"
-                          value={item.carbs_g}
-                          onChange={(value) => updateItem(index, { carbs_g: value })}
-                        />
-                        <TableCell className="text-right">
-                          <Badge variant="outline">
-                            {Math.round(item.confidence * 100)}%
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell className="py-8 text-center text-muted-foreground" colSpan={8}>
-                        未识别到明确食物
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <div>
+                  <div className="text-sm font-medium">识别到的食物</div>
+                  <div className="text-xs text-muted-foreground">
+                    勾选需要保存的条目，也可以手动修正重量和营养估算。
+                  </div>
+                </div>
+                <Badge variant="secondary">{selectedItems.length}/{items.length} 已选择</Badge>
+              </div>
+
+              {items.length ? (
+                <div className="space-y-2">
+                  {items.map((item, index) => (
+                    <EstimateItemCard
+                      item={item}
+                      key={`${item.name}-${index}`}
+                      onCheckedChange={(checked) =>
+                        updateItem(index, { selected: checked })
+                      }
+                      onMacroChange={(patch) => updateItem(index, patch)}
+                      onWeightChange={(value) => updateWeight(index, value)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">
+                  未识别到明确食物
+                </div>
+              )}
             </div>
           </div>
         ) : null}
@@ -203,30 +148,119 @@ export function DietEstimateDialog({
   }
 }
 
-function EditableNumberCell({
+function EstimateItemCard({
+  item,
+  onCheckedChange,
+  onMacroChange,
+  onWeightChange,
+}: {
+  item: EditableFoodEstimateItem
+  onCheckedChange: (checked: boolean) => void
+  onMacroChange: (patch: Partial<EditableFoodEstimateItem>) => void
+  onWeightChange: (value: number) => void
+}) {
+  return (
+    <div
+      className={
+        item.selected
+          ? "rounded-2xl border bg-card p-4 shadow-sm transition-colors"
+          : "rounded-2xl border bg-muted/20 p-4 opacity-65 transition-colors"
+      }
+    >
+      <div className="flex gap-3">
+        <Checkbox
+          checked={item.selected}
+          className="mt-1"
+          onCheckedChange={(checked) => onCheckedChange(checked === true)}
+        />
+
+        <div className="min-w-0 flex-1 space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-base font-semibold tracking-tight">
+                  {item.name || "未知食物"}
+                </span>
+                <Badge className="rounded-full" variant="outline">
+                  置信度 {Math.round(item.confidence * 100)}%
+                </Badge>
+              </div>
+              {item.assumptions.length ? (
+                <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                  {item.assumptions.join("；")}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="rounded-full bg-muted px-3 py-1 text-sm font-medium text-muted-foreground">
+              约 {formatNumber(item.estimated_kcal)} kcal
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <MacroInput
+              label="吃了多少"
+              suffix="g"
+              value={item.estimated_weight_g}
+              onChange={onWeightChange}
+            />
+            <MacroInput
+              label="热量"
+              suffix="kcal"
+              value={item.estimated_kcal}
+              onChange={(value) => onMacroChange({ estimated_kcal: value })}
+            />
+            <MacroInput
+              label="蛋白质"
+              suffix="g"
+              value={item.protein_g}
+              onChange={(value) => onMacroChange({ protein_g: value })}
+            />
+            <MacroInput
+              label="脂肪"
+              suffix="g"
+              value={item.fat_g}
+              onChange={(value) => onMacroChange({ fat_g: value })}
+            />
+            <MacroInput
+              label="碳水"
+              suffix="g"
+              value={item.carbs_g}
+              onChange={(value) => onMacroChange({ carbs_g: value })}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MacroInput({
+  label,
   onChange,
   suffix,
   value,
 }: {
+  label: string
   onChange: (value: number) => void
   suffix: string
   value: number
 }) {
   return (
-    <TableCell className="text-right">
-      <div className="ml-auto flex w-24 items-center gap-1">
+    <label className="grid gap-1.5 rounded-xl border bg-background px-3 py-2">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="flex items-center gap-2">
         <Input
-          className="h-7 text-right"
-          min={0}
+          className="h-8 border-0 bg-transparent p-0 text-base font-semibold shadow-none focus-visible:ring-0"
+          inputMode="decimal"
           onChange={(event) => onChange(toNumber(event.target.value))}
-          type="number"
           value={String(value)}
         />
-        <span className="w-8 shrink-0 text-left text-xs text-muted-foreground">
+        <span className="shrink-0 text-xs font-medium text-muted-foreground">
           {suffix}
         </span>
-      </div>
-    </TableCell>
+      </span>
+    </label>
   )
 }
 

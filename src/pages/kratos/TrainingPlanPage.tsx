@@ -1668,7 +1668,7 @@ function WeeklyTrainingTimeline({
             <EmptyMedia variant="icon">
               <ClipboardList />
             </EmptyMedia>
-            <EmptyTitle>还没有可执行的训练安排</EmptyTitle>
+            <EmptyTitle>暂无可执行的训练安排</EmptyTitle>
             <EmptyDescription>
               选择一个常见模板，或从空白计划开始撰写。
             </EmptyDescription>

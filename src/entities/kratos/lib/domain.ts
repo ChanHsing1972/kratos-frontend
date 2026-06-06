@@ -368,8 +368,8 @@ export function trainingPlanPayloadFromAgentResult(
       : requestedPlanKind === "program" ||
         sessions.length > 1 ||
         isProgramPlanText(workoutPlan, answerText)
-      ? "program"
-      : "daily"
+        ? "program"
+        : "daily"
   const weeklySchedule = buildWeeklyScheduleFromWorkoutSessions(sessions, planKind)
   if (!weeklySchedule) {
     return undefined
@@ -472,7 +472,7 @@ export function chatSessionsFromAgentRuns(
       return {
         id: sessionId,
         title,
-        preview: latest?.answer || latest?.user_message || "还没有消息",
+        preview: latest?.answer || latest?.user_message || "暂无消息",
         updatedAt: latest?.created_at ?? new Date().toISOString(),
         messageCount: ordered.length * 2,
         pinned: Boolean(meta.pinned),
@@ -503,7 +503,7 @@ export function chatSessionFromAgentSession(
     lastRunAt: session.last_run_at,
     messageCount: session.run_count * 2,
     pinned: session.is_pinned,
-    preview: session.last_message ?? session.summary ?? "还没有消息",
+    preview: session.last_message ?? session.summary ?? "暂无消息",
     shared: session.is_shared,
     summary: session.summary,
     title: session.title,

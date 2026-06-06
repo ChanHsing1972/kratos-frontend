@@ -55,7 +55,7 @@ export function ConversationHistory({
             <SidebarMenuItem>
               <SidebarMenuButton disabled>
                 <MessageCirclePlus />
-                <span>还没有历史对话</span>
+                <span>暂无历史对话</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
