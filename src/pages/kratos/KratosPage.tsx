@@ -22,7 +22,6 @@ import {
   createTrainingPlan,
   createWorkoutLog,
   deleteAgentSession,
-  deleteBodyMetric,
   deleteSkill,
   deleteTrainingPlan,
   estimateDietFromImage,
@@ -1596,19 +1595,6 @@ export function KratosPage() {
     }
   }
 
-  const handleDeleteBodyMetric = async (metric: BodyMetric) => {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY)
-    if (!token) return
-    try {
-      await deleteBodyMetric(token, metric.id)
-      setBodyMetrics((current) => current.filter((item) => item.id !== metric.id))
-      await refreshDashboard(token, { preserveMessages: true })
-      sonnerToast.success("身体测量记录已删除")
-    } catch (error) {
-      sonnerToast.error(getErrorMessage(error), { richColors: true })
-    }
-  }
-
   const handleExportBodyData = () => {
     downloadJsonFile(
       {
@@ -2196,7 +2182,7 @@ export function KratosPage() {
         title: dayTitle || activePlan?.title || "未命名训练",
         training_plan_id: activePlan?.id ?? null,
         workout_date: workoutDate,
-        workout_type: "strength",
+        workout_type: inferWorkoutType(dayTitle, actionTitles),
         exercises: actionTitles.map((action, index) => ({
           completed: false,
           exercise_id: actionIds[index] ?? `${workoutDate}-${index}`,
@@ -2337,7 +2323,7 @@ export function KratosPage() {
         title: dayTitle || activePlan?.title || "未命名训练",
         training_plan_id: activePlan?.id ?? null,
         workout_date: workoutDate,
-        workout_type: "strength",
+        workout_type: inferWorkoutType(dayTitle, actions),
         exercises: actions.map((action, index) => ({
           completed: action !== "未标记完成动作",
           exercise_id: `${workoutDate}-${index}`,
@@ -2929,8 +2915,6 @@ export function KratosPage() {
           latestHealthMetric={latestHealthMetric}
           latestMetric={latestMetric}
           onAddData={() => openAddDataModal("body")}
-          onDeleteBodyMetric={handleDeleteBodyMetric}
-          onEditBodyMetric={openBodyMetricEditor}
           onExportBodyData={handleExportBodyData}
           onLoadWorkoutHeartRateSummary={(log) => getWorkoutHeartRateSummary(localStorage.getItem(AUTH_TOKEN_KEY) ?? "", log.id)}
           workoutLogs={workoutLogs}
@@ -3183,6 +3167,15 @@ export function KratosPage() {
       </AlertDialog>
     </div>
   )
+}
+
+function inferWorkoutType(title: string, actions: string[]) {
+  const text = [title, ...actions].filter(Boolean).join(" ")
+  if (/(跑|running|run|慢跑|冲刺|间歇跑)/i.test(text)) return "running"
+  if (/(快走|椭圆机|单车|游泳|有氧|cardio|hiit|tabata|跳绳|爬楼|划船机)/i.test(text)) return "cardio"
+  if (/(瑜伽|yoga)/i.test(text)) return "yoga"
+  if (/(拉伸|伸展|灵活|活动度|mobility|stretch|放松)/i.test(text)) return "mobility"
+  return "strength"
 }
 
 export default KratosPage

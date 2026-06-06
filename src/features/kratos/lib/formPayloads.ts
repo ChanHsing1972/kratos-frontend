@@ -117,11 +117,6 @@ export function buildBodyPayload(
     setError(skeletalMuscleMassKg)
     return null
   }
-  const bmi = parseOptionalNumber(form.bmi, "BMI")
-  if (typeof bmi === "string") {
-    setError(bmi)
-    return null
-  }
   const chestCm = parseOptionalNumber(form.chestCm, "胸围")
   if (typeof chestCm === "string") {
     setError(chestCm)
@@ -209,7 +204,6 @@ export function buildBodyPayload(
       targetWeightKg !== null ||
       bodyFatPercentage !== null ||
       skeletalMuscleMassKg !== null ||
-      bmi !== null ||
       chestCm !== null ||
       waistCm !== null ||
       hipCm !== null ||
@@ -223,7 +217,6 @@ export function buildBodyPayload(
       target_weight_kg: targetWeightKg,
       body_fat_percentage: bodyFatPercentage,
       skeletal_muscle_mass_kg: skeletalMuscleMassKg,
-      bmi,
       chest_cm: chestCm,
       waist_cm: waistCm,
       hip_cm: hipCm,

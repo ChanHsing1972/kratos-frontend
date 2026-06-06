@@ -96,7 +96,7 @@ export function AddDataModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form className="min-h-0" onSubmit={submit}>
+        <form className="min-h-0" id="add-data-form" onSubmit={submit}>
           <Tabs
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as AddDataCategory)}
@@ -148,7 +148,7 @@ export function AddDataModal({
             <Button onClick={onClose} type="button" variant="outline">
               取消
             </Button>
-            <Button disabled={loading} type="submit">
+            <Button disabled={loading} form="add-data-form" type="submit">
               {loading ? <Spinner /> : null}
               保存
             </Button>
@@ -167,6 +167,7 @@ function BodyFields({
   form: BodyMetricForm
   onChange: (field: keyof BodyMetricForm, value: string) => void
 }) {
+  const bmi = calculateBmiPreview(form.weightKg, form.heightCm) ?? form.bmi
   return (
     <div className="grid gap-4">
       <FormInput
@@ -177,8 +178,8 @@ function BodyFields({
       />
       <div className="grid gap-4 sm:grid-cols-3">
         <NumberInput label="体重 kg" onChange={(value) => onChange("weightKg", value)} value={form.weightKg} />
-        <NumberInput label="BMI" onChange={(value) => onChange("bmi", value)} value={form.bmi} />
         <NumberInput label="身高 cm" onChange={(value) => onChange("heightCm", value)} value={form.heightCm} />
+        <ReadOnlyMetric label="BMI" value={bmi || "自动计算"} />
         <NumberInput label="目标体重 kg" onChange={(value) => onChange("targetWeightKg", value)} value={form.targetWeightKg} />
         <NumberInput label="体脂率 %" onChange={(value) => onChange("bodyFatPercentage", value)} value={form.bodyFatPercentage} />
         <NumberInput label="腰围 cm" onChange={(value) => onChange("waistCm", value)} value={form.waistCm} />
@@ -195,6 +196,17 @@ function BodyFields({
         value={form.notes}
       />
     </div>
+  )
+}
+
+function ReadOnlyMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-sm font-medium">{label}</span>
+      <div className="flex h-9 items-center px-0 text-sm text-muted-foreground">
+        {value}
+      </div>
+    </label>
   )
 }
 
@@ -309,6 +321,15 @@ function splitNumberInputLabel(label: string) {
   const match = label.match(/^(.*)\s+(kg|cm|%|h|kcal|g|ms|bpm|0-10)$/)
   if (!match) return { name: label, unit: "" }
   return { name: match[1], unit: match[2] }
+}
+
+function calculateBmiPreview(weightValue: string, heightValue: string) {
+  const weight = Number(weightValue)
+  const height = Number(heightValue)
+  if (!Number.isFinite(weight) || !Number.isFinite(height) || weight <= 0 || height <= 0) {
+    return null
+  }
+  return (weight / (height / 100) ** 2).toFixed(1)
 }
 
 export function emptyBodyMetricForm(): BodyMetricForm {

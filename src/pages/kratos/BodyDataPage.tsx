@@ -1,6 +1,5 @@
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react"
 import {
-  BarChart3,
   Download,
   Dumbbell,
   Eye,
@@ -18,9 +17,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
   XAxis,
   YAxis,
 } from "recharts"
@@ -85,8 +81,6 @@ type BodyDataPageProps = {
   latestHealthMetric: HealthMetric | null
   latestMetric: BodyMetric | null
   onAddData: () => void
-  onEditBodyMetric: (metric: BodyMetric) => void
-  onDeleteBodyMetric: (metric: BodyMetric) => void
   onExportBodyData: () => void
   onLoadWorkoutHeartRateSummary: (log: WorkoutLog) => Promise<HeartRateSummary | null>
   workoutLogs: WorkoutLog[]
@@ -161,8 +155,6 @@ export function BodyDataPage({
   latestHealthMetric,
   latestMetric,
   onAddData,
-  onDeleteBodyMetric,
-  onEditBodyMetric,
   onExportBodyData,
   onLoadWorkoutHeartRateSummary,
   workoutLogs,
@@ -225,13 +217,6 @@ export function BodyDataPage({
           logs={savedWorkoutLogs}
           onLoadHeartRateSummary={onLoadWorkoutHeartRateSummary}
         />
-
-        {/* 删除！*/}
-        {/* <BodyHistorySection
-          metrics={bodyMetrics}
-          onDeleteBodyMetric={onDeleteBodyMetric}
-          onEditBodyMetric={onEditBodyMetric}
-        /> */}
       </section>
     </main>
   )
@@ -420,16 +405,7 @@ function MetricMiniChart({
   const gradientId = useSvgId("metric-gradient")
 
   if (!series.length) {
-    return (
-      <Empty className="mt-4 min-h-40 bg-transparent border border-dashed">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <BarChart3 />
-          </EmptyMedia>
-          <EmptyTitle>无数据</EmptyTitle>
-        </EmptyHeader>
-      </Empty>
-    )
+    return <NoDataChart className="mt-4 h-56" />
   }
 
   const chartConfig = {
@@ -467,7 +443,7 @@ function MetricMiniChart({
               <stop offset="100%" stopColor="var(--foreground)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground)20%, transparent)" strokeDasharray="4 8" vertical={false} />
+          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 20%, transparent)" strokeDasharray="4 8" vertical={false} />
           <XAxis axisLine={false} dataKey="label" minTickGap={18} tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
           <YAxis axisLine={false} domain={metricDomain(series, unit)} tick={{ fontSize: 12 }} tickCount={4} tickFormatter={(value: number) => formatAxisTick(value, unit)} tickLine={false} tickMargin={8} width={52} />
           <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ stroke: "color-mix(in oklch, var(--muted-foreground) 18%, transparent)" }} />
@@ -490,7 +466,7 @@ function MetricMiniChart({
 function PreferenceBarChart({ data }: { data: Array<{ label: string; value: number }> }) {
   const gradientId = useSvgId("time-gradient")
   if (!data.some((item) => item.value > 0)) {
-    return <ChartEmpty icon={<Timer />} title="暂无运动时间数据" />
+    return <NoDataChart className="h-72" />
   }
   const chartConfig = {
     value: { color: "var(--foreground)", label: "次数" },
@@ -508,7 +484,7 @@ function PreferenceBarChart({ data }: { data: Array<{ label: string; value: numb
         <XAxis axisLine={false} dataKey="label" tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
         <YAxis allowDecimals={false} axisLine={false} tick={{ fontSize: 12 }} tickLine={false} tickMargin={8} width={36} />
         <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ fill: "color-mix(in oklch, var(--muted-foreground) 6%, transparent)" }} />
-        <Bar dataKey="value" fill={`url(#${gradientId})`} maxBarSize={38} radius={[5,5,5,5]} />
+        <Bar dataKey="value" fill={`url(#${gradientId})`} maxBarSize={38} radius={[5, 5, 5, 5]} />
       </BarChart>
     </ChartContainer>
   )
@@ -517,43 +493,48 @@ function PreferenceBarChart({ data }: { data: Array<{ label: string; value: numb
 function PreferenceDonutChart({ data }: { data: Array<{ label: string; value: number }> }) {
   const hasData = data.some((item) => item.value > 0)
   if (!hasData) {
-    return <ChartEmpty icon={<Dumbbell />} title="暂无训练类型数据" />
+    return <NoDataChart className="h-72" />
   }
   const chartData = data.filter((item) => item.value > 0)
-  const chartConfig = {
-    value: { color: "var(--foreground)", label: "次数" },
-  } satisfies ChartConfig
+  const total = chartData.reduce((sum, item) => sum + item.value, 0)
+  const gradient = buildConicGradient(chartData)
   return (
-    <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center">
-      <ChartContainer className="h-64 w-full" config={chartConfig} initialDimension={{ height: 256, width: 320 }}>
-        <PieChart>
-          <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-          <Pie
-            data={chartData}
-            dataKey="value"
-            innerRadius={54}
-            nameKey="label"
-            outerRadius={82}
-            paddingAngle={2}
-            strokeWidth={0}
-          >
-            {chartData.map((entry, index) => (
-              <Cell fill={DONUT_COLORS[index % DONUT_COLORS.length]} key={entry.label} />
-            ))}
-          </Pie>
-        </PieChart>
-      </ChartContainer>
-      <div className="space-y-2">
+    <div className="grid gap-7 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-center">
+      <div
+        aria-label="训练类型偏好"
+        className="relative mx-auto size-56 rounded-full"
+        role="img"
+        style={{ background: gradient }}
+      >
+        <div className="absolute inset-8 flex flex-col items-center justify-center rounded-full bg-background">
+          <span className="text-3xl font-medium tracking-tight">{total}</span>
+          <span className="mt-1 text-xs text-muted-foreground">次训练</span>
+        </div>
+      </div>
+      <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-1">
         {chartData.map((item, index) => (
-          <div className="flex items-center justify-between gap-3 text-sm" key={item.label}>
-            <span className="flex min-w-0 items-center gap-2">
-              <span
-                className="size-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }}
+          <div className="grid gap-1 text-sm" key={item.label}>
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }}
+                />
+                <span className="truncate">{item.label}</span>
+              </span>
+              <span className="text-muted-foreground">
+                {item.value} 次 · {formatPercent(item.value, total)}
+              </span>
+            </div>
+            <div className="h-1 overflow-hidden rounded-full bg-foreground/5">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length],
+                  width: `${total ? (item.value / total) * 100 : 0}%`,
+                }}
               />
-              <span className="truncate">{item.label}</span>
-            </span>
-            <span className="text-muted-foreground">{item.value} 次</span>
+            </div>
           </div>
         ))}
       </div>
@@ -625,7 +606,7 @@ function WorkoutRecordsSection({
                 <TableRow className="cursor-pointer" key={log.id} onClick={() => setSelectedLog(log)}>
                   <TableCell className="font-medium">{log.title || "未命名训练"}</TableCell>
                   <TableCell>{formatFullDate(log.workout_date)}</TableCell>
-                  <TableCell>{formatWorkoutType(log.workout_type)}</TableCell>
+                  <TableCell>{formatWorkoutType(inferWorkoutTypeFromLog(log))}</TableCell>
                   <TableCell>{formatDuration(getWorkoutSeconds(log))}</TableCell>
                   <TableCell>{log.calories_burned ?? 0} kcal</TableCell>
                   <TableCell>
@@ -721,7 +702,7 @@ function WorkoutDetailDialog({
         <DialogHeader>
           <DialogTitle>{log?.title || "运动详情"}</DialogTitle>
           <DialogDescription>
-            {log ? `${formatFullDate(log.workout_date)} · ${formatWorkoutType(log.workout_type)} · ${formatDuration(getWorkoutSeconds(log))}` : ""}
+            {log ? `${formatFullDate(log.workout_date)} · ${formatWorkoutType(inferWorkoutTypeFromLog(log))} · ${formatDuration(getWorkoutSeconds(log))}` : ""}
           </DialogDescription>
         </DialogHeader>
         {log ? (
@@ -778,39 +759,6 @@ function WorkoutDetailDialog({
   )
 }
 
-function BodyHistorySection({
-  metrics,
-  onDeleteBodyMetric,
-  onEditBodyMetric,
-}: {
-  metrics: BodyMetric[]
-  onDeleteBodyMetric: (metric: BodyMetric) => void
-  onEditBodyMetric: (metric: BodyMetric) => void
-}) {
-  const sorted = [...metrics].sort((left, right) => dateTime(right.measured_at ?? right.recorded_at) - dateTime(left.measured_at ?? left.recorded_at)).slice(0, 8)
-  if (!sorted.length) return null
-
-  return (
-    <section className="mt-12">
-      <SectionHeader description="最近 8 条身体指标记录。" title="身体记录" />
-      <div className="mt-5 space-y-3">
-        {sorted.map((metric) => (
-          <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between" key={metric.id}>
-            <div>
-              <p className="text-sm font-medium">{formatBodySummary(metric)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{formatFullDate(metric.measured_at ?? metric.recorded_at)}</p>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={() => onEditBodyMetric(metric)} size="sm" type="button" variant="outline">编辑</Button>
-              <Button onClick={() => onDeleteBodyMetric(metric)} size="sm" type="button" variant="ghost">删除</Button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 function ChartPanel({ children, title }: { children: ReactNode; title: string }) {
   return (
     <section className="min-w-0">
@@ -820,14 +768,11 @@ function ChartPanel({ children, title }: { children: ReactNode; title: string })
   )
 }
 
-function ChartEmpty({ icon, title }: { icon: ReactNode; title: string }) {
+function NoDataChart({ className }: { className: string }) {
   return (
-    <Empty className="min-h-64 bg-transparent border border-dashed">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">{icon}</EmptyMedia>
-        <EmptyTitle>{title}</EmptyTitle>
-      </EmptyHeader>
-    </Empty>
+    <div className={`flex w-full items-center justify-center text-sm text-muted-foreground ${className}`}>
+      无数据
+    </div>
   )
 }
 
@@ -997,11 +942,11 @@ function buildTimePreferenceData(logs: WorkoutLog[]) {
     { label: "上午", max: 10, min: 6, value: 0 },
     { label: "中午", max: 13, min: 11, value: 0 },
     { label: "下午", max: 17, min: 14, value: 0 },
-    { label: "傍晚", max: 24, min: 18, value: 0 },
+    { label: "傍晚", max: 20, min: 18, value: 0 },
+    { label: "夜间", max: 23, min: 21, value: 0 },
   ]
   for (const log of logs) {
-    const date = new Date(log.created_at)
-    const hour = Number.isNaN(date.getTime()) ? 12 : date.getHours()
+    const hour = localHourFromServerTimestamp(log.created_at)
     const bucket = buckets.find((item) => hour >= item.min && hour <= item.max) ?? buckets[2]
     bucket.value += 1
   }
@@ -1011,7 +956,7 @@ function buildTimePreferenceData(logs: WorkoutLog[]) {
 function buildWorkoutTypeData(logs: WorkoutLog[]) {
   const byType = new Map<string, number>()
   for (const log of logs) {
-    const label = formatWorkoutType(log.workout_type)
+    const label = formatWorkoutType(inferWorkoutTypeFromLog(log))
     byType.set(label, (byType.get(label) ?? 0) + 1)
   }
   return [...byType.entries()]
@@ -1021,6 +966,23 @@ function buildWorkoutTypeData(logs: WorkoutLog[]) {
 
 function isSavedWorkoutLog(log: WorkoutLog) {
   return getWorkoutSeconds(log) > 0 || Boolean(log.completed)
+}
+
+function inferWorkoutTypeFromLog(log: WorkoutLog) {
+  const text = [
+    log.title,
+    log.notes,
+    ...log.exercises.map((exercise) => exercise.name),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+
+  if (/(跑|running|run|慢跑|冲刺|间歇跑)/i.test(text)) return "running"
+  if (/(快走|椭圆机|单车|游泳|有氧|cardio|hiit|tabata|跳绳|爬楼|划船机)/i.test(text)) return "cardio"
+  if (/(瑜伽|yoga)/i.test(text)) return "yoga"
+  if (/(拉伸|伸展|灵活|活动度|mobility|stretch|放松)/i.test(text)) return "mobility"
+  return log.workout_type || "strength"
 }
 
 function getWorkoutSeconds(log: WorkoutLog) {
@@ -1063,16 +1025,6 @@ function formatSet(set: WorkoutLog["exercises"][number]["sets"][number]) {
   return [`第 ${set.set_number} 组`, reps, weight, rpe].filter(Boolean).join(" · ")
 }
 
-function formatBodySummary(metric: BodyMetric) {
-  return [
-    typeof metric.weight_kg === "number" ? `体重 ${formatNumber(metric.weight_kg)} kg` : null,
-    typeof metric.bmi === "number" ? `BMI ${formatNumber(metric.bmi)}` : null,
-    typeof metric.body_fat_percentage === "number" ? `体脂 ${formatNumber(metric.body_fat_percentage)}%` : null,
-    typeof metric.waist_cm === "number" ? `腰围 ${formatNumber(metric.waist_cm)} cm` : null,
-  ].filter(Boolean).join("，") || "身体指标记录"
-}
-
-
 function buildPaginationItems(currentPage: number, pageCount: number) {
   const start = Math.max(1, Math.min(currentPage - 1, pageCount - 2))
   const end = Math.min(pageCount, start + 2)
@@ -1088,6 +1040,12 @@ function formatWorkoutType(type: string | null | undefined) {
     yoga: "瑜伽",
   }
   return type ? (map[type] ?? type) : "未分类"
+}
+
+function localHourFromServerTimestamp(value: string) {
+  const hasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(value)
+  const parsed = new Date(hasTimezone ? value : `${value}Z`)
+  return Number.isNaN(parsed.getTime()) ? 12 : parsed.getHours()
 }
 
 function formatDuration(totalSeconds: number) {
