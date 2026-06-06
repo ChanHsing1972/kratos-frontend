@@ -3,8 +3,10 @@ import {
   BarChart3,
   Download,
   Dumbbell,
+  Eye,
   Flame,
   HeartPulse,
+  Pin,
   Plus,
   Scale,
   Timer,
@@ -67,6 +69,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/table"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/shared/ui/pagination"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
 
 type BodyDataPageProps = {
@@ -103,12 +113,13 @@ type MetricDefinition<T extends string> = {
 const BODY_IMPORTANT_KEY = "kratos-important-body-metrics-v1"
 const HEALTH_IMPORTANT_KEY = "kratos-important-health-metrics-v1"
 const DEFAULT_BODY_IMPORTANT = ["weight", "bmi"]
-const DEFAULT_HEALTH_IMPORTANT = ["sleep", "active-kcal", "diet-kcal"]
+const DEFAULT_HEALTH_IMPORTANT = ["sleep", "active-kcal", "diet-kcal", "resting-hr"]
 
 const BODY_METRIC_DEFS: MetricDefinition<string>[] = [
   { id: "weight", key: "weight_kg", kind: "line", label: "体重", unit: "kg" },
   { id: "bmi", key: "bmi", kind: "line", label: "BMI", unit: "" },
   { id: "body-fat", key: "body_fat_percentage", kind: "line", label: "体脂率", unit: "%" },
+  { id: "height", key: "height_cm", kind: "line", label: "身高", unit: "cm" },
   { id: "waist", key: "waist_cm", kind: "line", label: "腰围", unit: "cm" },
   { id: "hip", key: "hip_cm", kind: "line", label: "臀围", unit: "cm" },
   { id: "thigh", key: "thigh_cm", kind: "line", label: "大腿围", unit: "cm" },
@@ -172,22 +183,17 @@ export function BodyDataPage({
 
   return (
     <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
-      <section className="mx-auto mt-20 flex min-h-full w-full max-w-[1080px] flex-col px-6 pt-8 pb-16 sm:px-8">
+      <section className="mx-auto mt-20 flex min-h-full w-full max-w-[900px] flex-col px-6 pt-8 pb-16 sm:px-8">
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
-          <div>
-            <h1 className="text-3xl font-medium tracking-[-0.04em]">数据中心</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              运动、身体与健康数据的综合面板。
-            </p>
-          </div>
+          <h1 className="text-3xl font-medium tracking-[-0.05em]">数据中心</h1>
           <div className="flex flex-wrap gap-2">
+            <Button onClick={onExportBodyData} type="button" variant="ghost">
+              <Download />
+              导出
+            </Button>
             <Button onClick={onAddData} type="button">
               <Plus />
               添加数据
-            </Button>
-            <Button onClick={onExportBodyData} type="button" variant="outline">
-              <Download />
-              导出
             </Button>
           </div>
         </header>
@@ -221,11 +227,11 @@ export function BodyDataPage({
           onLoadHeartRateSummary={onLoadWorkoutHeartRateSummary}
         />
 
-        <BodyHistorySection
+        {/* <BodyHistorySection
           metrics={bodyMetrics}
           onDeleteBodyMetric={onDeleteBodyMetric}
           onEditBodyMetric={onEditBodyMetric}
-        />
+        /> */}
       </section>
     </main>
   )
@@ -241,18 +247,20 @@ function ExerciseOverview({ logs }: { logs: WorkoutLog[] }) {
 
   return (
     <section className="mt-10">
-      <SectionHeader
-        description="切换时间范围后，统计和图表会同步更新。"
-        title="运动总览"
-      />
-      <Tabs value={range} onValueChange={(value) => setRange(value as RangeId)} className="mt-5">
-        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-4">
-          {RANGE_OPTIONS.map((item) => (
-            <TabsTrigger key={item.id} value={item.id}>{item.label}</TabsTrigger>
-          ))}
-        </TabsList>
+      <Tabs value={range} onValueChange={(value) => setRange(value as RangeId)} >
+        <div className="flex items-center justify-between">
+          <SectionHeader
+            description=""
+            title="运动总览"
+          />
+          <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-4">
+            {RANGE_OPTIONS.map((item) => (
+              <TabsTrigger key={item.id} value={item.id} className="px-3">{item.label}</TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
         {RANGE_OPTIONS.map((item) => (
-          <TabsContent className="mt-6" key={item.id} value={item.id}>
+          <TabsContent className="mt-4" key={item.id} value={item.id}>
             <div className="grid gap-4 sm:grid-cols-4">
               <OverviewStat icon={<Dumbbell />} label="总运动次数" value={`${stats.count} 次`} />
               <OverviewStat icon={<Timer />} label="总运动时长" value={formatDuration(stats.seconds)} />
@@ -325,7 +333,7 @@ function MetricSection({
 
       <Accordion className="mt-5" collapsible type="single">
         <AccordionItem value="more">
-          <AccordionTrigger className="px-0 hover:no-underline">
+          <AccordionTrigger>
             <span className="flex items-center gap-2">
               更多指标
               <Badge variant="outline">{moreDefinitions.length}</Badge>
@@ -362,10 +370,10 @@ function MetricChartCard({
   series: MetricPoint[]
 }) {
   return (
-    <Card className="border-border/50 shadow-none">
-      <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between">
         <div>
-          <CardTitle className="text-base font-medium">{definition.label}</CardTitle>
+          <CardTitle>{definition.label}</CardTitle>
           <p className="mt-1 text-2xl font-medium tracking-tight">
             {formatLatest(series, definition.unit)}
           </p>
@@ -374,9 +382,10 @@ function MetricChartCard({
           onClick={() => onToggleImportant(definition.id)}
           size="sm"
           type="button"
-          variant={important ? "secondary" : "outline"}
+          variant="ghost"
+          className="text-muted-foreground"
         >
-          {important ? "重要" : "标记重要"}
+          {important ? < Eye /> : <Pin />}
         </Button>
       </CardHeader>
       <CardContent>
@@ -429,18 +438,18 @@ function MetricMiniChart({
       initialDimension={{ height: 192, width: 460 }}
     >
       {kind === "bar" ? (
-        <BarChart data={series} margin={{ bottom: 0, left: -18, right: 8, top: 12 }}>
-          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 16%, transparent)" strokeDasharray="3 8" vertical={false} />
-          <XAxis axisLine={false} dataKey="label" minTickGap={18} tickLine={false} tickMargin={10} />
-          <YAxis axisLine={false} tickFormatter={(value: number) => `${value}${unit}`} tickLine={false} width={56} />
+        <BarChart data={series} margin={{ bottom: 0, left: 0, right: 8, top: 12 }}>
+          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 12%, transparent)" strokeDasharray="3 8" vertical={false} />
+          <XAxis axisLine={false} dataKey="label" minTickGap={18} tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
+          <YAxis allowDecimals={false} axisLine={false} tick={{ fontSize: 12 }} tickFormatter={(value: number) => formatAxisTick(value, unit)} tickLine={false} tickMargin={8} width={48} />
           <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ fill: "color-mix(in oklch, var(--muted) 50%, transparent)" }} />
           <Bar dataKey="value" fill="var(--color-value)" radius={[6, 6, 0, 0]} />
         </BarChart>
       ) : (
-        <LineChart data={series} margin={{ bottom: 0, left: -18, right: 12, top: 12 }}>
-          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 16%, transparent)" strokeDasharray="3 8" vertical={false} />
-          <XAxis axisLine={false} dataKey="label" minTickGap={18} tickLine={false} tickMargin={10} />
-          <YAxis axisLine={false} domain={metricDomain(series, unit)} tickFormatter={(value: number) => `${value}${unit}`} tickLine={false} width={56} />
+        <LineChart data={series} margin={{ bottom: 0, left: 0, right: 12, top: 12 }}>
+          <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 12%, transparent)" strokeDasharray="3 8" vertical={false} />
+          <XAxis axisLine={false} dataKey="label" minTickGap={18} tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
+          <YAxis axisLine={false} domain={metricDomain(series, unit)} tick={{ fontSize: 12 }} tickCount={4} tickFormatter={(value: number) => formatAxisTick(value, unit)} tickLine={false} tickMargin={8} width={52} />
           <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ stroke: "color-mix(in oklch, var(--muted-foreground) 22%, transparent)" }} />
           <Line activeDot={{ r: 5, strokeWidth: 2 }} dataKey="value" dot={{ r: 3, strokeWidth: 2 }} stroke="var(--color-value)" strokeLinecap="round" strokeWidth={2.2} type="monotone" />
         </LineChart>
@@ -458,10 +467,10 @@ function PreferenceBarChart({ data }: { data: Array<{ label: string; value: numb
   } satisfies ChartConfig
   return (
     <ChartContainer className="h-64 w-full" config={chartConfig} initialDimension={{ height: 256, width: 620 }}>
-      <BarChart data={data} margin={{ bottom: 0, left: -18, right: 8, top: 12 }}>
-        <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 16%, transparent)" strokeDasharray="3 8" vertical={false} />
-        <XAxis axisLine={false} dataKey="label" tickLine={false} tickMargin={10} />
-        <YAxis allowDecimals={false} axisLine={false} tickLine={false} width={42} />
+      <BarChart data={data} margin={{ bottom: 0, left: 0, right: 8, top: 12 }}>
+        <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 12%, transparent)" strokeDasharray="3 8" vertical={false} />
+        <XAxis axisLine={false} dataKey="label" tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
+        <YAxis allowDecimals={false} axisLine={false} tick={{ fontSize: 12 }} tickLine={false} tickMargin={8} width={36} />
         <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ fill: "color-mix(in oklch, var(--muted) 50%, transparent)" }} />
         <Bar dataKey="value" fill="var(--color-value)" radius={[8, 8, 0, 0]} />
       </BarChart>
@@ -485,9 +494,9 @@ function PreferenceDonutChart({ data }: { data: Array<{ label: string; value: nu
           <Pie
             data={data}
             dataKey="value"
-            innerRadius={62}
+            innerRadius={54}
             nameKey="label"
-            outerRadius={94}
+            outerRadius={82}
             paddingAngle={2}
             strokeWidth={0}
           >
@@ -525,7 +534,12 @@ function WorkoutRecordsSection({
   const [selectedLog, setSelectedLog] = useState<WorkoutLog | null>(null)
   const [heartRateSummary, setHeartRateSummary] = useState<HeartRateSummary | null>(null)
   const [heartRateLoading, setHeartRateLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const pageSize = 8
   const sortedLogs = [...logs].sort((left, right) => dateTime(right.workout_date) - dateTime(left.workout_date))
+  const pageCount = Math.max(1, Math.ceil(sortedLogs.length / pageSize))
+  const currentPage = Math.min(page, pageCount)
+  const pagedLogs = sortedLogs.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   useEffect(() => {
     let cancelled = false
@@ -549,55 +563,97 @@ function WorkoutRecordsSection({
     }
   }, [onLoadHeartRateSummary, selectedLog])
 
+  useEffect(() => {
+    setPage(1)
+  }, [logs.length])
+
   return (
     <section className="mt-12">
-      <SectionHeader description="保存过的训练都会进入这里。" title="运动记录" />
-      <Card className="mt-5 border-border/50 shadow-none">
-        <CardContent className="pt-6">
-          {sortedLogs.length ? (
-            <div className="overflow-x-auto">
-              <Table className="min-w-[820px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>训练名称</TableHead>
-                    <TableHead>训练时间</TableHead>
-                    <TableHead>类型</TableHead>
-                    <TableHead className="text-right">时长</TableHead>
-                    <TableHead className="text-right">热量</TableHead>
-                    <TableHead className="text-right">状态</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedLogs.map((log) => (
-                    <TableRow className="cursor-pointer" key={log.id} onClick={() => setSelectedLog(log)}>
-                      <TableCell className="font-medium">{log.title || "未命名训练"}</TableCell>
-                      <TableCell>{formatFullDate(log.workout_date)}</TableCell>
-                      <TableCell>{formatWorkoutType(log.workout_type)}</TableCell>
-                      <TableCell className="text-right">{formatDuration(getWorkoutSeconds(log))}</TableCell>
-                      <TableCell className="text-right">{log.calories_burned ?? 0} kcal</TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant={log.completed ? "default" : "secondary"}>
-                          {log.completed ? "完成" : "已保存"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <Empty className="min-h-60 border border-dashed bg-muted/20">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Dumbbell />
-                </EmptyMedia>
-                <EmptyTitle>还没有运动记录</EmptyTitle>
-                <EmptyDescription>训练计划中点击保存后会生成记录。</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          )}
-        </CardContent>
-      </Card>
+      <SectionHeader description="" title="运动记录" />
+      {sortedLogs.length ? (
+        <div className="overflow-x-auto mt-4">
+          <Table className="">
+            <TableHeader>
+              <TableRow>
+                <TableHead>训练名称</TableHead>
+                <TableHead>训练时间</TableHead>
+                <TableHead>类型</TableHead>
+                <TableHead>时长</TableHead>
+                <TableHead>热量</TableHead>
+                <TableHead>状态</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pagedLogs.map((log) => (
+                <TableRow className="cursor-pointer" key={log.id} onClick={() => setSelectedLog(log)}>
+                  <TableCell className="font-medium">{log.title || "未命名训练"}</TableCell>
+                  <TableCell>{formatFullDate(log.workout_date)}</TableCell>
+                  <TableCell>{formatWorkoutType(log.workout_type)}</TableCell>
+                  <TableCell>{formatDuration(getWorkoutSeconds(log))}</TableCell>
+                  <TableCell>{log.calories_burned ?? 0} kcal</TableCell>
+                  <TableCell>
+                    <Badge variant={log.completed ? "default" : "secondary"}>
+                      {log.completed ? "完成" : "已保存"}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {pageCount > 1 ? (
+            <Pagination className="mt-5">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    aria-disabled={currentPage === 1}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
+                    href="#"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setPage((value) => Math.max(1, value - 1))
+                    }}
+                  />
+                </PaginationItem>
+                {buildPaginationItems(currentPage, pageCount).map((item) => (
+                  <PaginationItem key={item}>
+                    <PaginationLink
+                      href="#"
+                      isActive={item === currentPage}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        setPage(item)
+                      }}
+                    >
+                      {item}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext
+                    aria-disabled={currentPage === pageCount}
+                    className={currentPage === pageCount ? "pointer-events-none opacity-50" : undefined}
+                    href="#"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setPage((value) => Math.min(pageCount, value + 1))
+                    }}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          ) : null}
+        </div>
+      ) : (
+        <Empty className="min-h-60 border border-dashed bg-muted/20">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Dumbbell />
+            </EmptyMedia>
+            <EmptyTitle>还没有运动记录</EmptyTitle>
+            <EmptyDescription>训练计划中点击保存后会生成记录。</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
 
       <WorkoutDetailDialog
         heartRateLoading={heartRateLoading}
@@ -744,8 +800,8 @@ function ChartEmpty({ icon, title }: { icon: ReactNode; title: string }) {
 
 function OverviewStat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <Card className="border-border/50 shadow-none">
-      <CardContent className="flex gap-3 pt-6">
+    <Card className="shadow-none">
+      <CardContent className="flex gap-3">
         <span className="mt-1 text-muted-foreground [&_svg]:size-4">{icon}</span>
         <span>
           <p className="text-xs text-muted-foreground">{label}</p>
@@ -934,6 +990,13 @@ function metricDomain(series: MetricPoint[], unit: string): [number, number] {
   return [Math.max(0, Math.floor((min - padding) * 10) / 10), Math.ceil((max + padding) * 10) / 10]
 }
 
+function formatAxisTick(value: number, unit: string) {
+  if (unit === "kg") return formatNumber(value)
+  if (unit === "kcal") return value >= 1000 ? `${Math.round(value / 100) / 10}k` : `${value}`
+  if (unit === "bpm" || unit === "ms" || unit === "cm" || unit === "h") return formatNumber(value)
+  return unit ? `${formatNumber(value)}${unit}` : formatNumber(value)
+}
+
 function formatLatest(series: MetricPoint[], unit: string) {
   const latest = series[series.length - 1]
   return latest ? `${formatNumber(latest.value)}${unit ? ` ${unit}` : ""}` : "未记录"
@@ -953,6 +1016,13 @@ function formatBodySummary(metric: BodyMetric) {
     typeof metric.body_fat_percentage === "number" ? `体脂 ${formatNumber(metric.body_fat_percentage)}%` : null,
     typeof metric.waist_cm === "number" ? `腰围 ${formatNumber(metric.waist_cm)} cm` : null,
   ].filter(Boolean).join("，") || "身体指标记录"
+}
+
+
+function buildPaginationItems(currentPage: number, pageCount: number) {
+  const start = Math.max(1, Math.min(currentPage - 1, pageCount - 2))
+  const end = Math.min(pageCount, start + 2)
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index)
 }
 
 function formatWorkoutType(type: string | null | undefined) {

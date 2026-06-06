@@ -22,6 +22,7 @@ import {
   FormInput,
   FormTextarea,
 } from "@/widgets/kratos/modals/ModalFormFields"
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/shared/ui/input-group"
 
 export type AddDataCategory = "body" | "health" | "diet"
 
@@ -87,15 +88,15 @@ export function AddDataModal({
         if (!nextOpen) onClose()
       }}
     >
-      <DialogContent className="grid max-h-[90svh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
+      <DialogContent className="grid max-h-[90svh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-visible sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>添加数据</DialogTitle>
           <DialogDescription>
-            已带入最近一次记录。只修改关心的字段，其他字段可以保持不动或清空。
+            只修改关心的字段，其他字段可以保持不动或清空。
           </DialogDescription>
         </DialogHeader>
 
-        <form className="min-h-0 overflow-hidden" onSubmit={submit}>
+        <form className="min-h-0" onSubmit={submit}>
           <Tabs
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as AddDataCategory)}
@@ -115,6 +116,7 @@ export function AddDataModal({
                     setBody((current) => ({ ...current, [field]: value }))
                   }
                 />
+
               </TabsContent>
               <TabsContent className="mt-0" value="health">
                 <HealthFields
@@ -134,24 +136,25 @@ export function AddDataModal({
               </TabsContent>
               {error ? <ErrorMessage message={error} /> : null}
             </div>
-
-            <DialogFooter className="mt-5 flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <Button onClick={resetActiveTab} type="button" variant="outline">
-                <RotateCcw className="size-4" />
-                清空本页
-              </Button>
-              <div className="flex items-center gap-2">
-                <Button onClick={onClose} type="button" variant="outline">
-                  取消
-                </Button>
-                <Button disabled={loading} type="submit">
-                  {loading ? <Spinner /> : null}
-                  保存
-                </Button>
-              </div>
-            </DialogFooter>
           </Tabs>
         </form>
+
+        <DialogFooter className="flex-col sm:flex-row sm:items-center sm:justify-between">
+          <Button onClick={resetActiveTab} type="button" variant="outline">
+            <RotateCcw className="size-4" />
+            清空本页
+          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={onClose} type="button" variant="outline">
+              取消
+            </Button>
+            <Button disabled={loading} type="submit">
+              {loading ? <Spinner /> : null}
+              保存
+            </Button>
+          </div>
+        </DialogFooter>
+
       </DialogContent>
     </Dialog>
   )
@@ -281,16 +284,31 @@ function NumberInput({
   onChange: (value: string) => void
   value: string
 }) {
+  const { name, unit } = splitNumberInputLabel(label)
   return (
-    <FormInput
-      label={label}
-      min={0}
-      onChange={onChange}
-      step="0.1"
-      type="number"
-      value={value}
-    />
+    <label className="block space-y-2">
+      <span className="text-sm font-medium">{name}</span>
+      <InputGroup>
+        <InputGroupInput
+          className={unit ? "pr-0.5!" : undefined}
+          min={0}
+          onChange={(event) => onChange(event.target.value)}
+          value={value}
+        />
+        {unit ? (
+          <InputGroupAddon align="inline-end">
+            <InputGroupText>{unit}</InputGroupText>
+          </InputGroupAddon>
+        ) : null}
+      </InputGroup>
+    </label>
   )
+}
+
+function splitNumberInputLabel(label: string) {
+  const match = label.match(/^(.*)\s+(kg|cm|%|h|kcal|g|ms|bpm|0-10)$/)
+  if (!match) return { name: label, unit: "" }
+  return { name: match[1], unit: match[2] }
 }
 
 export function emptyBodyMetricForm(): BodyMetricForm {

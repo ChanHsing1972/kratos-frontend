@@ -44,14 +44,9 @@ export function DietIntakePage({
 
   return (
     <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
-      <section className="mx-auto mt-20 flex min-h-full w-full max-w-[980px] flex-col px-6 pt-8 pb-16 sm:px-8">
+      <section className="mx-auto mt-20 flex min-h-full w-full max-w-[900px] flex-col px-6 pt-8 pb-16 sm:px-8">
         <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-          <div>
             <h1 className="text-3xl font-medium tracking-[-0.04em]">饮食摄入</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              记录餐食热量和三大营养素，和健康数据中的摄入趋势保持同步。
-            </p>
-          </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={onAddDiet} type="button" variant="outline">
               <Plus />
@@ -147,8 +142,8 @@ function SummaryCard({
   value: number
 }) {
   return (
-    <Card className="border-border/50 shadow-none">
-      <CardContent className="pt-6">
+    <Card className="shadow-none">
+      <CardContent>
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className="mt-2 text-2xl font-medium tracking-tight">
           {formatNumber(value)}
