@@ -206,7 +206,7 @@ export function ProfileMenu({
               onToggleMenu(false)
             }}>
               <Trophy />
-              成就系统
+              我的成就
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>

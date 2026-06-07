@@ -2,7 +2,6 @@ import {
   CalendarCheck,
   Flame,
   HeartPulse,
-  Sparkles,
   Timer,
   Trophy,
 } from "lucide-react"
@@ -23,12 +22,10 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog"
 import { Progress } from "@/shared/ui/progress"
-import { ScrollArea } from "@/shared/ui/scroll-area"
 
 type AchievementCenterDialogProps = {
   bodyMetrics: BodyMetric[]
@@ -64,17 +61,17 @@ export function AchievementCenterDialog({
   const achievements: Achievement[] = [
     {
       current: completedLogs.length,
-      description: "完成并保存第一条训练记录",
+      description: "完成并保存第一次训练",
       goal: 1,
       icon: Trophy,
-      title: "首次训练",
+      title: "初出茅庐",
     },
     {
       current: weekLogs.length,
       description: "一周内完成 3 次训练",
       goal: 3,
       icon: CalendarCheck,
-      title: "本周节奏",
+      title: "保持节奏",
     },
     {
       current: Math.floor(weekSeconds / 60),
@@ -92,22 +89,19 @@ export function AchievementCenterDialog({
     },
     {
       current: bodyMetrics.length + checkins.length,
-      description: "累计记录 5 条身体或恢复数据",
+      description: "累计记录 5 条身体数据",
       goal: 5,
       icon: HeartPulse,
       title: "数据建档",
-    },
+    }
   ]
   const unlocked = achievements.filter((item) => item.current >= item.goal).length
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[86svh] sm:max-w-3xl">
+      <DialogContent className="max-h-[86svh] sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>成就系统</DialogTitle>
-          <DialogDescription>
-            这些徽章来自你的训练记录、身体数据和恢复打卡。
-          </DialogDescription>
+          <DialogTitle>我的成就</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-3 sm:grid-cols-3">
@@ -116,45 +110,42 @@ export function AchievementCenterDialog({
           <SummaryCard label="连续天数" value={`${streakDays} 天`} />
         </div>
 
-        <ScrollArea className="max-h-[52svh] pr-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {achievements.map((achievement) => {
-              const Icon = achievement.icon
-              const progress = Math.min(
-                100,
-                Math.round((achievement.current / achievement.goal) * 100)
-              )
-              const unlockedAchievement = achievement.current >= achievement.goal
-              return (
-                <Card key={achievement.title}>
-                  <CardHeader className="flex flex-row items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <span className="grid size-9 place-items-center rounded-md bg-muted">
-                        <Icon />
-                      </span>
-                      <div>
-                        <CardTitle className="text-sm">{achievement.title}</CardTitle>
-                        <CardDescription className="mt-1">
-                          {achievement.description}
-                        </CardDescription>
-                      </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {achievements.map((achievement) => {
+            const Icon = achievement.icon
+            const progress = Math.min(
+              100,
+              Math.round((achievement.current / achievement.goal) * 100)
+            )
+            const unlockedAchievement = achievement.current >= achievement.goal
+            return (
+              <Card key={achievement.title}>
+                <CardHeader className="flex flex-row items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <span className="grid size-9 place-items-center rounded-md bg-muted">
+                      <Icon />
+                    </span>
+                    <div>
+                      <CardTitle className="text-sm">{achievement.title}</CardTitle>
+                      <CardDescription>
+                        {achievement.description}
+                      </CardDescription>
                     </div>
-                    <Badge variant={unlockedAchievement ? "default" : "secondary"}>
-                      {unlockedAchievement ? "已解锁" : "进行中"}
-                    </Badge>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{achievement.current}</span>
-                      <span>{achievement.goal}</span>
-                    </div>
-                    <Progress className="mt-2" value={progress} />
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        </ScrollArea>
+                  </div>
+                  <Badge variant={unlockedAchievement ? "default" : "secondary"}>
+                    {unlockedAchievement ? "已解锁" : "进行中"}
+                  </Badge>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-end text-xs text-muted-foreground">
+                    <span>{achievement.current}/{achievement.goal}</span>
+                  </div>
+                  <Progress className="mt-2" value={progress} />
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
       </DialogContent>
     </Dialog>
   )
@@ -163,12 +154,11 @@ export function AchievementCenterDialog({
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardDescription>{label}</CardDescription>
-        <Sparkles />
       </CardHeader>
       <CardContent>
-        <p className="text-2xl font-semibold">{value}</p>
+        <p className="text-2xl">{value}</p>
       </CardContent>
     </Card>
   )

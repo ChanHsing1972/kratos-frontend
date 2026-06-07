@@ -70,6 +70,7 @@ import {
 import {
   Pagination,
   PaginationContent,
+  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -724,6 +725,12 @@ function WorkoutRecordsSection({
                     </PaginationLink>
                   </PaginationItem>
                 ))}
+                {/* Show ellipsis if there are more pages after the last shown page */
+                  currentPage + 1 < pageCount && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>)}
+
                 <PaginationItem>
                   <PaginationNext
                     aria-disabled={currentPage === pageCount}
