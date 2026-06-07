@@ -223,6 +223,7 @@ function HealthFields({
         />
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
+        <NumberInput label="步数 步" onChange={(value) => onChange("steps", value)} value={form.steps} />
         <NumberInput label="睡眠时长 h" onChange={(value) => onChange("sleepHours", value)} value={form.sleepHours} />
         <NumberInput label="活动消耗 kcal" onChange={(value) => onChange("activeKcal", value)} value={form.activeKcal} />
         <NumberInput label="饮食摄入 kcal" onChange={(value) => onChange("dietaryKcal", value)} value={form.dietaryKcal} />
@@ -310,7 +311,7 @@ function NumberInput({
 }
 
 function splitNumberInputLabel(label: string) {
-  const match = label.match(/^(.*)\s+(kg|cm|%|h|kcal|g|ms|bpm|0-10)$/)
+  const match = label.match(/^(.*)\s+(kg|cm|%|h|kcal|g|ms|bpm|步|0-10)$/)
   if (!match) return { name: label, unit: "" }
   return { name: match[1], unit: match[2] }
 }
@@ -360,6 +361,7 @@ export function emptyHealthMetricForm(): HealthMetricForm {
     notes: "",
     restingHeartRate: "",
     sleepHours: "",
+    steps: "",
     stressLevel: "",
     vo2Max: "",
   }

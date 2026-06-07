@@ -5,7 +5,7 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
 } from "react"
-import { ArrowUp, Eye, ImageIcon, Loader2, Paperclip, PencilLine, Plus, Soup, Square, X } from "lucide-react"
+import { ArrowUp, Camera, Eye, ImageIcon, Loader2, Paperclip, PencilLine, Plus, Soup, Square, X } from "lucide-react"
 
 import type { ChatAttachment } from "@/entities/kratos/model/types"
 import { MarkdownMessage } from "@/widgets/kratos/conversation/MarkdownMessage"
@@ -69,7 +69,42 @@ export function ConversationComposer({
   }, [value])
 
   return (
-    <InputGroup className="max-h-60 bg-background p-1">
+    <InputGroup className="max-h-72 bg-background p-1 shadow-sm">
+      <InputGroupAddon align="block-start" className="flex-wrap justify-start gap-2 pb-0">
+        <TooltipProvider>
+          <FloatingToolButton
+            accept="image/*"
+            disabled={sending}
+            icon={<Camera className="size-3.5" />}
+            label="图片识别"
+            onChange={(event) => {
+              if (!value.trim()) {
+                onChange("请识别这张图片，并说明其中与训练、饮食或健康有关的信息。")
+              }
+              onAttachment(event)
+            }}
+            tooltip="上传图片给 Agent 识别"
+          />
+          <FloatingToolButton
+            accept="image/jpeg,image/png,image/webp"
+            disabled={sending || dietEstimating}
+            icon={dietEstimating ? <Loader2 className="size-3.5 animate-spin" /> : <Soup className="size-3.5" />}
+            label={dietEstimating ? "识别中" : "热量识别"}
+            onChange={onDietImage}
+            tooltip={dietEstimating ? "正在估算热量" : "上传食物图估算热量"}
+          />
+          <FloatingToolButton
+            accept="image/*,.csv,.doc,.docx,.json,.pdf,.txt,.xls,.xlsx"
+            disabled={sending}
+            icon={<Paperclip className="size-3.5" />}
+            label="上传附件"
+            multiple
+            onChange={onAttachment}
+            tooltip="上传图片、文档或表格给 Agent"
+          />
+        </TooltipProvider>
+      </InputGroupAddon>
+
       {attachments.length ? (
         <InputGroupAddon align="block-start" className="flex-wrap justify-start">
           {attachments.map((attachment, index) => (
@@ -161,42 +196,6 @@ export function ConversationComposer({
             </TooltipTrigger>
             <TooltipContent side="top">上传附件给 Agent</TooltipContent>
           </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <InputGroupButton
-                aria-label={dietEstimating ? "正在识别餐食热量" : "识别餐食热量"}
-                asChild
-                className="size-6 rounded-full p-0 shadow-none"
-                type="button"
-                variant="outline"
-              >
-                <label
-                  className={
-                    sending || dietEstimating
-                      ? "cursor-not-allowed opacity-60"
-                      : "cursor-pointer"
-                  }
-                >
-                  <input
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    disabled={sending || dietEstimating}
-                    onChange={onDietImage}
-                    type="file"
-                  />
-                  {dietEstimating ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Soup className="size-3.5" />
-                  )}
-                </label>
-              </InputGroupButton>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              {dietEstimating ? "正在估算热量" : "上传食物图估算热量"}
-            </TooltipContent>
-          </Tooltip>
         </TooltipProvider>
 
         <ToggleGroup defaultValue="write" size="sm" type="single" variant="outline">
@@ -240,5 +239,52 @@ export function ConversationComposer({
         </Button>
       </InputGroupAddon>
     </InputGroup>
+  )
+}
+
+function FloatingToolButton({
+  accept,
+  disabled = false,
+  icon,
+  label,
+  multiple = false,
+  onChange,
+  tooltip,
+}: {
+  accept: string
+  disabled?: boolean
+  icon: React.ReactNode
+  label: string
+  multiple?: boolean
+  onChange: (event: ChangeEvent<HTMLInputElement>) => void
+  tooltip: string
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          asChild
+          className="h-7 shrink-0 gap-1.5 rounded-full border bg-muted/40 px-2.5 text-xs shadow-none hover:bg-muted"
+          disabled={disabled}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <label className={disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}>
+            <input
+              accept={accept}
+              className="hidden"
+              disabled={disabled}
+              multiple={multiple}
+              onChange={onChange}
+              type="file"
+            />
+            {icon}
+            <span>{label}</span>
+          </label>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top">{tooltip}</TooltipContent>
+    </Tooltip>
   )
 }

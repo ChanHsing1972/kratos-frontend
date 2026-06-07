@@ -399,6 +399,7 @@ export type HealthMetric = {
   id: number
   user_id: number
   metric_date: string | null
+  steps: number | null
   sleep_hours: number | null
   active_kcal: number | null
   dietary_kcal: number | null
@@ -547,6 +548,7 @@ export type BodyMetricForm = {
 export type HealthMetricForm = {
   measuredAt: string
   metricDate: string
+  steps: string
   sleepHours: string
   activeKcal: string
   dietaryKcal: string
@@ -590,6 +592,7 @@ export type BodyMetricPayload = {
 
 export type HealthMetricPayload = {
   metric_date?: string | null
+  steps?: number | null
   sleep_hours?: number | null
   active_kcal?: number | null
   dietary_kcal?: number | null

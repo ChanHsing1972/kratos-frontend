@@ -339,6 +339,7 @@ function healthMetricFormFromRecord(metric: HealthMetric | null): HealthMetricFo
     notes: metric?.notes ?? "",
     restingHeartRate: metric?.resting_heart_rate?.toString() ?? "",
     sleepHours: metric?.sleep_hours?.toString() ?? "",
+    steps: metric?.steps?.toString() ?? "",
     stressLevel: metric?.stress_level?.toString() ?? "",
     vo2Max: metric?.vo2_max?.toString() ?? "",
   }
@@ -533,6 +534,7 @@ export function KratosPage() {
   const activeStreamRef = useRef<AbortController | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
   const attachedClientTurnIdsRef = useRef<Set<string>>(new Set())
+  const dataCenterRefreshRef = useRef(0)
   const liveMessagesBySessionRef = useRef<Record<string, ChatMessage[]>>({})
   const messagesRef = useRef<ChatMessage[]>(messages)
   const sendLockRef = useRef(false)
@@ -1649,6 +1651,25 @@ export function KratosPage() {
     setDietRecords(context.recent_diet_records)
     setAgentCheckins(context.recent_checkins)
   }
+
+  useEffect(() => {
+    if (activeNav !== "数据中心") {
+      return
+    }
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (!token) {
+      return
+    }
+    const now = Date.now()
+    if (now - dataCenterRefreshRef.current < 3000) {
+      return
+    }
+    dataCenterRefreshRef.current = now
+    void refreshDashboard(token, { preserveMessages: true })
+    // Refresh only when entering the data center or switching user; the
+    // dashboard refresh function is intentionally not a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeNav, currentUser?.id])
 
   const upsertFitnessProfile = async (
     token: string,

@@ -107,9 +107,9 @@ type MetricDefinition<T extends string> = {
 }
 
 const BODY_IMPORTANT_KEY = "kratos-important-body-metrics-v1"
-const HEALTH_IMPORTANT_KEY = "kratos-important-health-metrics-v1"
+const HEALTH_IMPORTANT_KEY = "kratos-important-health-metrics-v3"
 const DEFAULT_BODY_IMPORTANT = ["weight", "bmi"]
-const DEFAULT_HEALTH_IMPORTANT = ["sleep", "active-kcal", "diet-kcal", "resting-hr"]
+const DEFAULT_HEALTH_IMPORTANT = ["steps", "sleep", "active-kcal", "resting-hr", "vo2", "spo2"]
 
 const BODY_METRIC_DEFS: MetricDefinition<string>[] = [
   { id: "weight", key: "weight_kg", kind: "line", label: "体重", unit: "kg" },
@@ -125,6 +125,7 @@ const BODY_METRIC_DEFS: MetricDefinition<string>[] = [
 ]
 
 const HEALTH_METRIC_DEFS: MetricDefinition<string>[] = [
+  { id: "steps", key: "steps", kind: "bar", label: "步数", unit: "步" },
   { id: "sleep", key: "sleep_hours", kind: "bar", label: "睡眠时长", unit: "h" },
   { id: "active-kcal", key: "active_kcal", kind: "bar", label: "活动消耗", unit: "kcal" },
   { id: "diet-kcal", key: "dietary_kcal", kind: "bar", label: "饮食摄入", unit: "kcal" },

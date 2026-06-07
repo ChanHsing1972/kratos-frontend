@@ -232,6 +232,11 @@ export function buildHealthPayload(
   form: HealthMetricForm,
   setError: (message: string | null) => void
 ): HealthPayload | null {
+  const steps = parseOptionalInteger(form.steps, "步数")
+  if (typeof steps === "string") {
+    setError(steps)
+    return null
+  }
   const sleepHours = parseOptionalNumber(form.sleepHours, "睡眠时长")
   if (typeof sleepHours === "string") {
     setError(sleepHours)
@@ -281,6 +286,7 @@ export function buildHealthPayload(
 
   return {
     hasHealthData:
+      steps !== null ||
       sleepHours !== null ||
       activeKcal !== null ||
       dietaryKcal !== null ||
@@ -291,6 +297,7 @@ export function buildHealthPayload(
       bloodOxygenPercentage !== null ||
       notes !== null,
     metric: compactPayload({
+      steps,
       sleep_hours: sleepHours,
       active_kcal: activeKcal,
       dietary_kcal: dietaryKcal,
