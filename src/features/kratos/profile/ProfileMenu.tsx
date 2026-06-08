@@ -196,7 +196,7 @@ export function ProfileMenu({
               />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-72" side="right">
+          <DropdownMenuContent align="end" className="w-55" side="right">
             <DropdownMenuItem>
               <Avatar>
                 <AvatarImage src={avatarSrc} alt={user.username} />
@@ -233,14 +233,14 @@ export function ProfileMenu({
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onToggleTheme}>
               {theme === "dark" ? <Sun /> : <Moon />}
-              {theme === "dark" ? "切换到浅色模式" : "切换到深色模式"}
+              {theme === "dark" ? "浅色模式" : "深色模式"}
             </DropdownMenuItem>
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <Bell />
-                <span className="flex-1">通知中心</span>
+              <DropdownMenuSubTrigger className="gap-1.5">
+                <Bell className="shrink-0" />
+                <span className="min-w-0 flex-1 truncate">通知中心</span>
                 {unreadCount > 0 ? (
-                  <span className="ml-auto grid size-5 place-items-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                  <span className="ml-auto grid size-4 shrink-0 place-items-center rounded-full bg-primary text-[10px] leading-none text-primary-foreground!">
                     {unreadCount}
                   </span>
                 ) : null}
@@ -268,12 +268,12 @@ export function ProfileMenu({
                     <CheckCheck className="size-4" />
                   </Button>
                 </div>
-                <ScrollArea className="mt-1 h-[min(24rem,calc(100vh-10rem))]">
+                <ScrollArea className="mt-1 h-[min(24rem,calc(100vh-10rem))] px-2">
                   {notifications.length ? (
                     <div className="space-y-1.5 pr-1">
                       {notifications.map((item) => (
                         <div
-                          className="rounded-md border border-border bg-card px-3 py-2 text-sm"
+                          className="border-t border-border bg-card pt-3 pb-1 text-sm"
                           key={item.id}
                         >
                           <div className="flex items-start gap-2">
@@ -289,7 +289,7 @@ export function ProfileMenu({
                               <p className="truncate text-xs font-medium">
                                 {item.title}
                               </p>
-                              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                              <p className="mt-1 text-xs leading-4 text-muted-foreground">
                                 {item.body}
                               </p>
                             </div>

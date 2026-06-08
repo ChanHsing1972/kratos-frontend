@@ -164,7 +164,7 @@ export function ConversationWorkspace({
 
             <div className="relative shrink-0 bg-card px-5 pt-1 pb-3 sm:px-6">
               <div className="pointer-events-none absolute inset-x-0 -top-8 h-8 bg-gradient-to-b from-transparent via-card/50 to-card" />
-              <div className="mx-auto w-full max-w-[820px]">
+              <div className="mx-auto w-full max-w-[780px]">
                 <ConversationComposer
                   activeMode={activeComposerMode}
                   onAttachment={onAttachment}
