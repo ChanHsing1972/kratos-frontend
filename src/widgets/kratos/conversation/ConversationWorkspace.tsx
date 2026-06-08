@@ -6,34 +6,42 @@ import {
 } from "react"
 
 import type {
+  AgentToolConfig,
   ChatMessage,
   ChatAttachment,
-  NotificationItem,
-  QuickAction,
+  Skill,
   TrainingPlanPayload,
 } from "@/entities/kratos/model/types"
 import { ChatBubble } from "@/widgets/kratos/conversation/ChatBubble"
-import { ConversationComposer } from "@/widgets/kratos/conversation/ConversationComposer"
-import { ConversationHeader } from "@/widgets/kratos/conversation/ConversationHeader"
+import {
+  ConversationComposer,
+  type AgentComposerMode,
+  type ComposerUploadingAttachment,
+} from "@/widgets/kratos/conversation/ConversationComposer"
 import { EmptyConversation } from "@/widgets/kratos/conversation/EmptyConversation"
 import { Spinner } from "@/shared/ui/spinner"
 
+type ComposerDataCategory = "body" | "health" | "diet"
+
 export type ConversationWorkspaceProps = {
+  activeComposerMode: AgentComposerMode | null
   activeSessionTitle: string
   agentStreaming: boolean
   chatTrainingPlanSavingId: string | null
   composerValue: string
   composerAttachments: ChatAttachment[]
+  composerUploadingAttachments: ComposerUploadingAttachment[]
   conversationLoading: boolean
   dietEstimating: boolean
   messages: ChatMessage[]
-  notifications: NotificationItem[]
-  notificationsOpen: boolean
   onAttachment: (event: ChangeEvent<HTMLInputElement>) => void
   onComposerChange: (value: string) => void
   onComposerKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
+  onComposerModeChange: (mode: AgentComposerMode | null) => void
   onDietImage: (event: ChangeEvent<HTMLInputElement>) => void
-  onMarkNotificationsRead: () => void
+  onOpenAddData: (category: ComposerDataCategory) => void
+  onOpenCapabilities: () => void
+  onOpenTrainingPlanComposer: () => void
   onRemoveAttachment: (index: number) => void
   onCreateTrainingPlanFromMessage: (
     messageId: string,
@@ -42,46 +50,43 @@ export type ConversationWorkspaceProps = {
   onEditTrainingPlanDraft: (payload: TrainingPlanPayload) => void
   onConfirmHealthData: (messageId: string) => void
   confirmingHealthDataId: string | null
-  onQuickAction: (action: QuickAction) => void
   onSendMessage: () => void
   onStopAgent: () => void
-  onToggleNotifications: () => void
-  onToggleTheme: () => void
   onToggleThinking: () => void
   thinkingExpanded: boolean
-  theme: "dark" | "light" | "system"
-  unreadCount: number
+  skills: Skill[]
+  tools: AgentToolConfig[]
 }
 
 export function ConversationWorkspace({
+  activeComposerMode,
   agentStreaming,
   chatTrainingPlanSavingId,
   composerValue,
   composerAttachments,
+  composerUploadingAttachments,
   conversationLoading,
   dietEstimating,
   messages,
-  notifications,
-  notificationsOpen,
   onAttachment,
   onComposerChange,
   onComposerKeyDown,
+  onComposerModeChange,
   onDietImage,
-  onMarkNotificationsRead,
+  onOpenAddData,
+  onOpenCapabilities,
+  onOpenTrainingPlanComposer,
   onRemoveAttachment,
   onCreateTrainingPlanFromMessage,
   onEditTrainingPlanDraft,
   onConfirmHealthData,
   confirmingHealthDataId,
-  onQuickAction,
   onSendMessage,
   onStopAgent,
-  onToggleNotifications,
-  onToggleTheme,
   onToggleThinking,
   thinkingExpanded,
-  theme,
-  unreadCount,
+  skills,
+  tools,
 }: ConversationWorkspaceProps) {
   const scrollViewportRef = useRef<HTMLDivElement>(null)
   const bottomAnchorRef = useRef<HTMLDivElement>(null)
@@ -104,45 +109,41 @@ export function ConversationWorkspace({
 
   return (
     <main className="flex h-full min-w-0 flex-1 flex-col border-border bg-card xl:border-r">
-      <ConversationHeader
-        muted={isEmptyConversation && !conversationLoading}
-        notifications={notifications}
-        notificationsOpen={notificationsOpen}
-        onMarkNotificationsRead={onMarkNotificationsRead}
-        onToggleNotifications={onToggleNotifications}
-        onToggleTheme={onToggleTheme}
-        theme={theme}
-        unreadCount={unreadCount}
-      />
-
       <div className="flex min-h-0 flex-1 flex-col">
         {conversationLoading ? (
           <LoadingConversation />
         ) : isEmptyConversation ? (
           <EmptyConversationPanel
+            activeComposerMode={activeComposerMode}
             agentStreaming={agentStreaming}
             composerAttachments={composerAttachments}
+            composerUploadingAttachments={composerUploadingAttachments}
             composerValue={composerValue}
             dietEstimating={dietEstimating}
             onAttachment={onAttachment}
             onDietImage={onDietImage}
             onComposerChange={onComposerChange}
             onComposerKeyDown={onComposerKeyDown}
-            onQuickAction={onQuickAction}
+            onComposerModeChange={onComposerModeChange}
+            onOpenAddData={onOpenAddData}
+            onOpenCapabilities={onOpenCapabilities}
+            onOpenTrainingPlanComposer={onOpenTrainingPlanComposer}
             onRemoveAttachment={onRemoveAttachment}
             onSendMessage={onSendMessage}
             onStopAgent={onStopAgent}
+            skills={skills}
+            tools={tools}
           />
         ) : (
           <>
             <div className="relative min-h-0 flex-1">
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 bg-gradient-to-b from-card via-card/55 to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-card via-card/55 to-transparent" />
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 bg-gradient-to-b from-transparent via-card/55 to-card" />
               <div
                 className="h-full min-h-0 overflow-y-auto bg-card"
                 ref={scrollViewportRef}
               >
-                <div className="mx-auto flex w-full max-w-[820px] flex-col gap-[17px] px-5 pb-0 sm:px-6">
+                <div className="mx-auto flex w-full max-w-[820px] flex-col gap-[17px] px-5 pt-8 pb-0 sm:px-6 sm:pt-10">
                   {messages.map((message) => (
                     <ChatBubble
                       creatingTrainingPlan={chatTrainingPlanSavingId === message.id}
@@ -165,16 +166,24 @@ export function ConversationWorkspace({
               <div className="pointer-events-none absolute inset-x-0 -top-8 h-8 bg-gradient-to-b from-transparent via-card/50 to-card" />
               <div className="mx-auto w-full max-w-[820px]">
                 <ConversationComposer
+                  activeMode={activeComposerMode}
                   onAttachment={onAttachment}
                   onDietImage={onDietImage}
                   attachments={composerAttachments}
+                  uploadingAttachments={composerUploadingAttachments}
                   dietEstimating={dietEstimating}
                   onChange={onComposerChange}
                   onKeyDown={onComposerKeyDown}
+                  onModeChange={onComposerModeChange}
+                  onOpenAddData={onOpenAddData}
+                  onOpenCapabilities={onOpenCapabilities}
+                  onOpenTrainingPlanComposer={onOpenTrainingPlanComposer}
                   onRemoveAttachment={onRemoveAttachment}
                   onSend={onSendMessage}
                   onStop={onStopAgent}
                   sending={agentStreaming}
+                  skills={skills}
+                  tools={tools}
                   value={composerValue}
                 />
               </div>
@@ -202,52 +211,73 @@ function LoadingConversation() {
 }
 
 function EmptyConversationPanel({
+  activeComposerMode,
   agentStreaming,
   composerValue,
   dietEstimating,
   composerAttachments,
+  composerUploadingAttachments,
   onAttachment,
   onComposerChange,
   onComposerKeyDown,
+  onComposerModeChange,
   onDietImage,
-  onQuickAction,
+  onOpenAddData,
+  onOpenCapabilities,
+  onOpenTrainingPlanComposer,
   onRemoveAttachment,
   onSendMessage,
   onStopAgent,
+  skills,
+  tools,
 }: {
+  activeComposerMode: AgentComposerMode | null
   agentStreaming: boolean
   composerValue: string
   dietEstimating: boolean
   composerAttachments: ChatAttachment[]
+  composerUploadingAttachments: ComposerUploadingAttachment[]
   onAttachment: (event: ChangeEvent<HTMLInputElement>) => void
   onComposerChange: (value: string) => void
   onComposerKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
+  onComposerModeChange: (mode: AgentComposerMode | null) => void
   onDietImage: (event: ChangeEvent<HTMLInputElement>) => void
-  onQuickAction: (action: QuickAction) => void
+  onOpenAddData: (category: ComposerDataCategory) => void
+  onOpenCapabilities: () => void
+  onOpenTrainingPlanComposer: () => void
   onRemoveAttachment: (index: number) => void
   onSendMessage: () => void
   onStopAgent: () => void
+  skills: Skill[]
+  tools: AgentToolConfig[]
 }) {
   return (
     <div className="flex min-h-0 flex-1 items-center bg-muted/40 px-5 pb-20 sm:px-6">
-      <div className="mx-auto w-full max-w-[820px]">
+      <div className="mx-auto w-full max-w-[750px]">
         <EmptyConversation
           composer={
             <ConversationComposer
+              activeMode={activeComposerMode}
               onAttachment={onAttachment}
               onDietImage={onDietImage}
               attachments={composerAttachments}
+              uploadingAttachments={composerUploadingAttachments}
               dietEstimating={dietEstimating}
               onChange={onComposerChange}
               onKeyDown={onComposerKeyDown}
+              onModeChange={onComposerModeChange}
+              onOpenAddData={onOpenAddData}
+              onOpenCapabilities={onOpenCapabilities}
+              onOpenTrainingPlanComposer={onOpenTrainingPlanComposer}
               onRemoveAttachment={onRemoveAttachment}
               onSend={onSendMessage}
               onStop={onStopAgent}
               sending={agentStreaming}
+              skills={skills}
+              tools={tools}
               value={composerValue}
             />
           }
-          onQuickAction={onQuickAction}
         />
       </div>
     </div>

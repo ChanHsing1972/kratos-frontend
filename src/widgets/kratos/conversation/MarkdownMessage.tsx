@@ -144,7 +144,7 @@ export function MarkdownMessage({ children, className }: MarkdownMessageProps) {
   return (
     <div
       className={cn(
-        "markdown-message min-w-0 space-y-2 text-[14px] leading-[1.7] break-words",
+        "markdown-message min-w-0 text-default leading-[1.7] break-words",
         className
       )}
     >

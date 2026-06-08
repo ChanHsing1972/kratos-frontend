@@ -120,6 +120,10 @@ import { OnboardingModal } from "@/widgets/kratos/modals/OnboardingModal"
 import { TrainingShareCardDialog } from "@/widgets/kratos/modals/TrainingShareCardDialog"
 import { DietEstimateDialog } from "@/widgets/kratos/modals/DietEstimateDialog"
 import { TrainingPlanModal } from "@/widgets/kratos/modals/TrainingPlanModal"
+import type {
+  AgentComposerMode,
+  ComposerUploadingAttachment,
+} from "@/widgets/kratos/conversation/ConversationComposer"
 import { Sidebar } from "@/widgets/kratos/sidebar/Sidebar"
 import { SidebarProvider } from "@/shared/ui/sidebar"
 import { Toaster } from "@/shared/ui/sonner"
@@ -149,7 +153,6 @@ import type {
   OnboardingStatus,
   NotificationItem,
   ProfileForm,
-  QuickAction,
   Skill,
   SkillPayload,
   TrainingPlan,
@@ -238,6 +241,27 @@ function stripTrainingPlanJsonContract(
   )
 
   return options.trim === false ? stripped : stripped.trim()
+}
+
+function buildModeAwareAgentMessage({
+  attachments,
+  body,
+  mode,
+}: {
+  attachments: ChatAttachment[]
+  body: string
+  mode: AgentComposerMode | null
+}) {
+  const fallbackAttachmentIntent = attachments.length
+    ? "我上传了附件，请结合附件内容处理。"
+    : ""
+  const userInput = body || fallbackAttachmentIntent || mode?.initialPrompt || ""
+
+  if (!mode) {
+    return body || fallbackAttachmentIntent
+  }
+
+  return `${mode.promptPrefix}\n\n用户输入：${userInput}`.trim()
 }
 
 function isAnswerResetEvent(event: AgentStreamEvent) {
@@ -440,7 +464,10 @@ export function KratosPage() {
         : cachedWorkspaceRef.current?.composerValue ?? ""
     }
   )
+  const [composerMode, setComposerMode] = useState<AgentComposerMode | null>(null)
   const [composerAttachments, setComposerAttachments] = useState<ChatAttachment[]>([])
+  const [composerUploadingAttachments, setComposerUploadingAttachments] =
+    useState<ComposerUploadingAttachment[]>([])
   const [dietEstimating, setDietEstimating] = useState(false)
   const [dietSaving, setDietSaving] = useState(false)
   const [dietEstimateOpen, setDietEstimateOpen] = useState(false)
@@ -491,7 +518,6 @@ export function KratosPage() {
   const [agentCheckins, setAgentCheckins] = useState<AgentCheckin[]>(
     () => cachedWorkspaceRef.current?.agentCheckins ?? []
   )
-  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifications, setNotifications] =
     useState<NotificationItem[]>(
       () =>
@@ -546,25 +572,6 @@ export function KratosPage() {
   useEffect(() => {
     messagesRef.current = messages
   }, [messages])
-
-  useEffect(() => {
-    if (!profileMenuOpen && !notificationsOpen) {
-      return undefined
-    }
-
-    const closeFloatingMenus = (event: PointerEvent) => {
-      if ((event.target as Element | null)?.closest("[data-popover-root]")) {
-        return
-      }
-      setProfileMenuOpen(false)
-      setNotificationsOpen(false)
-    }
-
-    document.addEventListener("pointerdown", closeFloatingMenus)
-    return () => {
-      document.removeEventListener("pointerdown", closeFloatingMenus)
-    }
-  }, [notificationsOpen, profileMenuOpen])
 
   const unreadCount = notifications.filter((item) => !item.read).length
   const activePlan =
@@ -1060,6 +1067,8 @@ export function KratosPage() {
     setTools([])
     setMessages(initialMessages)
     setComposerAttachments([])
+    setComposerUploadingAttachments([])
+    setComposerMode(null)
     setActiveSessionId(null)
     writeActiveAgentSessionId(null)
     setChatSessions([])
@@ -1322,6 +1331,8 @@ export function KratosPage() {
     writeActiveAgentSessionId(null)
     setComposerValue("")
     setComposerAttachments([])
+    setComposerUploadingAttachments([])
+    setComposerMode(null)
     setAgentStreaming(false)
     sendLockRef.current = false
     setActiveNav("new")
@@ -1738,6 +1749,8 @@ export function KratosPage() {
   const handleSendMessage = async () => {
     const body = composerValue.trim()
     const attachments = composerAttachments
+    const displayBody =
+      body || (attachments.length ? `${composerMode?.label ?? "附件"}：已上传附件` : "")
     if (!body && attachments.length === 0) {
       sonnerToast.warning("请输入消息或上传附件")
       return
@@ -1770,7 +1783,7 @@ export function KratosPage() {
           {
             id: nextSessionId,
             title: sessionTitle,
-            preview: body,
+            preview: displayBody,
             updatedAt: new Date().toISOString(),
             messageCount: 2,
             pinned: false,
@@ -1790,7 +1803,7 @@ export function KratosPage() {
           id: createId(),
           author: "user",
           attachments,
-          body,
+          body: displayBody,
           time: formatTime(),
         },
         {
@@ -1810,9 +1823,16 @@ export function KratosPage() {
       ])
     setComposerValue("")
     setComposerAttachments([])
+    setComposerUploadingAttachments([])
 
     let handledStreamSessionId: string | null = null
-    const agentMessage = withTrainingPlanJsonContract(body)
+    const agentMessage = withTrainingPlanJsonContract(
+      buildModeAwareAgentMessage({
+        attachments,
+        body,
+        mode: composerMode,
+      })
+    )
 
     try {
       attachedClientTurnIdsRef.current.add(clientTurnId)
@@ -1852,7 +1872,7 @@ export function KratosPage() {
                 {
                   id: serverSessionId,
                   title: sessionTitle,
-                  preview: body,
+                  preview: displayBody,
                   updatedAt: new Date().toISOString(),
                   messageCount: 2,
                   pinned: false,
@@ -1864,7 +1884,7 @@ export function KratosPage() {
 
           applyAgentEventToSession({
             assistantMessageId,
-            body,
+            body: displayBody,
             event,
             sessionId: event.session_id ?? nextSessionId,
           })
@@ -1945,14 +1965,6 @@ export function KratosPage() {
     sonnerToast.warning("已停止接收本次回复，Agent 会在后台完成")
   }
 
-  const handleQuickAction = (action: QuickAction) => {
-    if (action.title === "查看历史") {
-      setActiveNav("历史记录")
-    }
-    setComposerValue(action.prompt.slice(0, 1000))
-    sonnerToast.info(`${action.title}已填入输入框`)
-  }
-
   const handleConfirmHealthData = async (messageId: string) => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     const message = messages.find((item) => item.id === messageId)
@@ -2031,19 +2043,63 @@ export function KratosPage() {
       return
     }
 
-    void Promise.all(files.map(async (file) => {
+    const remainingSlots = Math.max(
+      0,
+      8 - composerAttachments.length - composerUploadingAttachments.length
+    )
+    if (remainingSlots === 0) {
+      sonnerToast.warning("最多同时附加 8 个文件")
+      return
+    }
+
+    const filesToUpload = files.slice(0, remainingSlots)
+    if (files.length > filesToUpload.length) {
+      sonnerToast.info(`已选择前 ${filesToUpload.length} 个文件，最多附加 8 个`)
+    }
+
+    const pendingUploads = filesToUpload.map((file) => ({
+      content_type: file.type || "application/octet-stream",
+      filename: file.name,
+      id: createId(),
+      size: file.size,
+    }))
+    setComposerUploadingAttachments((current) =>
+      [...current, ...pendingUploads].slice(0, 8)
+    )
+
+    void Promise.allSettled(filesToUpload.map(async (file, index) => {
       const uploaded = await uploadAttachment(token, file)
       return {
-        ...uploaded,
-        data_url: file.type.startsWith("image/") ? await readFileAsDataUrl(file) : null,
+        attachment: {
+          ...uploaded,
+          data_url: file.type.startsWith("image/") ? await readFileAsDataUrl(file) : null,
+        },
+        pendingId: pendingUploads[index].id,
       }
     }))
-      .then((uploads) => {
-        setComposerAttachments((current) => [...current, ...uploads].slice(0, 8))
-        sonnerToast.success(`已上传 ${uploads.length} 个附件`)
-      })
-      .catch((error) => {
-        sonnerToast.error(getErrorMessage(error), { richColors: true })
+      .then((results) => {
+        const pendingIds = new Set(pendingUploads.map((item) => item.id))
+        const uploads: ChatAttachment[] = []
+        const errors: string[] = []
+
+        results.forEach((result) => {
+          if (result.status === "fulfilled") {
+            uploads.push(result.value.attachment)
+            return
+          }
+          errors.push(getErrorMessage(result.reason))
+        })
+
+        setComposerUploadingAttachments((current) =>
+          current.filter((item) => !pendingIds.has(item.id))
+        )
+        if (uploads.length) {
+          setComposerAttachments((current) => [...current, ...uploads].slice(0, 8))
+          sonnerToast.success(`已上传 ${uploads.length} 个附件`)
+        }
+        if (errors.length) {
+          sonnerToast.error(errors[0] ?? "附件上传失败", { richColors: true })
+        }
       })
   }
 
@@ -2983,26 +3039,28 @@ export function KratosPage() {
 
     return (
       <ConversationPage
+        activeComposerMode={composerMode}
         activeSessionTitle={activeSessionTitle}
         agentStreaming={agentStreaming}
         chatTrainingPlanSavingId={chatTrainingPlanSavingId}
         composerAttachments={composerAttachments}
+        composerUploadingAttachments={composerUploadingAttachments}
         composerValue={composerValue}
         conversationLoading={conversationLoading}
         dietEstimating={dietEstimating}
         messages={messages}
-        notifications={notifications}
-        notificationsOpen={notificationsOpen}
         onAttachment={handleAttachment}
         onComposerChange={(value) => setComposerValue(value.slice(0, 1000))}
         onComposerKeyDown={handleComposerKeyDown}
+        onComposerModeChange={setComposerMode}
         onDietImage={handleDietImageEstimate}
         onCreateTrainingPlanFromMessage={handleCreateTrainingPlanFromChat}
         onEditTrainingPlanDraft={openTrainingPlanComposer}
         onConfirmHealthData={handleConfirmHealthData}
         confirmingHealthDataId={confirmingHealthDataId}
-        onMarkNotificationsRead={markAllNotificationsRead}
-        onQuickAction={handleQuickAction}
+        onOpenAddData={openAddDataModal}
+        onOpenCapabilities={() => handleNavSelect("工具技能")}
+        onOpenTrainingPlanComposer={() => openTrainingPlanComposer()}
         onRemoveAttachment={(index) =>
           setComposerAttachments((current) =>
             current.filter((_, itemIndex) => itemIndex !== index)
@@ -3010,18 +3068,10 @@ export function KratosPage() {
         }
         onSendMessage={handleSendMessage}
         onStopAgent={handleStopAgent}
-        onToggleNotifications={() =>
-          setNotificationsOpen((current) => !current)
-        }
-        onToggleTheme={() => {
-          const nextTheme = theme === "dark" ? "light" : "dark"
-          setTheme(nextTheme)
-          sonnerToast.success(`已切换到${nextTheme === "dark" ? "深色" : "浅色"}模式`)
-        }}
         onToggleThinking={() => setThinkingExpanded((current) => !current)}
         thinkingExpanded={thinkingExpanded}
-        theme={theme}
-        unreadCount={unreadCount}
+        skills={skills}
+        tools={tools}
       />
     )
   }
@@ -3053,14 +3103,23 @@ export function KratosPage() {
               onEditBodyData={openBodyMetricEditor}
               onLogin={() => openAuth("login")}
               onLogout={handleLogout}
+              onMarkNotificationsRead={markAllNotificationsRead}
               onAvatarChange={handleAvatarUpload}
               onProfileSubmit={handleProfileSubmit}
               onRegister={() => openAuth("register")}
               onOpenAchievements={() => setAchievementsOpen(true)}
+              onToggleTheme={() => {
+                const nextTheme = theme === "dark" ? "light" : "dark"
+                setTheme(nextTheme)
+                sonnerToast.success(`已切换到${nextTheme === "dark" ? "深色" : "浅色"}模式`)
+              }}
               onToggleMenu={setProfileMenuOpen}
+              notifications={notifications}
               profile={fitnessProfile}
               profileError={profileError}
               profileSubmitting={profileSubmitting}
+              theme={theme}
+              unreadCount={unreadCount}
               user={currentUser}
             />
           }

@@ -6,11 +6,16 @@ import {
   type FormEvent,
 } from "react"
 import {
+  Bell,
+  BellRing,
   ChevronDown,
+  CheckCheck,
   Edit3,
   LoaderCircle,
   LogIn,
   LogOut,
+  Moon,
+  Sun,
   User,
   Activity,
   Trophy,
@@ -20,6 +25,7 @@ import { profileFormFromUser } from "@/entities/kratos/lib/domain"
 import { absoluteApiUrl } from "@/entities/kratos/api/client"
 import type {
   FitnessProfile,
+  NotificationItem,
   ProfileForm,
   UserProfile,
 } from "@/entities/kratos/model/types"
@@ -38,9 +44,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
+import { Button } from "@/shared/ui/button"
+import { ScrollArea } from "@/shared/ui/scroll-area"
 import {
   SidebarMenu,
   SidebarMenuAction,
@@ -55,14 +67,19 @@ type ProfileMenuProps = {
   onEditBodyData: () => void
   onLogin: () => void
   onLogout: () => void
+  onMarkNotificationsRead: () => void
   onOpenAchievements: () => void
   onAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void
   onProfileSubmit: (form: ProfileForm) => void
   onRegister: () => void
+  onToggleTheme: () => void
   onToggleMenu: (open: boolean) => void
+  notifications: NotificationItem[]
   profile: FitnessProfile | null
   profileError: string | null
   profileSubmitting: boolean
+  theme: "dark" | "light" | "system"
+  unreadCount: number
   user: UserProfile | null
 }
 
@@ -73,14 +90,19 @@ export function ProfileMenu({
   onEditBodyData,
   onLogin,
   onLogout,
+  onMarkNotificationsRead,
   onOpenAchievements,
   onAvatarChange,
   onProfileSubmit,
   onRegister,
+  onToggleTheme,
   onToggleMenu,
+  notifications,
   profile,
   profileError,
   profileSubmitting,
+  theme,
+  unreadCount,
   user,
 }: ProfileMenuProps) {
   const [activeDialog, setActiveDialog] = useState<ProfileDialogMode>(null)
@@ -174,7 +196,7 @@ export function ProfileMenu({
               />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="right">
+          <DropdownMenuContent align="end" className="w-72" side="right">
             <DropdownMenuItem>
               <Avatar>
                 <AvatarImage src={avatarSrc} alt={user.username} />
@@ -208,6 +230,87 @@ export function ProfileMenu({
               <Trophy />
               我的成就
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onToggleTheme}>
+              {theme === "dark" ? <Sun /> : <Moon />}
+              {theme === "dark" ? "切换到浅色模式" : "切换到深色模式"}
+            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Bell />
+                <span className="flex-1">通知中心</span>
+                {unreadCount > 0 ? (
+                  <span className="ml-auto grid size-5 place-items-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                    {unreadCount}
+                  </span>
+                ) : null}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-84 p-2" sideOffset={10}>
+                <div className="flex items-center justify-between px-1.5 py-1">
+                  <div>
+                    <DropdownMenuLabel className="px-0 py-0">
+                      通知中心
+                    </DropdownMenuLabel>
+                    <p className="text-xs text-muted-foreground">
+                      {notifications.length
+                        ? `${notifications.length} 条事件`
+                        : "暂无新事件"}
+                    </p>
+                  </div>
+                  <Button
+                    aria-label="全部标记为已读"
+                    disabled={!notifications.some((item) => !item.read)}
+                    onClick={onMarkNotificationsRead}
+                    size="icon"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <CheckCheck className="size-4" />
+                  </Button>
+                </div>
+                <ScrollArea className="mt-1 h-[min(24rem,calc(100vh-10rem))]">
+                  {notifications.length ? (
+                    <div className="space-y-1.5 pr-1">
+                      {notifications.map((item) => (
+                        <div
+                          className="rounded-md border border-border bg-card px-3 py-2 text-sm"
+                          key={item.id}
+                        >
+                          <div className="flex items-start gap-2">
+                            <span
+                              className={cn(
+                                "mt-1.5 size-1.5 shrink-0 rounded-full",
+                                item.read
+                                  ? "bg-muted-foreground/35"
+                                  : "bg-primary"
+                              )}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-xs font-medium">
+                                {item.title}
+                              </p>
+                              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                {item.body}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid min-h-32 place-items-center rounded-md border border-dashed text-center">
+                      <div>
+                        <BellRing className="mx-auto size-5 text-muted-foreground" />
+                        <p className="mt-2 text-sm font-medium">暂无通知</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Agent 完成回复或失败时会出现在这里。
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </ScrollArea>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>
               <LogOut />
