@@ -12,6 +12,7 @@ import { MarkdownMessage } from "@/widgets/kratos/conversation/MarkdownMessage"
 import { ThinkingCard, ThinkingDots } from "@/widgets/kratos/conversation/ThinkingTrace"
 import { TrainingPlanSuggestionCard } from "@/widgets/kratos/conversation/TrainingPlanSuggestionCard"
 import { HealthDataConfirmationCard } from "@/widgets/kratos/conversation/HealthDataConfirmationCard"
+import { DietRecordConfirmationCard } from "@/widgets/kratos/conversation/DietRecordConfirmationCard"
 import { Skeleton } from "@/shared/ui/skeleton"
 
 type ChatBubbleProps = {
@@ -21,6 +22,8 @@ type ChatBubbleProps = {
   onEditTrainingPlanDraft: (payload: TrainingPlanPayload) => void
   onConfirmHealthData: (messageId: string) => void
   confirmingHealthData: boolean
+  onConfirmDietRecords: (messageId: string) => void
+  confirmingDietRecords: boolean
   onToggleThinking: () => void
   thinkingExpanded: boolean
 }
@@ -32,6 +35,8 @@ export function ChatBubble({
   onEditTrainingPlanDraft,
   onConfirmHealthData,
   confirmingHealthData,
+  onConfirmDietRecords,
+  confirmingDietRecords,
   onToggleThinking,
   thinkingExpanded,
 }: ChatBubbleProps) {
@@ -142,6 +147,15 @@ export function ChatBubble({
               loading={confirmingHealthData}
               onConfirm={() => onConfirmHealthData(message.id)}
               saved={Boolean(message.healthDataSaved)}
+            />
+          ) : null}
+
+          {message.suggestedDietRecords && !message.streaming ? (
+            <DietRecordConfirmationCard
+              data={message.suggestedDietRecords}
+              loading={confirmingDietRecords}
+              onConfirm={() => onConfirmDietRecords(message.id)}
+              saved={Boolean(message.dietRecordsSaved)}
             />
           ) : null}
 

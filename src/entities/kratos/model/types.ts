@@ -15,15 +15,15 @@ export type TimelineItem = {
 
 export type AgentTraceStep = {
   type:
-    | "status"
-    | "thought"
-    | "action"
-    | "observation"
-    | "reflection"
-    | "final"
-    | "answer_delta"
-    | "done"
-    | "error"
+  | "status"
+  | "thought"
+  | "action"
+  | "observation"
+  | "reflection"
+  | "final"
+  | "answer_delta"
+  | "done"
+  | "error"
   content: string
   timestamp?: string
   raw?: unknown
@@ -469,14 +469,14 @@ export type HyperateCurrentHeartRate = {
   source: string
   recorded_at: string
   status:
-    | "ok"
-    | "unbound"
-    | "no_data"
-    | "invalid_id"
-    | "invalid_data"
-    | "invalid_response"
-    | "network_error"
-    | "timeout"
+  | "ok"
+  | "unbound"
+  | "no_data"
+  | "invalid_id"
+  | "invalid_data"
+  | "invalid_response"
+  | "network_error"
+  | "timeout"
   detail?: string | null
 }
 
@@ -700,6 +700,8 @@ export type ChatMessage = {
   trainingPlanCreatedId?: number
   suggestedHealthData?: SuggestedHealthData
   healthDataSaved?: boolean
+  suggestedDietRecords?: FoodImageEstimateResult
+  dietRecordsSaved?: boolean
   startedAt?: number
   structuredCardPending?: boolean
   streaming?: boolean

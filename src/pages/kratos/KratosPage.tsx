@@ -497,6 +497,7 @@ export function KratosPage() {
   const [skillSubmitting, setSkillSubmitting] = useState(false)
   const [skillError, setSkillError] = useState<string | null>(null)
   const [confirmingHealthDataId, setConfirmingHealthDataId] = useState<string | null>(null)
+  const [confirmingDietRecordsId, setConfirmingDietRecordsId] = useState<string | null>(null)
   const [fitnessContext, setFitnessContext] = useState<FitnessContext | null>(
     () => cachedWorkspaceRef.current?.fitnessContext ?? null
   )
@@ -564,6 +565,7 @@ export function KratosPage() {
   const liveMessagesBySessionRef = useRef<Record<string, ChatMessage[]>>({})
   const messagesRef = useRef<ChatMessage[]>(messages)
   const sendLockRef = useRef(false)
+  const dietImageFileRef = useRef<File | null>(null)
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId
@@ -1798,29 +1800,29 @@ export function KratosPage() {
     activeStreamRef.current = controller
     setAgentStreaming(true)
     updateLiveSessionMessages(nextSessionId, (current) => [
-        ...current,
-        {
-          id: createId(),
-          author: "user",
-          attachments,
-          body: displayBody,
-          time: formatTime(),
-        },
-        {
-          id: assistantMessageId,
-          author: "assistant",
-          body: "",
-          startedAt: Date.now(),
-          streaming: true,
-          time: formatTime(),
-          trace: [
-            {
-              type: "status",
-              content: "正在连接 Kratos Agent...",
-            },
-          ],
-        },
-      ])
+      ...current,
+      {
+        id: createId(),
+        author: "user",
+        attachments,
+        body: displayBody,
+        time: formatTime(),
+      },
+      {
+        id: assistantMessageId,
+        author: "assistant",
+        body: "",
+        startedAt: Date.now(),
+        streaming: true,
+        time: formatTime(),
+        trace: [
+          {
+            type: "status",
+            content: "正在连接 Kratos Agent...",
+          },
+        ],
+      },
+    ])
     setComposerValue("")
     setComposerAttachments([])
     setComposerUploadingAttachments([])
@@ -1899,6 +1901,25 @@ export function KratosPage() {
         })
       }
       void refreshDashboard(token, { preserveMessages: true })
+
+      // Auto-estimate diet from image when in diet-log mode
+      const dietImageFile = dietImageFileRef.current
+      if (dietImageFile && composerMode?.id === "diet-log") {
+        dietImageFileRef.current = null
+        void estimateDietFromImage(token, dietImageFile)
+          .then((response) => {
+            updateLiveSessionMessages(nextSessionId, (current) =>
+              current.map((msg) =>
+                msg.id === assistantMessageId
+                  ? { ...msg, suggestedDietRecords: response.data }
+                  : msg
+              )
+            )
+          })
+          .catch((error) => {
+            sonnerToast.error(getErrorMessage(error), { richColors: true })
+          })
+      }
     } catch (error) {
       if (controller.signal.aborted) {
         return
@@ -2015,6 +2036,35 @@ export function KratosPage() {
     }
   }
 
+  const handleConfirmDietRecords = async (messageId: string) => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    const message = messages.find((item) => item.id === messageId)
+    const data = message?.suggestedDietRecords
+    if (!token || !data || !data.items.length) {
+      openAuth("login")
+      return
+    }
+    setConfirmingDietRecordsId(messageId)
+    try {
+      const saved = await createDietRecords(token, {
+        meal_date: localDateValue(new Date()),
+        items: data.items,
+      })
+      setDietRecords((current) => [...saved, ...current])
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === messageId ? { ...item, dietRecordsSaved: true } : item
+        )
+      )
+      await refreshDashboard(token, { preserveMessages: true })
+      sonnerToast.success("已确认并保存饮食记录")
+    } catch (error) {
+      sonnerToast.error(getErrorMessage(error), { richColors: true })
+    } finally {
+      setConfirmingDietRecordsId(null)
+    }
+  }
+
   const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (
       event.key !== "Enter" ||
@@ -2055,6 +2105,14 @@ export function KratosPage() {
     const filesToUpload = files.slice(0, remainingSlots)
     if (files.length > filesToUpload.length) {
       sonnerToast.info(`已选择前 ${filesToUpload.length} 个文件，最多附加 8 个`)
+    }
+
+    // Auto-estimate diet image: store first image file for later use
+    if (composerMode?.id === "diet-log") {
+      const firstImage = filesToUpload.find((f) => f.type.startsWith("image/"))
+      if (firstImage) {
+        dietImageFileRef.current = firstImage
+      }
     }
 
     const pendingUploads = filesToUpload.map((file) => ({
@@ -3058,6 +3116,8 @@ export function KratosPage() {
         onEditTrainingPlanDraft={openTrainingPlanComposer}
         onConfirmHealthData={handleConfirmHealthData}
         confirmingHealthDataId={confirmingHealthDataId}
+        onConfirmDietRecords={handleConfirmDietRecords}
+        confirmingDietRecordsId={confirmingDietRecordsId}
         onOpenAddData={openAddDataModal}
         onOpenCapabilities={() => handleNavSelect("工具技能")}
         onOpenTrainingPlanComposer={() => openTrainingPlanComposer()}
