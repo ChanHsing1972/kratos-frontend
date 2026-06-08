@@ -392,6 +392,38 @@ function readFileAsDataUrl(file: File) {
   })
 }
 
+function readImageAsAgentDataUrl(file: File) {
+  const maxEdge = 1024
+  const quality = 0.72
+
+  return new Promise<string>((resolve, reject) => {
+    const image = new Image()
+    const objectUrl = URL.createObjectURL(file)
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      const scale = Math.min(1, maxEdge / Math.max(image.width, image.height))
+      const width = Math.max(1, Math.round(image.width * scale))
+      const height = Math.max(1, Math.round(image.height * scale))
+      const canvas = document.createElement("canvas")
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext("2d")
+      if (!context) {
+        reject(new Error("图片压缩失败"))
+        return
+      }
+      context.drawImage(image, 0, 0, width, height)
+      resolve(canvas.toDataURL("image/jpeg", quality))
+    }
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      readFileAsDataUrl(file).then(resolve, reject)
+    }
+    image.src = objectUrl
+  })
+}
+
 export function KratosPage() {
   const { setTheme, theme } = useTheme()
   const cachedWorkspaceRef = useRef(readWorkspaceSnapshot())
@@ -561,6 +593,7 @@ export function KratosPage() {
   const [trainingShareCardOpen, setTrainingShareCardOpen] = useState(false)
   const activeClientTurnIdRef = useRef<string | null>(null)
   const activeStreamRef = useRef<AbortController | null>(null)
+  const activeClientTurnIdRef = useRef<string | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
   const attachedClientTurnIdsRef = useRef<Set<string>>(new Set())
   const dataCenterRefreshRef = useRef(0)
@@ -1776,6 +1809,7 @@ export function KratosPage() {
     let nextSessionId = activeSessionId ?? createId()
     activeSessionIdRef.current = nextSessionId
     const clientTurnId = createId()
+    activeClientTurnIdRef.current = clientTurnId
     if (!activeSessionId) {
       const sessionTitle = "新会话"
       setActiveSessionId(nextSessionId)
@@ -1966,11 +2000,14 @@ export function KratosPage() {
     const stoppingClientTurnId = activeClientTurnIdRef.current
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (token && stoppingClientTurnId) {
-      void cancelAgentChatStream(token, stoppingClientTurnId).catch(() => null)
+      void cancelAgentChatStream(token, stoppingClientTurnId).catch((error) => {
+        sonnerToast.error(getErrorMessage(error), { richColors: true })
+      })
     }
     activeStreamRef.current?.abort()
     activeClientTurnIdRef.current = null
     activeStreamRef.current = null
+    activeClientTurnIdRef.current = null
     setAgentStreaming(false)
     sendLockRef.current = false
     const updateMessages = (current: ChatMessage[]) =>
@@ -2142,7 +2179,9 @@ export function KratosPage() {
       return {
         attachment: {
           ...uploaded,
-          data_url: file.type.startsWith("image/") ? await readFileAsDataUrl(file) : null,
+          data_url: file.type.startsWith("image/")
+            ? await readImageAsAgentDataUrl(file)
+            : null,
         },
         pendingId: pendingUploads[index].id,
       }

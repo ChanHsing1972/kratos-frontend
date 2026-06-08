@@ -448,10 +448,12 @@ export function ConversationComposer({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              aria-label={sending ? "停止生成" : "发送"}
+              aria-label={sending ? "终止 Agent" : "发送"}
               aria-disabled={!sending && !canSend}
               className={
-                !sending && !canSend
+                sending
+                  ? "size-8 rounded-full bg-red-600 p-0 text-white shadow-none hover:bg-red-700 focus-visible:ring-red-500"
+                  : !canSend
                   ? "size-8 rounded-full p-0 opacity-45 shadow-none"
                   : "size-8 rounded-full p-0 shadow-none"
               }
@@ -475,7 +477,7 @@ export function ConversationComposer({
               )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="top">{sending ? "停止生成" : "发送"}</TooltipContent>
+          <TooltipContent side="top">{sending ? "终止 Agent" : "发送"}</TooltipContent>
         </Tooltip>
       </InputGroupAddon>
     </InputGroup>
