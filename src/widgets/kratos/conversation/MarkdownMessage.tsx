@@ -20,7 +20,7 @@ const markdownComponents: Components = {
   a: ({ className, ...props }) => (
     <a
       className={cn(
-        "font-medium text-foreground underline decoration-foreground/30 underline-offset-3 transition-colors hover:decoration-foreground",
+        "break-all font-medium text-foreground underline decoration-foreground/30 underline-offset-3 transition-colors hover:decoration-foreground",
         className
       )}
       rel="noreferrer"
@@ -141,6 +141,8 @@ const markdownComponents: Components = {
 }
 
 export function MarkdownMessage({ children, className }: MarkdownMessageProps) {
+  const normalizedMarkdown = normalizeMarkdownForRendering(children)
+
   return (
     <div
       className={cn(
@@ -152,8 +154,55 @@ export function MarkdownMessage({ children, className }: MarkdownMessageProps) {
         components={markdownComponents}
         remarkPlugins={[remarkGfm]}
       >
-        {children}
+        {normalizedMarkdown}
       </ReactMarkdown>
     </div>
   )
+}
+
+function normalizeMarkdownForRendering(markdown: string) {
+  let text = markdown.replace(/\r\n/g, "\n").trim()
+
+  // Repair common LLM output where a table header is glued to the preceding
+  // sentence, e.g. "今日训练安排| 动作 | 组数 |".
+  text = text.replace(
+    /([^\n])(\|\s*(?:动作|周几|训练内容|餐次|项目|指标|日期|部位)\s*\|)/g,
+    "$1\n$2"
+  )
+
+  // Repair row boundaries that were collapsed into "| |".
+  text = text.replace(/\|\s+\|/g, "|\n|")
+
+  // Put GFM separator rows on their own line.
+  text = text.replace(/\s+(\|\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?)/g, "\n$1")
+  text = text
+    .split("\n")
+    .map(splitTrailingTextAfterTableRow)
+    .join("\n")
+
+  // Some answers glue a new section heading or list directly after a sentence.
+  text = text.replace(/([。.!?])\s*(#{2,6})(?=\S)/g, "$1\n\n$2 ")
+  text = text.replace(/([。.!?])\s*(#{2,6}\s+)/g, "$1\n\n$2")
+  text = text.replace(/([^\n])\s+(#{2,6})(?=\S)/g, "$1\n\n$2 ")
+  text = text.replace(/([^\n])\s+(#{2,6}\s+)/g, "$1\n\n$2")
+  text = text.replace(/([\u4e00-\u9fffA-Za-z0-9]{2,30})-\s+(?=[\u4e00-\u9fffA-Za-z])/g, "$1\n- ")
+  text = text.replace(/([^\n])([。.!?])\s*-\s+(?=[^\n])/g, "$1$2\n- ")
+  text = text.replace(/([^\n])\s+-\s+(?=[\u4e00-\u9fffA-Za-z])/g, "$1\n- ")
+
+  return text
+}
+
+function splitTrailingTextAfterTableRow(line: string) {
+  if (!line.trimStart().startsWith("|")) {
+    return line
+  }
+  const lastPipe = line.lastIndexOf("|")
+  if (lastPipe < 0 || lastPipe === line.length - 1) {
+    return line
+  }
+  const trailing = line.slice(lastPipe + 1).trim()
+  if (!trailing) {
+    return line
+  }
+  return `${line.slice(0, lastPipe + 1)}\n${trailing}`
 }

@@ -30,6 +30,7 @@ export type AgentTraceStep = {
 }
 
 export type AgentStreamEvent = AgentTraceStep & {
+  run_id?: string
   session_id?: string
   answer?: string
   delta?: string

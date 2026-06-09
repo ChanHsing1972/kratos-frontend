@@ -712,9 +712,14 @@ export function KratosPage() {
       activeStreamRef.current = null
       setAgentStreaming(false)
       sendLockRef.current = false
-      pushNotification("Agent 回复完成", body.slice(0, 36) || "一条对话已生成结果")
+      if (event.answer) {
+        pushNotification("Agent 回复完成", body.slice(0, 36) || "一条对话已生成结果")
+      }
     }
     if (event.type === "error") {
+      activeStreamRef.current = null
+      setAgentStreaming(false)
+      sendLockRef.current = false
       pushNotification("Agent 回复失败", event.content || "请稍后重试")
     }
 
