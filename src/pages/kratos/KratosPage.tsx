@@ -13,6 +13,7 @@ import { initialMessages } from "@/features/kratos/model/fixtures"
 import {
   AUTH_TOKEN_KEY,
   activateTrainingPlan,
+  cancelAgentChatStream,
   createAgentCheckin,
   createBodyMetric,
   createDietRecords,
@@ -558,6 +559,7 @@ export function KratosPage() {
   const [trainingShareCard, setTrainingShareCard] =
     useState<WorkoutShareCard | null>(null)
   const [trainingShareCardOpen, setTrainingShareCardOpen] = useState(false)
+  const activeClientTurnIdRef = useRef<string | null>(null)
   const activeStreamRef = useRef<AbortController | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
   const attachedClientTurnIdsRef = useRef<Set<string>>(new Set())
@@ -1797,6 +1799,7 @@ export function KratosPage() {
 
     const assistantMessageId = createId()
     const controller = new AbortController()
+    activeClientTurnIdRef.current = clientTurnId
     activeStreamRef.current = controller
     setAgentStreaming(true)
     updateLiveSessionMessages(nextSessionId, (current) => [
@@ -1949,6 +1952,9 @@ export function KratosPage() {
       )
     } finally {
       attachedClientTurnIdsRef.current.delete(clientTurnId)
+      if (activeClientTurnIdRef.current === clientTurnId) {
+        activeClientTurnIdRef.current = null
+      }
       activeStreamRef.current = null
       setAgentStreaming(false)
       sendLockRef.current = false
@@ -1957,7 +1963,13 @@ export function KratosPage() {
 
   const handleStopAgent = () => {
     const stoppingSessionId = activeSessionId
+    const stoppingClientTurnId = activeClientTurnIdRef.current
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    if (token && stoppingClientTurnId) {
+      void cancelAgentChatStream(token, stoppingClientTurnId).catch(() => null)
+    }
     activeStreamRef.current?.abort()
+    activeClientTurnIdRef.current = null
     activeStreamRef.current = null
     setAgentStreaming(false)
     sendLockRef.current = false
@@ -1972,7 +1984,7 @@ export function KratosPage() {
               ...(message.trace ?? []),
               {
                 type: "status" as const,
-                content: "已停止接收本次回复，Agent 会在后台完成",
+                content: "已终止本次 Agent 回复",
               },
             ],
           }
@@ -1983,7 +1995,7 @@ export function KratosPage() {
     } else {
       setMessages(updateMessages)
     }
-    sonnerToast.warning("已停止接收本次回复，Agent 会在后台完成")
+    sonnerToast.warning("已终止本次 Agent 回复")
   }
 
   const handleConfirmHealthData = async (messageId: string) => {

@@ -626,6 +626,16 @@ export async function streamAgentChat({
   }
 }
 
+export async function cancelAgentChatStream(token: string, clientTurnId: string) {
+  return authorizedJson<{ cancelled: boolean }>(
+    `/agent/chat/stream/${encodeURIComponent(clientTurnId)}/cancel`,
+    token,
+    {
+      method: "POST",
+    }
+  )
+}
+
 async function authorizedJson<T>(
   path: string,
   token: string,
