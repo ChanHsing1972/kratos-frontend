@@ -451,9 +451,7 @@ export function ConversationComposer({
               aria-label={sending ? "终止 Agent" : "发送"}
               aria-disabled={!sending && !canSend}
               className={
-                sending
-                  ? "size-8 rounded-full bg-red-600 p-0 text-white shadow-none hover:bg-red-700 focus-visible:ring-red-500"
-                  : !canSend
+                !canSend && !sending
                   ? "size-8 rounded-full p-0 opacity-45 shadow-none"
                   : "size-8 rounded-full p-0 shadow-none"
               }

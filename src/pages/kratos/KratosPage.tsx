@@ -591,7 +591,6 @@ export function KratosPage() {
   const [trainingShareCard, setTrainingShareCard] =
     useState<WorkoutShareCard | null>(null)
   const [trainingShareCardOpen, setTrainingShareCardOpen] = useState(false)
-  const activeClientTurnIdRef = useRef<string | null>(null)
   const activeStreamRef = useRef<AbortController | null>(null)
   const activeClientTurnIdRef = useRef<string | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
