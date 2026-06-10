@@ -10,6 +10,7 @@ import type {
   ChatMessage,
   DetailPanel,
   FitnessProfile,
+  FoodImageEstimateResult,
   OnboardingStatus,
   ProfileForm,
   TrainingPlan,
@@ -299,6 +300,7 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
           completedAt: running ? undefined : completedAt,
           startedAt,
           structuredCardPending: running && structuredCardPendingFromTrace(run.trace_steps),
+          suggestedDietRecords: foodImageEstimateFromAgentResult(run.result_payload),
           suggestedTrainingPlan: trainingPlanPayloadFromAgentResult(run.result_payload),
           suggestedHealthData: pendingHealthDataFromTrace(run.trace_steps),
           streaming: running,
@@ -408,6 +410,61 @@ export function trainingPlanPayloadFromAgentResult(
     summary: buildWorkoutPlanSummary(title, goal, sessions),
     title,
     weekly_schedule: weeklySchedule,
+  }
+}
+
+export function foodImageEstimateFromAgentResult(
+  raw: unknown
+): FoodImageEstimateResult | undefined {
+  const result = asRecord(raw)
+  const estimate = asRecord(result?.food_image_estimate)
+  if (!estimate) {
+    return undefined
+  }
+
+  const items = asRecordArray(estimate.items)
+    .map((item) => ({
+      assumptions: stringArray(item.assumptions),
+      carbs_g: numberValue(item.carbs_g) ?? 0,
+      confidence: clampNumber(numberValue(item.confidence) ?? 0, 0, 1),
+      estimated_kcal: numberValue(item.estimated_kcal) ?? 0,
+      estimated_weight_g: numberValue(item.estimated_weight_g) ?? 0,
+      fat_g: numberValue(item.fat_g) ?? 0,
+      max_kcal: numberValue(item.max_kcal) ?? numberValue(item.estimated_kcal) ?? 0,
+      min_kcal: numberValue(item.min_kcal) ?? numberValue(item.estimated_kcal) ?? 0,
+      name: textValue(item.name) ?? "未知食物",
+      protein_g: numberValue(item.protein_g) ?? 0,
+      source: textValue(item.source) ?? "ai_estimated",
+    }))
+    .filter((item) => item.name && item.estimated_kcal > 0)
+
+  if (!items.length) {
+    return undefined
+  }
+
+  const total = asRecord(estimate.total)
+  return {
+    items,
+    need_user_confirmation: true,
+    total: {
+      carbs_g: numberValue(total?.carbs_g) ?? roundOne(items.reduce((sum, item) => sum + item.carbs_g, 0)),
+      estimated_kcal:
+        numberValue(total?.estimated_kcal) ??
+        roundOne(items.reduce((sum, item) => sum + item.estimated_kcal, 0)),
+      fat_g: numberValue(total?.fat_g) ?? roundOne(items.reduce((sum, item) => sum + item.fat_g, 0)),
+      max_kcal:
+        numberValue(total?.max_kcal) ??
+        roundOne(items.reduce((sum, item) => sum + item.max_kcal, 0)),
+      min_kcal:
+        numberValue(total?.min_kcal) ??
+        roundOne(items.reduce((sum, item) => sum + item.min_kcal, 0)),
+      protein_g:
+        numberValue(total?.protein_g) ??
+        roundOne(items.reduce((sum, item) => sum + item.protein_g, 0)),
+    },
+    warning:
+      textValue(estimate.warning) ??
+      "该结果为 AI 估算，可能受到拍摄角度、食物遮挡、油量、酱料和份量判断误差影响。",
   }
 }
 
@@ -941,6 +998,14 @@ function numberValue(value: unknown) {
   }
 
   return null
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function roundOne(value: number) {
+  return Math.round(value * 10) / 10
 }
 
 export function formatTime() {

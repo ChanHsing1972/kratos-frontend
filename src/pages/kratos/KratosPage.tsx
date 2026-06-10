@@ -57,6 +57,7 @@ import {
   chatMessagesFromAgentRuns,
   chatSessionFromAgentSession,
   chatSessionsFromAgentSessions,
+  foodImageEstimateFromAgentResult,
   formatTime,
   getLatestByDate,
   trainingPlanPayloadFromAgentResult,
@@ -599,7 +600,6 @@ export function KratosPage() {
   const liveMessagesBySessionRef = useRef<Record<string, ChatMessage[]>>({})
   const messagesRef = useRef<ChatMessage[]>(messages)
   const sendLockRef = useRef(false)
-  const dietImageFileRef = useRef<File | null>(null)
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId
@@ -729,6 +729,8 @@ export function KratosPage() {
         }
         const suggestedHealthData =
           healthDataFromAgentRaw(event.raw) ?? message.suggestedHealthData
+        const suggestedDietRecords =
+          foodImageEstimateFromAgentResult(event.raw) ?? message.suggestedDietRecords
         const structuredCardPending =
           event.type === "done" || event.type === "final" || event.type === "error"
             ? false
@@ -737,7 +739,7 @@ export function KratosPage() {
         if (isAnswerResetEvent(event)) {
           return {
             ...message,
-            body: "",
+            suggestedDietRecords,
             suggestedHealthData,
             structuredCardPending,
             trace: [...(message.trace ?? []), event],
@@ -745,11 +747,15 @@ export function KratosPage() {
         }
 
         if (event.type === "done") {
+          const nextBody = event.answer
+            ? stripTrainingPlanJsonContract(event.answer)
+            : message.body
           return {
             ...message,
-            body: stripTrainingPlanJsonContract(event.answer ?? message.body),
+            body: nextBody,
             completedAt: Date.now(),
             streaming: false,
+            suggestedDietRecords,
             structuredCardPending,
             suggestedHealthData,
           }
@@ -771,6 +777,7 @@ export function KratosPage() {
             completedAt: Date.now(),
             error: event.content,
             streaming: false,
+            suggestedDietRecords,
             suggestedHealthData,
             structuredCardPending,
             trace: [...(message.trace ?? []), event],
@@ -782,6 +789,9 @@ export function KratosPage() {
             event.raw,
             event.answer ?? event.content ?? message.body
           )
+          const nextBody = stripTrainingPlanJsonContract(
+            event.answer || event.content || message.body
+          )
           const generatedAlready = suggestedTrainingPlan
             ? generatedTrainingPlanKeys.has(
               trainingPlanDraftKey(suggestedTrainingPlan)
@@ -789,9 +799,10 @@ export function KratosPage() {
             : false
           return {
             ...message,
-            body: message.body || event.answer || event.content || "",
+            body: nextBody,
             completedAt: Date.now(),
             streaming: false,
+            suggestedDietRecords,
             suggestedHealthData,
             structuredCardPending,
             suggestedTrainingPlan:
@@ -805,6 +816,7 @@ export function KratosPage() {
 
         return {
           ...message,
+          suggestedDietRecords,
           suggestedHealthData,
           structuredCardPending,
           trace: [...(message.trace ?? []), event],
@@ -1942,25 +1954,6 @@ export function KratosPage() {
         })
       }
       void refreshDashboard(token, { preserveMessages: true })
-
-      // Auto-estimate diet from image when in diet-log mode
-      const dietImageFile = dietImageFileRef.current
-      if (dietImageFile && composerMode?.id === "diet-log") {
-        dietImageFileRef.current = null
-        void estimateDietFromImage(token, dietImageFile)
-          .then((response) => {
-            updateLiveSessionMessages(nextSessionId, (current) =>
-              current.map((msg) =>
-                msg.id === assistantMessageId
-                  ? { ...msg, suggestedDietRecords: response.data }
-                  : msg
-              )
-            )
-          })
-          .catch((error) => {
-            sonnerToast.error(getErrorMessage(error), { richColors: true })
-          })
-      }
     } catch (error) {
       if (controller.signal.aborted) {
         return
@@ -2158,14 +2151,6 @@ export function KratosPage() {
     const filesToUpload = files.slice(0, remainingSlots)
     if (files.length > filesToUpload.length) {
       sonnerToast.info(`已选择前 ${filesToUpload.length} 个文件，最多附加 8 个`)
-    }
-
-    // Auto-estimate diet image: store first image file for later use
-    if (composerMode?.id === "diet-log") {
-      const firstImage = filesToUpload.find((f) => f.type.startsWith("image/"))
-      if (firstImage) {
-        dietImageFileRef.current = firstImage
-      }
     }
 
     const pendingUploads = filesToUpload.map((file) => ({

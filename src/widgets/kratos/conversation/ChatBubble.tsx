@@ -111,7 +111,7 @@ export function ChatBubble({
             </div>
           ) : null}
           <div className="mt-3 min-h-7">
-            {message.body && !shouldHoldStreamingMarkdownTable(message.body, message.streaming) ? (
+            {message.body ? (
               <MarkdownMessage className="text-foreground">
                 {message.body}
               </MarkdownMessage>
@@ -249,20 +249,4 @@ function AttachmentPreviewList({
       })}
     </div>
   )
-}
-
-function shouldHoldStreamingMarkdownTable(body: string, streaming?: boolean) {
-  if (!streaming) {
-    return false
-  }
-
-  const lines = body.split(/\r?\n/)
-  const tableLineIndex = lines.findIndex((line) => line.trim().startsWith("|"))
-  if (tableLineIndex < 0) {
-    return false
-  }
-
-  return !lines
-    .slice(tableLineIndex + 1)
-    .some((line) => /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line))
 }

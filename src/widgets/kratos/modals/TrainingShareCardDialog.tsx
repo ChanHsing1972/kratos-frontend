@@ -9,6 +9,9 @@ import { Button } from "@/shared/ui/button"
 import { Dialog, DialogContent, DialogFooter } from "@/shared/ui/dialog"
 import { Spinner } from "@/shared/ui/spinner"
 
+const SHARE_CARD_WIDTH = 432
+const SHARE_CARD_MIN_HEIGHT = 560
+
 type TrainingShareCardDialogProps = {
   card: WorkoutShareCard | null
   onOpenChange: (open: boolean) => void
@@ -24,7 +27,7 @@ export function TrainingShareCardDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden sm:max-w-lg">
+      <DialogContent className="overflow-hidden sm:max-w-[472px]">
         {card ? (
           <TrainingShareCardPreview card={card} captureRef={shareCardRef} />
         ) : (
@@ -82,33 +85,29 @@ export function TrainingShareCardPreview({
   const hasHeartRate = Boolean(
     card.avg_bpm || card.max_bpm || card.heart_rate_zone_label
   )
-  // const statusLabel = card.completed ? "全部完成" : "部分完成"
 
   return (
-    <div className="-m-5 overflow-hidden bg-[#f7f3e8]" ref={captureRef}>
-      <div className="relative min-h-[560px] bg-[#101010] text-white">
+    <div className="overflow-x-auto bg-[#f7f3e8]">
+      <div
+        className="relative overflow-hidden bg-[#101010] text-white"
+        ref={captureRef}
+        style={{ minHeight: SHARE_CARD_MIN_HEIGHT, width: SHARE_CARD_WIDTH }}
+      >
         <div className="absolute inset-x-0 top-0 h-28 bg-[linear-gradient(135deg,#f5ff66_0%,#43e2c4_48%,#8bd8ff_100%)]" />
         <div className="absolute top-44 -left-12 h-44 w-44 rounded-full bg-[#43e2c4]/25 blur-3xl" />
         <div className="absolute top-40 right-0 h-56 w-56 rounded-full bg-[#f5ff66]/20 blur-3xl" />
         <div className="absolute inset-x-0 bottom-0 h-36 bg-[linear-gradient(0deg,rgba(67,226,196,0.18),transparent)]" />
 
-        <div className="relative p-5 sm:p-6">
+        <div className="relative p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              {/* <div className="inline-flex items-center gap-1.5 rounded-full bg-black/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#f5ff66]">
-                <Trophy className="size-3" />
-                {statusLabel}
-              </div> */}
               <p className="text-[11px] tracking-[0.2em] text-black/60 uppercase">
                 KRATOS TRAINING
               </p>
-              <h3 className="mt-1 max-w-[20rem] text-3xl leading-[1.04] font-semibold text-black sm:text-4xl">
+              <h3 className="mt-1 max-w-[20rem] text-4xl leading-[1.04] font-semibold text-black">
                 {card.workout_title}
               </h3>
             </div>
-            {/* <span className="grid size-12 shrink-0 place-items-center rounded-3xl bg-black text-white shadow-[0_16px_36px_rgba(0,0,0,0.22)]">
-              <Sparkles className="size-6" />
-            </span> */}
           </div>
 
           <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1.5 text-xs font-medium text-black/70 shadow-sm backdrop-blur">
@@ -220,10 +219,10 @@ function HeroMetric({
       <p className="mt-3 flex flex-wrap items-baseline gap-x-1.5 gap-y-2 leading-none font-black">
         {segments.map((segment, index) => (
           <span className="inline-flex items-baseline" key={`${segment.unit}-${index}`}>
-            <span className="text-5xl tracking-tight sm:text-6xl">
+            <span className="text-6xl tracking-tight">
               {segment.value}
             </span>
-            <span className="ml-1 text-base font-semibold text-black/60 sm:text-lg">
+            <span className="ml-1 text-lg font-semibold text-black/60">
               {segment.unit}
             </span>
           </span>
@@ -331,9 +330,18 @@ async function downloadShareCardPng(
     throw new Error("Share card preview is unavailable")
   }
 
+  const width = node.scrollWidth || SHARE_CARD_WIDTH
+  const height = node.scrollHeight || SHARE_CARD_MIN_HEIGHT
   const url = await toPng(node, {
+    backgroundColor: "#101010",
     cacheBust: true,
+    height,
     pixelRatio: 2,
+    style: {
+      height: `${height}px`,
+      width: `${width}px`,
+    },
+    width,
   })
   const link = document.createElement("a")
   link.href = url
