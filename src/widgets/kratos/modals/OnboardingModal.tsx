@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react"
-import { ChevronRight, ChevronLeft } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { profileFormFromUser } from "@/entities/kratos/lib/domain"
 import type {
@@ -23,6 +23,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog"
+import { Label } from "@/shared/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select"
 import { Spinner } from "@/shared/ui/spinner"
 
 type OnboardingModalProps = {
@@ -38,31 +47,40 @@ type OnboardingModalProps = {
 
 const STEPS = [
   {
-    id: "personal",
-    title: "个人信息",
-    description: "让我们先了解您的基本情况。",
+    id: "basic",
+    title: "基础数据",
+    description: "年龄、性别、身高和体重。",
   },
   {
-    id: "training_exp",
-    title: "训练目标与经验",
-    description: "了解您的经验和目标，以便为您量身定制计划。",
+    id: "goal",
+    title: "目标偏好",
+    description: "运动目标、偏好类型和活动水平。",
   },
   {
-    id: "training_habit",
-    title: "日常训练偏好",
-    description: "您的可分配时间和常用器械。",
+    id: "schedule",
+    title: "训练能力",
+    description: "每周频率、单次时长和训练经验。",
   },
   {
-    id: "health",
-    title: "健康与饮食",
-    description: "了解您的限制因素，确保训练安全。",
-  },
-  {
-    id: "body_metrics",
-    title: "身体数据",
-    description: "您的初始身体数据，用于计算基础代谢和制定计划。",
+    id: "safety",
+    title: "伤病史",
+    description: "记录需要避开的动作或部位。",
   },
 ] as const
+
+const GENDER_OPTIONS = ["男", "女", "非二元/其他", "不便透露"]
+const GOAL_OPTIONS = ["减脂塑形", "增肌", "提升体能", "健康维持", "康复恢复"]
+const WORKOUT_TYPE_OPTIONS = ["力量训练", "跑步", "HIIT", "瑜伽/拉伸", "游泳", "球类", "居家训练"]
+const ACTIVITY_LEVEL_OPTIONS = ["久坐", "轻度活动", "中等活动", "高活动量"]
+const EXPERIENCE_OPTIONS = ["新手", "初级", "中等", "高级"]
+const DURATION_OPTIONS = [
+  { label: "30 分钟", value: "30" },
+  { label: "45 分钟", value: "45" },
+  { label: "60 分钟", value: "60" },
+  { label: "75 分钟", value: "75" },
+  { label: "90 分钟", value: "90" },
+  { label: "120 分钟", value: "120" },
+]
 
 export function OnboardingModal({
   bodyMetric,
@@ -72,6 +90,7 @@ export function OnboardingModal({
   onSubmit,
   open,
   profile,
+  status,
 }: OnboardingModalProps) {
   const [profileForm, setProfileForm] = useState<ProfileForm>(() =>
     profileFormFromUser(profile)
@@ -79,7 +98,10 @@ export function OnboardingModal({
   const [bodyForm, setBodyForm] = useState<BodyMetricForm>(() =>
     bodyMetricFormFromMetric(bodyMetric)
   )
-  const [currentStep, setCurrentStep] = useState(0)
+  const [currentStep, setCurrentStep] = useState(() =>
+    initialStepFromStatus(status)
+  )
+  const [stepError, setStepError] = useState<string | null>(null)
 
   if (!open) {
     return null
@@ -87,14 +109,23 @@ export function OnboardingModal({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const validationError = validateStep(currentStep, profileForm, bodyForm)
+    if (validationError) {
+      setStepError(validationError)
+      return
+    }
+
+    setStepError(null)
     if (currentStep < STEPS.length - 1) {
       setCurrentStep((prev) => prev + 1)
-    } else {
-      onSubmit(profileForm, bodyForm)
+      return
     }
+
+    onSubmit(profileForm, bodyForm)
   }
 
   const handleBack = () => {
+    setStepError(null)
     if (currentStep > 0) {
       setCurrentStep((prev) => prev - 1)
       return
@@ -103,6 +134,7 @@ export function OnboardingModal({
   }
 
   const stepInfo = STEPS[currentStep]
+  const displayError = stepError ?? error
 
   return (
     <Dialog
@@ -117,235 +149,60 @@ export function OnboardingModal({
         <form className="grid gap-5" onSubmit={submit}>
           <DialogHeader>
             <div className="mb-4 flex items-center gap-2 text-[12px] font-bold text-muted-foreground">
-              {STEPS.map((s, idx) => (
-                <div key={s.id} className="flex items-center gap-2">
+              {STEPS.map((step, idx) => (
+                <div key={step.id} className="flex items-center gap-2">
                   <div
-                    className={`flex size-5 items-center justify-center rounded-full text-[10px] ${idx === currentStep
-                      ? "bg-primary text-primary-foreground"
-                      : idx < currentStep
-                        ? "bg-primary/20 text-primary"
-                        : "bg-muted text-muted-foreground"
-                      }`}
+                    className={`flex size-5 items-center justify-center rounded-full text-[10px] ${
+                      idx === currentStep
+                        ? "bg-primary text-primary-foreground"
+                        : idx < currentStep
+                          ? "bg-primary/20 text-primary"
+                          : "bg-muted text-muted-foreground"
+                    }`}
                   >
                     {idx + 1}
                   </div>
-                  {idx < STEPS.length - 1 && (
-                    <div className="h-px w-4 bg-border" />
-                  )}
+                  {idx < STEPS.length - 1 ? (
+                    <div className="h-px w-5 bg-border" />
+                  ) : null}
                 </div>
               ))}
             </div>
-            <DialogTitle>
-              {stepInfo.title}
-            </DialogTitle>
-            <DialogDescription>
-              {stepInfo.description}
-            </DialogDescription>
+            <DialogTitle>{stepInfo.title}</DialogTitle>
+            <DialogDescription>{stepInfo.description}</DialogDescription>
           </DialogHeader>
 
-          <section className="min-h-[220px]">
-            {currentStep === 0 && (
+          <section className="min-h-[260px]">
+            {currentStep === 0 ? (
               <div className="grid gap-4 sm:grid-cols-2">
-                <FormInput
+                <SelectField
                   label="性别"
                   onChange={(value) =>
                     setProfileForm((current) => ({ ...current, gender: value }))
                   }
-                  placeholder="男 / 女"
+                  options={GENDER_OPTIONS}
+                  placeholder="请选择"
                   value={profileForm.gender}
                 />
                 <FormInput
                   label="年龄"
                   max={120}
-                  min={0}
-                  step="1"
+                  min={1}
                   onChange={(value) =>
                     setProfileForm((current) => ({ ...current, age: value }))
                   }
-                  placeholder="例如 28"
+                  placeholder="28"
+                  step="1"
                   type="number"
                   value={profileForm.age}
                 />
-                <FormInput
-                  label="地区"
-                  onChange={(value) =>
-                    setProfileForm((current) => ({ ...current, location: value }))
-                  }
-                  placeholder="例如 Shanghai"
-                  value={profileForm.location}
-                />
-              </div>
-            )}
-
-            {currentStep === 1 && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormInput
-                  label="训练经验"
-                  onChange={(value) =>
-                    setProfileForm((current) => ({
-                      ...current,
-                      experienceLevel: value,
-                    }))
-                  }
-                  placeholder="新手 / 中级 / 高级"
-                  value={profileForm.experienceLevel}
-                />
-                <FormInput
-                  label="健身目标"
-                  onChange={(value) =>
-                    setProfileForm((current) => ({
-                      ...current,
-                      fitnessGoal: value,
-                    }))
-                  }
-                  placeholder="减脂 / 增肌 / 塑形"
-                  value={profileForm.fitnessGoal}
-                />
-                <div className="sm:col-span-2">
-                  <FormTextarea
-                    label="当前训练状态"
-                    onChange={(value) =>
-                      setProfileForm((current) => ({
-                        ...current,
-                        fitnessSummary: value,
-                      }))
-                    }
-                    placeholder="例如 近期恢复一般，想先提升基础力量"
-                    value={profileForm.fitnessSummary}
-                  />
-                </div>
-              </div>
-            )}
-
-            {currentStep === 2 && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormInput
-                  label="活动水平"
-                  onChange={(value) =>
-                    setProfileForm((current) => ({
-                      ...current,
-                      activityLevel: value,
-                    }))
-                  }
-                  placeholder="久坐 / 中等 / 活跃"
-                  value={profileForm.activityLevel}
-                />
-                <FormInput
-                  label="首选训练类型"
-                  onChange={(value) =>
-                    setProfileForm((current) => ({
-                      ...current,
-                      preferredWorkoutTypes: value,
-                    }))
-                  }
-                  placeholder="例如 力量训练、跑步、瑜伽"
-                  value={profileForm.preferredWorkoutTypes}
-                />
-                <FormInput
-                  label="每周可练天数"
-                  max={7}
-                  min={0}
-                  step="1"
-                  onChange={(value) =>
-                    setProfileForm((current) => ({
-                      ...current,
-                      availableDaysPerWeek: value,
-                    }))
-                  }
-                  placeholder="例如 4"
-                  type="number"
-                  value={profileForm.availableDaysPerWeek}
-                />
-                <FormInput
-                  label="单次时长 (分钟)"
-                  min={0}
-                  step="1"
-                  onChange={(value) =>
-                    setProfileForm((current) => ({
-                      ...current,
-                      workoutMinutesPerSession: value,
-                    }))
-                  }
-                  placeholder="例如 45"
-                  type="number"
-                  value={profileForm.workoutMinutesPerSession}
-                />
-                <div className="sm:col-span-2">
-                  <FormInput
-                    label="可用器械"
-                    onChange={(value) =>
-                      setProfileForm((current) => ({
-                        ...current,
-                        equipmentAccess: value,
-                      }))
-                    }
-                    placeholder="例如 健身房、哑铃、弹力带"
-                    value={profileForm.equipmentAccess}
-                  />
-                </div>
-              </div>
-            )}
-
-            {currentStep === 3 && (
-              <div className="grid gap-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormTextarea
-                    label="伤病史或活动限制"
-                    onChange={(value) =>
-                      setProfileForm((current) => ({
-                        ...current,
-                        injuryHistory: value,
-                      }))
-                    }
-                    placeholder="例如 右膝偶尔不适，避免跳跃"
-                    value={profileForm.injuryHistory}
-                  />
-                  <FormTextarea
-                    label="医疗情况"
-                    onChange={(value) =>
-                      setProfileForm((current) => ({
-                        ...current,
-                        medicalConditions: value,
-                      }))
-                    }
-                    placeholder="例如 高血压 / 哮喘 / 无"
-                    value={profileForm.medicalConditions}
-                  />
-                  <FormTextarea
-                    label="饮食习惯"
-                    onChange={(value) =>
-                      setProfileForm((current) => ({
-                        ...current,
-                        dietaryHabits: value,
-                      }))
-                    }
-                    placeholder="例如 高蛋白、适中碳水"
-                    value={profileForm.dietaryHabits}
-                  />
-                  <FormTextarea
-                    label="饮食限制"
-                    onChange={(value) =>
-                      setProfileForm((current) => ({
-                        ...current,
-                        dietaryRestrictions: value,
-                      }))
-                    }
-                    placeholder="例如 乳糖不耐受、海鲜过敏"
-                    value={profileForm.dietaryRestrictions}
-                  />
-                </div>
-              </div>
-            )}
-
-            {currentStep === 4 && (
-              <div className="grid gap-4 sm:grid-cols-2">
                 <FormInput
                   label="身高 (cm)"
                   min={0}
                   onChange={(value) =>
                     setBodyForm((current) => ({ ...current, heightCm: value }))
                   }
-                  placeholder="例如 175"
+                  placeholder="175"
                   step="0.1"
                   type="number"
                   value={bodyForm.heightCm}
@@ -356,97 +213,139 @@ export function OnboardingModal({
                   onChange={(value) =>
                     setBodyForm((current) => ({ ...current, weightKg: value }))
                   }
-                  placeholder="例如 70"
+                  placeholder="70"
                   step="0.1"
                   type="number"
                   value={bodyForm.weightKg}
                 />
-                <FormInput
-                  label="目标体重 (kg)"
-                  min={0}
+              </div>
+            ) : null}
+
+            {currentStep === 1 ? (
+              <div className="grid gap-4">
+                <SelectField
+                  label="运动目标"
                   onChange={(value) =>
-                    setBodyForm((current) => ({
+                    setProfileForm((current) => ({
                       ...current,
-                      targetWeightKg: value,
+                      fitnessGoal: value,
                     }))
                   }
-                  placeholder="例如 68"
-                  step="0.1"
-                  type="number"
-                  value={bodyForm.targetWeightKg}
+                  options={GOAL_OPTIONS}
+                  placeholder="请选择"
+                  value={profileForm.fitnessGoal}
                 />
-                <FormInput
-                  label="体脂率 (%)"
-                  max={100}
-                  min={0}
+                <SelectField
+                  label="偏好运动类型"
                   onChange={(value) =>
-                    setBodyForm((current) => ({
+                    setProfileForm((current) => ({
                       ...current,
-                      bodyFatPercentage: value,
+                      preferredWorkoutTypes: value,
                     }))
                   }
-                  placeholder="例如 18"
-                  step="0.1"
-                  type="number"
-                  value={bodyForm.bodyFatPercentage}
+                  options={WORKOUT_TYPE_OPTIONS}
+                  placeholder="请选择"
+                  value={profileForm.preferredWorkoutTypes}
                 />
-                <FormInput
-                  label="睡眠时长"
-                  max={24}
-                  min={0}
+                <SelectField
+                  label="活动水平"
                   onChange={(value) =>
-                    setBodyForm((current) => ({ ...current, sleepHours: value }))
+                    setProfileForm((current) => ({
+                      ...current,
+                      activityLevel: value,
+                    }))
                   }
-                  placeholder="例如 7.5"
-                  step="0.1"
-                  type="number"
-                  value={bodyForm.sleepHours}
-                />
-                <FormInput
-                  label="精力 (1-10)"
-                  max={10}
-                  min={1}
-                  onChange={(value) =>
-                    setBodyForm((current) => ({ ...current, energyLevel: value }))
-                  }
-                  placeholder="例如 7"
-                  type="number"
-                  value={bodyForm.energyLevel}
+                  options={ACTIVITY_LEVEL_OPTIONS}
+                  placeholder="请选择"
+                  value={profileForm.activityLevel}
                 />
               </div>
-            )}
+            ) : null}
+
+            {currentStep === 2 ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormInput
+                  label="每周运动天数"
+                  max={7}
+                  min={0}
+                  onChange={(value) =>
+                    setProfileForm((current) => ({
+                      ...current,
+                      availableDaysPerWeek: value,
+                    }))
+                  }
+                  placeholder="4"
+                  step="1"
+                  type="number"
+                  value={profileForm.availableDaysPerWeek}
+                />
+                <SelectField
+                  label="单次训练时长"
+                  onChange={(value) =>
+                    setProfileForm((current) => ({
+                      ...current,
+                      workoutMinutesPerSession: value,
+                    }))
+                  }
+                  options={DURATION_OPTIONS}
+                  placeholder="请选择"
+                  value={profileForm.workoutMinutesPerSession}
+                />
+                <div className="sm:col-span-2">
+                  <SelectField
+                    label="运动能力"
+                    onChange={(value) =>
+                      setProfileForm((current) => ({
+                        ...current,
+                        experienceLevel: value,
+                      }))
+                    }
+                    options={EXPERIENCE_OPTIONS}
+                    placeholder="请选择"
+                    value={profileForm.experienceLevel}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {currentStep === 3 ? (
+              <FormTextarea
+                label="伤病史"
+                onChange={(value) =>
+                  setProfileForm((current) => ({
+                    ...current,
+                    injuryHistory: value,
+                  }))
+                }
+                placeholder="无 / 右膝旧伤，避免跳跃"
+                value={profileForm.injuryHistory}
+              />
+            ) : null}
           </section>
 
-          {error ? <ErrorMessage message={error} /> : null}
+          {displayError ? <ErrorMessage message={displayError} /> : null}
 
           <DialogFooter className="flex justify-between sm:justify-between">
             <Button
-              onClick={handleBack}
+              disabled={loading}
+              onClick={onClose}
               type="button"
               variant="outline"
-              disabled={loading}
             >
               稍后填写
             </Button>
             <div className="flex gap-2">
               <Button
+                disabled={loading}
                 onClick={handleBack}
                 type="button"
                 variant="outline"
-                disabled={loading}
               >
                 <ChevronLeft className="size-4" />
                 上一步
               </Button>
-
-              <Button
-                disabled={loading}
-                type="submit"
-                variant="default"
-              >
-                {loading ? (
-                  <Spinner/>
-                ) : null}
+              <Button disabled={loading} type="submit">
+                {loading ? <Spinner /> : null}
                 {currentStep < STEPS.length - 1 ? (
                   <>
                     下一步
@@ -462,6 +361,110 @@ export function OnboardingModal({
       </DialogContent>
     </Dialog>
   )
+}
+
+function SelectField({
+  label,
+  onChange,
+  options,
+  placeholder,
+  value,
+}: {
+  label: string
+  onChange: (value: string) => void
+  options: Array<string | { label: string; value: string }>
+  placeholder: string
+  value: string
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label>{label}</Label>
+      <Select onValueChange={onChange} value={value}>
+        <SelectTrigger className="h-9 w-full">
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {options.map((option) => {
+              const item =
+                typeof option === "string"
+                  ? { label: option, value: option }
+                  : option
+              return (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              )
+            })}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+function initialStepFromStatus(status?: OnboardingStatus | null) {
+  const missingProfile = new Set(status?.missing_profile_fields ?? [])
+  const missingBody = new Set(status?.missing_body_metric_fields ?? [])
+
+  if (
+    missingProfile.has("age") ||
+    missingProfile.has("gender") ||
+    missingBody.has("height_cm") ||
+    missingBody.has("weight_kg")
+  ) {
+    return 0
+  }
+  if (
+    missingProfile.has("fitness_goal") ||
+    missingProfile.has("preferred_workout_types") ||
+    missingProfile.has("activity_level")
+  ) {
+    return 1
+  }
+  if (
+    missingProfile.has("available_days_per_week") ||
+    missingProfile.has("workout_minutes_per_session") ||
+    missingProfile.has("experience_level")
+  ) {
+    return 2
+  }
+  if (missingProfile.has("injury_history")) {
+    return 3
+  }
+  return 0
+}
+
+function validateStep(
+  step: number,
+  profileForm: ProfileForm,
+  bodyForm: BodyMetricForm
+) {
+  const missing: string[] = []
+  if (step === 0) {
+    if (!profileForm.gender.trim()) missing.push("性别")
+    if (!profileForm.age.trim()) missing.push("年龄")
+    if (!bodyForm.heightCm.trim()) missing.push("身高")
+    if (!bodyForm.weightKg.trim()) missing.push("体重")
+  }
+  if (step === 1) {
+    if (!profileForm.fitnessGoal.trim()) missing.push("运动目标")
+    if (!profileForm.preferredWorkoutTypes.trim()) missing.push("偏好运动类型")
+    if (!profileForm.activityLevel.trim()) missing.push("活动水平")
+  }
+  if (step === 2) {
+    if (!profileForm.availableDaysPerWeek.trim()) missing.push("每周运动天数")
+    if (!profileForm.workoutMinutesPerSession.trim()) missing.push("单次训练时长")
+    if (!profileForm.experienceLevel.trim()) missing.push("运动能力")
+  }
+  if (step === 3 && !profileForm.injuryHistory.trim()) {
+    missing.push("伤病史")
+  }
+
+  if (missing.length) {
+    return `请先填写：${missing.join("、")}`
+  }
+  return null
 }
 
 function bodyMetricFormFromMetric(metric: BodyMetric | null): BodyMetricForm {

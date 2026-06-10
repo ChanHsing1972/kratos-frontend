@@ -18,6 +18,7 @@ import {
   Sun,
   User,
   Activity,
+  ClipboardList,
   Trophy,
 } from "lucide-react"
 
@@ -26,6 +27,7 @@ import { absoluteApiUrl } from "@/entities/kratos/api/client"
 import type {
   FitnessProfile,
   NotificationItem,
+  OnboardingStatus,
   ProfileForm,
   UserProfile,
 } from "@/entities/kratos/model/types"
@@ -68,6 +70,7 @@ type ProfileMenuProps = {
   onLogin: () => void
   onLogout: () => void
   onMarkNotificationsRead: () => void
+  onOpenOnboarding: () => void
   onOpenAchievements: () => void
   onAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void
   onProfileSubmit: (form: ProfileForm) => void
@@ -75,6 +78,7 @@ type ProfileMenuProps = {
   onToggleTheme: () => void
   onToggleMenu: (open: boolean) => void
   notifications: NotificationItem[]
+  onboardingStatus: OnboardingStatus | null
   profile: FitnessProfile | null
   profileError: string | null
   profileSubmitting: boolean
@@ -91,6 +95,7 @@ export function ProfileMenu({
   onLogin,
   onLogout,
   onMarkNotificationsRead,
+  onOpenOnboarding,
   onOpenAchievements,
   onAvatarChange,
   onProfileSubmit,
@@ -98,6 +103,7 @@ export function ProfileMenu({
   onToggleTheme,
   onToggleMenu,
   notifications,
+  onboardingStatus,
   profile,
   profileError,
   profileSubmitting,
@@ -175,6 +181,7 @@ export function ProfileMenu({
   }
 
   const avatarSrc = user.avatar_url ? absoluteApiUrl(user.avatar_url) : undefined
+  const showOnboardingEntry = Boolean(onboardingStatus && !onboardingStatus.ready_for_agent)
 
   return (
     <SidebarMenu>
@@ -208,6 +215,18 @@ export function ProfileMenu({
               </div>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            {showOnboardingEntry ? (
+              <>
+                <DropdownMenuItem onClick={() => {
+                  onOpenOnboarding()
+                  onToggleMenu(false)
+                }}>
+                  <ClipboardList />
+                  继续建档
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            ) : null}
             <DropdownMenuItem onClick={() => openProfileDialog("personal")}>
               <User />
               个人信息

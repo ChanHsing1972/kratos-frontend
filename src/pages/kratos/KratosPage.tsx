@@ -3219,6 +3219,7 @@ export function KratosPage() {
               onLogin={() => openAuth("login")}
               onLogout={handleLogout}
               onMarkNotificationsRead={markAllNotificationsRead}
+              onOpenOnboarding={() => setOnboardingOpen(true)}
               onAvatarChange={handleAvatarUpload}
               onProfileSubmit={handleProfileSubmit}
               onRegister={() => openAuth("register")}
@@ -3230,6 +3231,7 @@ export function KratosPage() {
               }}
               onToggleMenu={setProfileMenuOpen}
               notifications={notifications}
+              onboardingStatus={onboardingStatus}
               profile={fitnessProfile}
               profileError={profileError}
               profileSubmitting={profileSubmitting}

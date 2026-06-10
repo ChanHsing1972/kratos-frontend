@@ -600,6 +600,14 @@ export async function streamAgentChat({
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ""
+  let receivedDone = false
+
+  const emitEvent = (event: AgentStreamEvent) => {
+    if (event.type === "done") {
+      receivedDone = true
+    }
+    onEvent(event)
+  }
 
   while (true) {
     const { done, value } = await reader.read()
@@ -614,7 +622,7 @@ export async function streamAgentChat({
     for (const part of parts) {
       const event = parseServerSentEvent(part)
       if (event) {
-        onEvent(event)
+        emitEvent(event)
       }
     }
   }
@@ -622,7 +630,16 @@ export async function streamAgentChat({
   buffer += decoder.decode()
   const event = parseServerSentEvent(buffer)
   if (event) {
-    onEvent(event)
+    emitEvent(event)
+  }
+
+  if (!receivedDone) {
+    const interrupted: AgentStreamEvent = {
+      type: "error",
+      content: "Agent 连接已中断，未收到完成事件。请检查网络或稍后重试。",
+    }
+    emitEvent(interrupted)
+    throw new Error(interrupted.content)
   }
 }
 
@@ -681,7 +698,15 @@ function parseServerSentEvent(chunk: string): AgentStreamEvent | null {
     return null
   }
 
-  return JSON.parse(data) as AgentStreamEvent
+  try {
+    return JSON.parse(data) as AgentStreamEvent
+  } catch {
+    return {
+      type: "error",
+      content: "收到无法解析的 Agent 事件，连接可能已被代理截断。",
+      raw: { parse_error: true },
+    }
+  }
 }
 
 function extractApiError(payload: unknown) {
