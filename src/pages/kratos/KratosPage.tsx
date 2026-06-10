@@ -60,6 +60,7 @@ import {
   foodImageEstimateFromAgentResult,
   formatTime,
   getLatestByDate,
+  pendingHealthDataFromAgentResult,
   trainingPlanPayloadFromAgentResult,
 } from "@/entities/kratos/lib/domain"
 import {
@@ -220,6 +221,10 @@ function localDateValue(date: Date) {
 }
 
 function healthDataFromAgentRaw(raw: unknown): SuggestedHealthData | undefined {
+  const fromArtifacts = pendingHealthDataFromAgentResult(raw)
+  if (fromArtifacts) {
+    return fromArtifacts
+  }
   if (!raw || typeof raw !== "object" || !("pending_health_data" in raw)) {
     return undefined
   }

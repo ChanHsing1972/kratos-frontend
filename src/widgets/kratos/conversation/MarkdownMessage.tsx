@@ -28,13 +28,21 @@ const tableHeaderCellPattern = new RegExp(
 )
 const tableRowStartChars = "[\\u4e00-\\u9fffA-Za-z0-9（(*_`-]"
 const knownHeadingTitles = [
+  "当前目标与关键数据摘要",
   "当前状态摘要",
   "今日训练方案",
+  "今日训练安排",
   "恢复训练安排",
   "今日必须完成事项",
   "下周训练计划优化建议",
+  "下周周期计划",
   "执行要点",
   "下一步需你确认的信息",
+  "营养协同建议",
+  "卤味盖饭营养估算",
+  "分项营养估算表",
+  "关键不确定性说明",
+  "下一步建议",
 ]
 
 const components: Components = {
@@ -52,7 +60,7 @@ const components: Components = {
   blockquote: ({ className, ...props }) => (
     <blockquote
       className={cn(
-        "my-3 border-l-2 border-border pl-3 text-sm leading-6 text-muted-foreground",
+        "my-3 border-l-2 border-border pl-3 text-[15px] leading-7 text-muted-foreground",
         className
       )}
       {...markdownProps(props)}
@@ -69,25 +77,25 @@ const components: Components = {
   ),
   h1: ({ className, ...props }) => (
     <h1
-      className={cn("mt-5 mb-2 text-[18px] leading-6 font-black", className)}
+      className={cn("mt-5 mb-2 text-[22px] leading-8 font-black", className)}
       {...markdownProps(props)}
     />
   ),
   h2: ({ className, ...props }) => (
     <h2
-      className={cn("mt-4 mb-2 text-[16px] leading-6 font-bold", className)}
+      className={cn("mt-4 mb-2 text-[20px] leading-7 font-bold", className)}
       {...markdownProps(props)}
     />
   ),
   h3: ({ className, ...props }) => (
     <h3
-      className={cn("mt-3 mb-1.5 text-[14px] leading-5 font-bold", className)}
+      className={cn("mt-3 mb-1.5 text-[18px] leading-7 font-bold", className)}
       {...markdownProps(props)}
     />
   ),
   h4: ({ className, ...props }) => (
     <h4
-      className={cn("mt-3 mb-1 text-[13px] leading-5 font-bold", className)}
+      className={cn("mt-3 mb-1 text-[16px] leading-6 font-bold", className)}
       {...markdownProps(props)}
     />
   ),
@@ -131,7 +139,7 @@ const components: Components = {
     <div className="my-3 max-w-full overflow-x-auto">
       <table
         className={cn(
-          "min-w-full border-collapse border border-border text-left text-[12px] leading-5",
+          "min-w-full border-collapse border border-border text-left text-[14px] leading-6",
           className
         )}
         {...markdownProps(props)}
@@ -144,7 +152,7 @@ const components: Components = {
   td: ({ className, ...props }) => (
     <td
       className={cn(
-        "max-w-[18rem] border border-border px-2.5 py-1.5 align-top break-words",
+        "max-w-[22rem] border border-border px-3 py-2 align-top break-words",
         className
       )}
       {...markdownProps(props)}
@@ -153,7 +161,7 @@ const components: Components = {
   th: ({ className, ...props }) => (
     <th
       className={cn(
-        "border border-border bg-muted/70 px-2.5 py-1.5 align-top font-bold whitespace-nowrap",
+        "border border-border bg-muted/70 px-3 py-2 align-top font-bold whitespace-nowrap",
         className
       )}
       {...markdownProps(props)}
@@ -171,7 +179,7 @@ export function MarkdownMessage({ children, className }: MarkdownMessageProps) {
   return (
     <div
       className={cn(
-        "markdown-message min-w-0 text-sm leading-[1.72] break-words text-foreground [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0",
+        "markdown-message min-w-0 text-base leading-[1.75] break-words text-foreground [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0",
         className
       )}
     >
@@ -204,9 +212,9 @@ function normalizePlainMarkdown(markdown: string) {
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/([。！？!?])\s*(#{1,6})(?=\S)/g, "$1\n\n$2 ")
     .replace(/([^\n])\s+(#{1,6}\s+)/g, "$1\n\n$2")
-    .replace(/([。！？!?；;：:])\s*([-*+]\s+)/g, "$1\n$2")
+    .replace(/([。！？!?；;：:])\s*([-*+]\s*)/g, "$1\n$2")
     .replace(/([。！？!?；;：:])\s*(\d+[.)、]\s+)/g, "$1\n$2")
-    .replace(/([）)])\s*([-*+]\s+)/g, "$1\n$2")
+    .replace(/([）)])\s*([-*+]\s*)/g, "$1\n$2")
     .replace(
       /([\u4e00-\u9fffA-Za-z0-9）)]{2,32})\s*[-*]\s+(?=\S)/g,
       "$1\n- "
@@ -264,22 +272,50 @@ function normalizeLooseBlockSyntax(markdown: string) {
 function normalizeLineMarkdown(line: string) {
   return line
     .replace(/^(\s*#{1,6})\s+(?:#\s*)+/, "$1 ")
+    .replace(/^(\s*[-*+])(?=\S)/, "$1 ")
     .replace(/^\s*[-*+]\s*$/, "")
     .replace(/\s+>\s*$/, "")
 }
 
 function normalizeCollapsedTables(markdown: string) {
-  const lines: string[] = []
+  const output: string[] = []
+  const lines = markdown.split("\n")
+  let index = 0
 
-  for (const line of markdown.split("\n")) {
-    lines.push(...expandMaybeTableLine(line))
+  while (index < lines.length) {
+    if (!isTableBlockStart(lines[index], lines[index + 1])) {
+      output.push(lines[index])
+      index += 1
+      continue
+    }
+
+    const block: string[] = []
+    while (index < lines.length) {
+      const line = lines[index]
+      if (block.length > 0 && isTableBlockBoundary(line)) {
+        break
+      }
+      if (isTableLikeLine(line) || (block.length > 0 && isTableContinuationLine(line))) {
+        block.push(line)
+        index += 1
+        continue
+      }
+      break
+    }
+
+    if (block.length) {
+      output.push(...normalizeTableBlock(block))
+    } else {
+      output.push(lines[index])
+      index += 1
+    }
   }
 
-  return lines.join("\n")
+  return output.join("\n")
 }
 
 function expandMaybeTableLine(line: string): string[] {
-  const splitLine = splitGluedTableStart(line)
+  const splitLine = splitGluedTableStart(normalizeTableSourceLine(line))
   if (splitLine.includes("\n")) {
     return splitLine.split("\n").flatMap(expandMaybeTableLine)
   }
@@ -292,18 +328,19 @@ function expandMaybeTableLine(line: string): string[] {
 }
 
 function splitGluedTableStart(line: string) {
-  const match = tableStartPattern.exec(line)
+  const normalized = normalizeTableSourceLine(line)
+  const match = tableStartPattern.exec(normalized)
   if (!match || match.index === 0) {
-    return line
+    return normalized
   }
 
-  const before = line.slice(0, match.index).trimEnd()
-  const table = line.slice(match.index).trimStart()
+  const before = normalized.slice(0, match.index).trimEnd()
+  const table = normalized.slice(match.index).trimStart()
   return before ? `${before}\n\n${table}` : table
 }
 
 function looksLikeTableLine(line: string) {
-  const trimmed = line.trim()
+  const trimmed = normalizeTableSourceLine(line).trim()
   if (!trimmed.includes("|")) {
     return false
   }
@@ -313,6 +350,81 @@ function looksLikeTableLine(line: string) {
     /\|\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?/.test(trimmed) ||
     (/^\|/.test(trimmed) && countPipes(trimmed) >= 2)
   )
+}
+
+function isTableBlockStart(line: string, nextLine?: string) {
+  const normalized = normalizeTableSourceLine(line).trim()
+  if (!looksLikeTableLine(normalized)) {
+    return false
+  }
+
+  if (tableStartPattern.test(normalized) || hasKnownHeaderRow(normalized)) {
+    return true
+  }
+
+  return Boolean(nextLine && isSeparatorLine(nextLine))
+}
+
+function isTableLikeLine(line: string) {
+  const normalized = normalizeTableSourceLine(line).trim()
+  return normalized.includes("|") || normalized.includes("｜")
+}
+
+function isTableContinuationLine(line: string) {
+  const trimmed = line.trim()
+  return Boolean(trimmed && /[|｜]/.test(trimmed) && !/^\s*#{1,6}\s+/.test(trimmed))
+}
+
+function isTableBlockBoundary(line: string) {
+  const trimmed = line.trim()
+  return !trimmed || /^\s*#{1,6}\s+/.test(trimmed) || /^-{3,}$/.test(trimmed)
+}
+
+function normalizeTableBlock(block: string[]) {
+  const expanded = block
+    .flatMap((line) => expandMaybeTableLine(line))
+    .map((line) => normalizeTableSourceLine(line).trim())
+    .filter((line) => line.length > 0)
+
+  const firstRow = expanded.find((line) => !isSeparatorLine(line))
+  if (!firstRow) {
+    return block
+  }
+
+  const columnCount = Math.max(2, tableCells(firstRow).length)
+  const rows: string[][] = []
+
+  for (let index = 0; index < expanded.length; index += 1) {
+    if (isSeparatorLine(expanded[index])) {
+      continue
+    }
+
+    let candidate = expanded[index]
+    while (
+      tableCells(candidate).length < columnCount &&
+      index + 1 < expanded.length &&
+      !isSeparatorLine(expanded[index + 1]) &&
+      isTableContinuationLine(expanded[index + 1])
+    ) {
+      index += 1
+      candidate = `${candidate} ${expanded[index]}`
+    }
+
+    const cells = normalizeCellCount(tableCells(candidate), columnCount)
+    if (cells.length >= 2) {
+      rows.push(cells)
+    }
+  }
+
+  if (rows.length === 0) {
+    return block
+  }
+
+  return [
+    formatTableCells(rows[0]),
+    buildSeparatorRow(rows[0].length),
+    ...rows.slice(1).map(formatTableCells),
+  ]
 }
 
 function normalizeTableLine(line: string) {
@@ -361,8 +473,12 @@ function formatTableRow(row: string) {
   return `| ${cells.map(normalizeTableCell).join(" | ")} |`
 }
 
+function formatTableCells(cells: string[]) {
+  return `| ${cells.map(normalizeTableCell).join(" | ")} |`
+}
+
 function tableCells(row: string) {
-  const trimmed = row.trim()
+  const trimmed = normalizeTableSourceLine(row).trim()
   if (!trimmed.includes("|")) {
     return []
   }
@@ -372,6 +488,19 @@ function tableCells(row: string) {
     .replace(/\|+$/, "")
     .split("|")
     .map((cell) => cell.trim())
+}
+
+function normalizeCellCount(cells: string[], columnCount: number) {
+  if (cells.length === columnCount) {
+    return cells
+  }
+  if (cells.length > columnCount) {
+    return [
+      ...cells.slice(0, columnCount - 1),
+      cells.slice(columnCount - 1).join(" | "),
+    ]
+  }
+  return [...cells, ...Array.from({ length: columnCount - cells.length }, () => "")]
 }
 
 function normalizeTableCell(cell: string) {
@@ -396,6 +525,10 @@ function hasKnownHeaderRow(row: string) {
 function isSeparatorRow(row: string) {
   const cells = tableCells(row)
   return cells.length >= 2 && cells.every(isSeparatorCell)
+}
+
+function isSeparatorLine(line: string) {
+  return isSeparatorRow(normalizeTableSourceLine(line))
 }
 
 function isSeparatorCell(cell: string) {
@@ -426,6 +559,10 @@ function cellCount(row: string) {
 
 function countPipes(value: string) {
   return value.split("|").length - 1
+}
+
+function normalizeTableSourceLine(line: string) {
+  return line.replace(/｜/g, "|")
 }
 
 function escapeRegExp(value: string) {

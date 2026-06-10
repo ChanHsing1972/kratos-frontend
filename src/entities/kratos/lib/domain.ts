@@ -13,6 +13,7 @@ import type {
   FoodImageEstimateResult,
   OnboardingStatus,
   ProfileForm,
+  SuggestedHealthData,
   TrainingPlan,
   TrainingPlanPayload,
   TrainingSchedule,
@@ -191,7 +192,7 @@ export const trainingPlanTemplates: TrainingPlanTemplate[] = [
     summary:
       "适合刚开始恢复规律训练的人群。每周 4 次训练，力量训练维持肌肉量，低冲击有氧提升消耗和恢复能力。",
     weekly_schedule:
-      "周一｜全身力量 A：深蹲模式 3 组 x 10 次；俯卧撑 3 组 x 8-12 次；平板支撑 3 组 x 30 秒\n周二｜低冲击有氧：快走或椭圆机 35 分钟，保持可对话强度\n周四｜全身力量 B：罗马尼亚硬拉 3 组 x 10 次；哑铃划船 3 组 x 12 次；死虫 3 组 x 10 次\n周六｜循环训练：壶铃硬拉、台阶上步、弹力带划船、登山者各 40 秒，完成 4 轮\n周日｜恢复：拉伸 15 分钟，记录体重、睡眠和疲劳",
+      "周一|全身力量 A：深蹲模式 3 组 x 10 次；俯卧撑 3 组 x 8-12 次；平板支撑 3 组 x 30 秒\n周二|低冲击有氧：快走或椭圆机 35 分钟，保持可对话强度\n周四|全身力量 B：罗马尼亚硬拉 3 组 x 10 次；哑铃划船 3 组 x 12 次；死虫 3 组 x 10 次\n周六|循环训练：壶铃硬拉、台阶上步、弹力带划船、登山者各 40 秒，完成 4 轮\n周日|恢复：拉伸 15 分钟，记录体重、睡眠和疲劳",
     nutrition_guidance:
       "优先保证每餐蛋白质，训练日前后安排适量碳水。避免用极低热量换短期体重下降。",
     recovery_guidance:
@@ -209,7 +210,7 @@ export const trainingPlanTemplates: TrainingPlanTemplate[] = [
     summary:
       "适合有基础器械经验的人群。采用推、拉、腿、全身辅助的周节奏，兼顾复合动作进步和肌肥大训练量。",
     weekly_schedule:
-      "周一｜上肢推：卧推 4 组 x 6-8 次；哑铃肩推 3 组 x 8-10 次；绳索下压 3 组 x 12 次\n周二｜上肢拉：引体向上或高位下拉 4 组 x 8 次；杠铃划船 4 组 x 8 次；哑铃弯举 3 组 x 12 次\n周三｜休息：步行 20-30 分钟，肩颈和髋部活动度\n周四｜下肢：深蹲 4 组 x 6-8 次；罗马尼亚硬拉 3 组 x 8-10 次；腿弯举 3 组 x 12 次\n周六｜全身辅助：上斜卧推 3 组 x 10 次；坐姿划船 3 组 x 10 次；臀桥 3 组 x 12 次；核心 8 分钟",
+      "周一|上肢推：卧推 4 组 x 6-8 次；哑铃肩推 3 组 x 8-10 次；绳索下压 3 组 x 12 次\n周二|上肢拉：引体向上或高位下拉 4 组 x 8 次；杠铃划船 4 组 x 8 次；哑铃弯举 3 组 x 12 次\n周三|休息：步行 20-30 分钟，肩颈和髋部活动度\n周四|下肢：深蹲 4 组 x 6-8 次；罗马尼亚硬拉 3 组 x 8-10 次；腿弯举 3 组 x 12 次\n周六|全身辅助：上斜卧推 3 组 x 10 次；坐姿划船 3 组 x 10 次；臀桥 3 组 x 12 次；核心 8 分钟",
     nutrition_guidance:
       "训练日增加优质碳水，蛋白质分配到 3-4 餐。体重连续两周不变时小幅增加总热量。",
     recovery_guidance:
@@ -227,7 +228,7 @@ export const trainingPlanTemplates: TrainingPlanTemplate[] = [
     summary:
       "适合只有哑铃、弹力带和瑜伽垫的训练场景。训练时间控制在 35-45 分钟，重点提升臀腿、背部和核心稳定。",
     weekly_schedule:
-      "周一｜臀腿核心：哑铃杯式深蹲 4 组 x 12 次；哑铃臀桥 4 组 x 15 次；侧桥 3 组 x 30 秒\n周三｜背肩体态：单臂哑铃划船 4 组 x 12 次；弹力带面拉 3 组 x 15 次；俯身飞鸟 3 组 x 12 次\n周五｜全身循环：哑铃硬拉、地板卧推、反向箭步蹲、死虫各 45 秒，完成 4 轮\n周六｜低强度有氧：快走 30 分钟，结束后做髋屈肌和胸椎拉伸",
+      "周一|臀腿核心：哑铃杯式深蹲 4 组 x 12 次；哑铃臀桥 4 组 x 15 次；侧桥 3 组 x 30 秒\n周三|背肩体态：单臂哑铃划船 4 组 x 12 次；弹力带面拉 3 组 x 15 次；俯身飞鸟 3 组 x 12 次\n周五|全身循环：哑铃硬拉、地板卧推、反向箭步蹲、死虫各 45 秒，完成 4 轮\n周六|低强度有氧：快走 30 分钟，结束后做髋屈肌和胸椎拉伸",
     nutrition_guidance:
       "每次训练后 2 小时内安排蛋白质和水分。晚餐避免过度节食，保证第二天恢复。",
     recovery_guidance:
@@ -302,7 +303,9 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
           structuredCardPending: running && structuredCardPendingFromTrace(run.trace_steps),
           suggestedDietRecords: foodImageEstimateFromAgentResult(run.result_payload),
           suggestedTrainingPlan: trainingPlanPayloadFromAgentResult(run.result_payload),
-          suggestedHealthData: pendingHealthDataFromTrace(run.trace_steps),
+          suggestedHealthData:
+            pendingHealthDataFromAgentResult(run.result_payload) ??
+            pendingHealthDataFromTrace(run.trace_steps),
           streaming: running,
           time: formatStoredTime(run.created_at),
           trace,
@@ -357,7 +360,9 @@ export function trainingPlanPayloadFromAgentResult(
   answerText = ""
 ): TrainingPlanPayload | undefined {
   const result = asRecord(raw)
-  const workoutPlan = asRecord(result?.workout_plan)
+  const artifacts = asRecord(result?.structured_artifacts)
+  const workoutPlan =
+    asRecord(artifacts?.workout_plan) ?? asRecord(result?.workout_plan)
   if (!workoutPlan) {
     return undefined
   }
@@ -417,7 +422,10 @@ export function foodImageEstimateFromAgentResult(
   raw: unknown
 ): FoodImageEstimateResult | undefined {
   const result = asRecord(raw)
-  const estimate = asRecord(result?.food_image_estimate)
+  const artifacts = asRecord(result?.structured_artifacts)
+  const estimate =
+    asRecord(artifacts?.food_image_estimate) ??
+    asRecord(result?.food_image_estimate)
   if (!estimate) {
     return undefined
   }
@@ -466,6 +474,17 @@ export function foodImageEstimateFromAgentResult(
       textValue(estimate.warning) ??
       "该结果为 AI 估算，可能受到拍摄角度、食物遮挡、油量、酱料和份量判断误差影响。",
   }
+}
+
+export function pendingHealthDataFromAgentResult(
+  raw: unknown
+): SuggestedHealthData | undefined {
+  const result = asRecord(raw)
+  const artifacts = asRecord(result?.structured_artifacts)
+  const pending =
+    asRecord(artifacts?.pending_health_data) ??
+    asRecord(result?.pending_health_data)
+  return pending ? (pending as SuggestedHealthData) : undefined
 }
 
 function pendingHealthDataFromTrace(traceSteps: AgentRunTraceStep[]) {
@@ -689,7 +708,7 @@ function buildWeeklyScheduleFromWorkoutSessions(sessions: Record<string, unknown
         return null
       }
 
-      return `${workoutSessionWeekday(session, index, planKind)}｜${title}${actionText ? `：${actionText}` : ""}`
+      return `${workoutSessionWeekday(session, index, planKind)}|${title}${actionText ? `：${actionText}` : ""}`
     })
     .filter(Boolean)
 
