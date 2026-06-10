@@ -17,7 +17,7 @@ function markdownProps<T extends { node?: unknown }>(
 }
 
 const tableHeaderWords =
-  "动作|周几|训练内容|餐次|项目|指标|日期|部位|食物|菜品|估算重量|估算分量|热量|蛋白质|脂肪|碳水"
+  "动作|周几|训练内容|餐次|项目|指标|日期|部位|食物|菜品|估算重量|估算分量|热量|蛋白质|脂肪|碳水|类别|缺失项|影响|原因|建议|风险|边界|可用资源|基础身份|目标导向|身体数据|训练结构|计划可行性"
 const tableStartPattern = new RegExp(
   `\\|\\s*(?:${tableHeaderWords})\\s*\\|`,
   "i"
@@ -279,7 +279,7 @@ function normalizeLineMarkdown(line: string) {
 
 function normalizeCollapsedTables(markdown: string) {
   const output: string[] = []
-  const lines = markdown.split("\n")
+  const lines = markdown.split("\n").flatMap(expandMaybeTableLine)
   let index = 0
 
   while (index < lines.length) {
