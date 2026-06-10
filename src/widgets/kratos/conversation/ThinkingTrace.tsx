@@ -192,7 +192,11 @@ function formatEvidence(item: AgentTraceStep | null) {
 
 function formatTraceContent(item: AgentTraceStep) {
   if (item.type === "action") {
-    const toolName = item.content.match(/调用工具\s*([^(（]+)/)?.[1]?.trim()
+    const raw = asRecord(item.raw)
+    const toolName =
+      textValue(raw?.name) ??
+      textValue(raw?.tool_name) ??
+      item.content.match(/调用工具\s*([^(（]+)/)?.[1]?.trim()
     return toolName ? `调用工具 ${toolName}（参数已隐藏）` : "调用工具（参数已隐藏）"
   }
 
@@ -205,6 +209,16 @@ function formatTraceContent(item: AgentTraceStep) {
   }
 
   return item.content
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function textValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null
 }
 
 function isVerboseTrace(content: string) {

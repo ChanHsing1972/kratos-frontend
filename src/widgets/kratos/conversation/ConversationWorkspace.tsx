@@ -19,7 +19,7 @@ import {
   type ComposerUploadingAttachment,
 } from "@/widgets/kratos/conversation/ConversationComposer"
 import { EmptyConversation } from "@/widgets/kratos/conversation/EmptyConversation"
-import { Spinner } from "@/shared/ui/spinner"
+import { Skeleton } from "@/shared/ui/skeleton"
 
 type ComposerDataCategory = "body" | "health" | "diet"
 
@@ -207,10 +207,26 @@ export function ConversationWorkspace({
 
 function LoadingConversation() {
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center">
-      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        <Spinner />
-        正在加载对话内容
+    <div className="min-h-0 flex-1 bg-card">
+      <div className="mx-auto flex w-full max-w-[820px] flex-col gap-5 px-5 pt-8 sm:px-6 sm:pt-10">
+        <div className="flex justify-end">
+          <div className="w-[72%] max-w-[560px] space-y-2">
+            <Skeleton className="ml-auto h-4 w-24 rounded-[8px]" />
+            <Skeleton className="h-16 rounded-[8px]" />
+          </div>
+        </div>
+        <div className="w-[78%] max-w-[600px] space-y-3">
+          <Skeleton className="h-4 w-28 rounded-[8px]" />
+          <Skeleton className="h-5 w-full rounded-[8px]" />
+          <Skeleton className="h-5 w-[86%] rounded-[8px]" />
+          <Skeleton className="h-28 rounded-[8px]" />
+        </div>
+        <div className="flex justify-end">
+          <div className="w-[64%] max-w-[500px] space-y-2">
+            <Skeleton className="ml-auto h-4 w-20 rounded-[8px]" />
+            <Skeleton className="h-14 rounded-[8px]" />
+          </div>
+        </div>
       </div>
     </div>
   )

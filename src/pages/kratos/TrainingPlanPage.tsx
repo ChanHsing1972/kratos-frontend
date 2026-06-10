@@ -23,6 +23,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 
 import { Button } from "@/shared/ui/button"
 import { Spinner } from "@/shared/ui/spinner"
+import { Skeleton } from "@/shared/ui/skeleton"
 import { Calendar } from "@/shared/ui/calendar"
 import { Badge } from "@/shared/ui/badge"
 import { CardContent } from "@/shared/ui/card"
@@ -538,9 +539,10 @@ function TrainingSuggestionBubbleContent({
 }) {
   if (loading && !adjustment) {
     return (
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Spinner />
-        <span>正在根据你的反馈生成调整建议...</span>
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-44 rounded-[8px]" />
+        <Skeleton className="h-4 w-full rounded-[8px]" />
+        <Skeleton className="h-4 w-[72%] rounded-[8px]" />
       </div>
     )
   }
@@ -586,9 +588,10 @@ function TrainingSuggestionBubbleContent({
 
   if (guidanceLoading && !guidanceError) {
     return (
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Spinner />
-        <span>Kratos 正在分析你的训练状态...</span>
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-40 rounded-[8px]" />
+        <Skeleton className="h-4 w-full rounded-[8px]" />
+        <Skeleton className="h-4 w-[78%] rounded-[8px]" />
       </div>
     )
   }

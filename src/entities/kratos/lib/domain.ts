@@ -22,51 +22,6 @@ import type {
   WorkoutLog,
 } from "@/entities/kratos/model/types"
 
-export function buildAssistantReply(prompt: string) {
-  if (prompt.includes("饮食") || prompt.includes("早餐")) {
-    return [
-      "**已记录这次饮食。**",
-      "",
-      "| 项目 | 粗略估算 |",
-      "| --- | ---: |",
-      "| 蛋白质 | 约 24g |",
-      "| 碳水 | 约 45g |",
-      "| 脂肪 | 约 18g |",
-      "",
-      "- 晚餐训练后补一份优质蛋白会更稳。",
-      "- 如果今天还有力量训练，优先保证水和碳水补给。",
-    ].join("\n")
-  }
-
-  if (prompt.includes("膝") || prompt.includes("疼")) {
-    return [
-      "**收到右膝反馈。** 今天的训练策略先降风险：",
-      "",
-      "- 避免深膝屈、跳跃和快速变向。",
-      "- 训练中疼痛超过 `3/10` 就停止。",
-      "- 优先安排髋主导动作和核心稳定训练。",
-    ].join("\n")
-  }
-
-  if (prompt.includes("历史") || prompt.includes("7 天")) {
-    return [
-      "最近 **7 天训练密度偏高**，下肢恢复窗口略短。",
-      "",
-      "- 下一次下肢训练前至少保留 **48 小时**。",
-      "- 睡眠目标提到 **7 小时以上**。",
-      "- 如果右膝仍有酸痛，把下肢训练改成低冲击恢复日。",
-    ].join("\n")
-  }
-
-  return [
-    "收到。我会把这条反馈纳入当前计划：",
-    "",
-    "- 优先控制训练风险。",
-    "- 保持训练在 **20 分钟内**可完成。",
-    "- 根据您的身体反馈动态调整动作选择。",
-  ].join("\n")
-}
-
 export function buildProfilePanel(
   user: UserProfile | null,
   profile: FitnessProfile | null,
@@ -356,8 +311,7 @@ function agentRunResultUpdatedAt(resultPayload: unknown) {
 }
 
 export function trainingPlanPayloadFromAgentResult(
-  raw: unknown,
-  answerText = ""
+  raw: unknown
 ): TrainingPlanPayload | undefined {
   const result = asRecord(raw)
   const artifacts = asRecord(result?.structured_artifacts)
@@ -373,8 +327,7 @@ export function trainingPlanPayloadFromAgentResult(
     requestedPlanKind === "daily"
       ? "daily"
       : requestedPlanKind === "program" ||
-        sessions.length > 1 ||
-        isProgramPlanText(workoutPlan, answerText)
+        sessions.length > 1
         ? "program"
         : "daily"
   const weeklySchedule = buildWeeklyScheduleFromWorkoutSessions(sessions, planKind)
@@ -385,12 +338,11 @@ export function trainingPlanPayloadFromAgentResult(
   const startDate = localTrainingDateValue(new Date())
   const durationWeeks =
     numberValue(workoutPlan.duration_weeks) ??
-    inferDurationWeeks(workoutPlan, answerText) ??
     (planKind === "program" ? 4 : null)
   const title =
     planKind === "daily"
       ? normalizeDailyPlanTitle(textValue(workoutPlan.title))
-      : normalizeProgramPlanTitle(textValue(workoutPlan.title), answerText)
+      : normalizeProgramPlanTitle(textValue(workoutPlan.title))
   const goal = textValue(workoutPlan.goal) ?? "基于聊天上下文生成的训练计划"
   const precautions = uniqueLines([
     ...stringArray(workoutPlan.precautions),
@@ -693,7 +645,6 @@ function buildWeeklyScheduleFromWorkoutSessions(sessions: Record<string, unknown
       const exercises = asRecordArray(session.exercises)
         .map(formatWorkoutExercise)
         .filter((item): item is string => Boolean(item))
-        .filter(isTrainingActionLine)
       const notes = stringArray(session.notes)
         .map(cleanWorkoutLine)
         .filter((item): item is string => Boolean(item))
@@ -735,64 +686,12 @@ function normalizeDailyPlanTitle(title: string | null) {
   return /今日|今天|每日|单日/.test(title) ? title : `今日${title}`
 }
 
-function normalizeProgramPlanTitle(title: string | null, answerText: string) {
-  const heading = extractMarkdownHeading(answerText)
+function normalizeProgramPlanTitle(title: string | null) {
   if (!title || title === "训练计划" || title === "Kratos 生成训练计划") {
-    return heading ?? "Kratos 生成训练计划"
+    return "Kratos 生成训练计划"
   }
 
   return title
-}
-
-function extractMarkdownHeading(value: string) {
-  const heading = value
-    .split(/\r?\n/)
-    .map((line) => line.replace(/^#+\s*/, "").trim())
-    .find((line) => line && /训练计划|周训练|每日训练/.test(line))
-
-  return heading && heading.length <= 80 ? heading : null
-}
-
-function isProgramPlanText(
-  workoutPlan: Record<string, unknown>,
-  answerText: string
-) {
-  return /一周|每周|周训练|周期|program|weekly/i.test(
-    [
-      textValue(workoutPlan.title),
-      textValue(workoutPlan.goal),
-      textValue(workoutPlan.summary),
-      answerText,
-    ]
-      .filter(Boolean)
-      .join(" ")
-  )
-}
-
-function inferDurationWeeks(
-  workoutPlan: Record<string, unknown>,
-  answerText: string
-) {
-  const source = [
-    textValue(workoutPlan.title),
-    textValue(workoutPlan.summary),
-    textValue(workoutPlan.goal),
-    answerText,
-  ]
-    .filter(Boolean)
-    .join(" ")
-
-  if (/一周|1\s*周/.test(source)) {
-    return 1
-  }
-
-  const matched = source.match(/(\d+)\s*周/)
-  if (!matched) {
-    return null
-  }
-
-  const weeks = Number.parseInt(matched[1], 10)
-  return Number.isFinite(weeks) && weeks > 0 ? weeks : null
 }
 
 function addDaysToDateValue(value: string, days: number) {

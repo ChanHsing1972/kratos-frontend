@@ -294,7 +294,10 @@ function totalFromItems(items: FoodEstimateItem[]) {
 }
 
 function stripSelection(items: EditableFoodEstimateItem[]): FoodEstimateItem[] {
-  return items.map(({ selected: _selected, ...item }) => item)
+  return items.map(({ selected, ...item }) => {
+    void selected
+    return item
+  })
 }
 
 function formatNumber(value: number) {

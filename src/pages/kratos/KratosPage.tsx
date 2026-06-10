@@ -234,10 +234,6 @@ function healthDataFromAgentRaw(raw: unknown): SuggestedHealthData | undefined {
     : undefined
 }
 
-function withTrainingPlanJsonContract(message: string) {
-  return message
-}
-
 function stripTrainingPlanJsonContract(
   message: string,
   options: { trim?: boolean } = {}
@@ -803,10 +799,7 @@ export function KratosPage() {
         }
 
         if (event.type === "final") {
-          const suggestedTrainingPlan = trainingPlanPayloadFromAgentResult(
-            event.raw,
-            event.answer ?? event.content ?? message.body
-          )
+          const suggestedTrainingPlan = trainingPlanPayloadFromAgentResult(event.raw)
           const nextBody = stripTrainingPlanJsonContract(
             event.answer || event.content || message.body
           )
@@ -1899,13 +1892,11 @@ export function KratosPage() {
     setComposerUploadingAttachments([])
 
     let handledStreamSessionId: string | null = null
-    const agentMessage = withTrainingPlanJsonContract(
-      buildModeAwareAgentMessage({
-        attachments,
-        body,
-        mode: composerMode,
-      })
-    )
+    const agentMessage = buildModeAwareAgentMessage({
+      attachments,
+      body,
+      mode: composerMode,
+    })
 
     try {
       attachedClientTurnIdsRef.current.add(clientTurnId)

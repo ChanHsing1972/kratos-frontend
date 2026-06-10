@@ -151,7 +151,11 @@ export function writeWorkspaceSnapshot(snapshot: KratosWorkspaceSnapshot) {
         ...snapshot,
         messages: snapshot.messages.map((message) => ({
           ...message,
-          attachments: message.attachments?.map(({ data_url, ...attachment }) => attachment),
+          attachments: message.attachments?.map((attachment) => {
+            const persistedAttachment = { ...attachment }
+            delete persistedAttachment.data_url
+            return persistedAttachment
+          }),
         })),
       })
     )

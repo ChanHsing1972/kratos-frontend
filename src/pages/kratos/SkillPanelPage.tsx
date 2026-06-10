@@ -3,7 +3,6 @@ import {
   BookOpenText,
   Check,
   Filter,
-  LoaderCircle,
   Plus,
   RefreshCcw,
   SearchIcon,
@@ -23,6 +22,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Input } from "@/shared/ui/input"
 import { ScrollArea } from "@/shared/ui/scroll-area"
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/shared/ui/sheet"
+import { Skeleton } from "@/shared/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
 import { Textarea } from "@/shared/ui/textarea"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/ui/input-group"
@@ -409,14 +409,14 @@ function ToolsPanel({
   unresolvedTools: string[]
   user: UserProfile | null
 }) {
+  const [pendingToolName, setPendingToolName] = useState<string | null>(null)
+
   if (!user) {
     return <LoginEmpty description="登录后管理 Agent 是否可以调用计算、知识与安全工具。" onLogin={onLogin} />
   }
   if (loading && !tools.length) {
     return <LoadingEmpty label="正在读取工具" />
   }
-
-  const [pendingToolName, setPendingToolName] = useState<string | null>(null)
 
   const groups = Object.entries(
     tools.reduce<Record<string, AgentToolConfig[]>>((result, tool) => {
@@ -623,10 +623,17 @@ function LoginEmpty({ description, onLogin }: { description: string; onLogin: ()
 
 function LoadingEmpty({ label }: { label: string }) {
   return (
-    <Empty className="min-h-56 border">
-      <LoaderCircle className="animate-spin text-muted-foreground" />
-      <p className="text-sm text-muted-foreground">{label}</p>
-    </Empty>
+    <div aria-label={label} className="min-h-56 space-y-4 rounded-lg border p-5">
+      <Skeleton className="h-5 w-32 rounded-[8px]" />
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-full rounded-[8px]" />
+        <Skeleton className="h-4 w-[82%] rounded-[8px]" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Skeleton className="h-20 rounded-[8px]" />
+        <Skeleton className="h-20 rounded-[8px]" />
+      </div>
+    </div>
   )
 }
 
