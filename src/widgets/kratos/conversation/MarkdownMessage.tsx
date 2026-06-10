@@ -17,7 +17,7 @@ function markdownProps<T extends { node?: unknown }>(
 }
 
 const tableHeaderWords =
-  "动作|周几|训练内容|餐次|项目|指标|日期|部位|食物|菜品|估算重量|估算分量|热量|蛋白质|脂肪|碳水|类别|缺失项|影响|原因|建议|风险|边界|可用资源|基础身份|目标导向|身体数据|训练结构|计划可行性"
+  "动作|周几|训练内容|主要动作|说明|组数|次数|次数/时长|休息|备注|餐次|项目|指标|日期|部位|食物|菜品|估算重量|估算分量|热量|蛋白质|脂肪|碳水|置信度|类别|缺失项|影响|原因|建议|风险|边界|可用资源|基础身份|目标导向|身体数据|训练结构|计划可行性"
 const tableStartPattern = new RegExp(
   `\\|\\s*(?:${tableHeaderWords})\\s*\\|`,
   "i"
@@ -43,6 +43,9 @@ const knownHeadingTitles = [
   "分项营养估算表",
   "关键不确定性说明",
   "下一步建议",
+  "当前无法生成可靠训练计划的原因",
+  "快速填写",
+  "示例",
 ]
 
 const components: Components = {
@@ -214,6 +217,7 @@ function normalizePlainMarkdown(markdown: string) {
     .replace(/([^\n])\s+(#{1,6}\s+)/g, "$1\n\n$2")
     .replace(/([。！？!?；;：:])\s*([-*+]\s*)/g, "$1\n$2")
     .replace(/([。！？!?；;：:])\s*(\d+[.)、]\s+)/g, "$1\n$2")
+    .replace(/([\u4e00-\u9fffA-Za-z）)_%％])\s*(\d+[.)、]\s+)/g, "$1\n$2")
     .replace(/([）)])\s*([-*+]\s*)/g, "$1\n$2")
     .replace(
       /([\u4e00-\u9fffA-Za-z0-9）)]{2,32})\s*[-*]\s+(?=\S)/g,
@@ -270,9 +274,13 @@ function normalizeLooseBlockSyntax(markdown: string) {
 }
 
 function normalizeLineMarkdown(line: string) {
-  return line
+  return stripUnmatchedStrongMarkers(line)
     .replace(/^(\s*#{1,6})\s+(?:#\s*)+/, "$1 ")
+    .replace(/^(\s*)[:：]\s+(?=\S)/, "$1")
+    .replace(/^(\s*)(?:[-*+•·]\s*){2,}(?=\S)/, "$1- ")
+    .replace(/^(\s*)[•·]\s*/, "$1- ")
     .replace(/^(\s*[-*+])(?=\S)/, "$1 ")
+    .replace(/([A-Za-z0-9\u4e00-\u9fff）)])\s*>\s*(?=(?:🔐|✅|⚠️?|📌|📋)|[\u4e00-\u9fff])/gu, "$1 ")
     .replace(/^\s*[-*+]\s*$/, "")
     .replace(/\s+>\s*$/, "")
 }
@@ -292,10 +300,13 @@ function normalizeCollapsedTables(markdown: string) {
     const block: string[] = []
     while (index < lines.length) {
       const line = lines[index]
-      if (block.length > 0 && isTableBlockBoundary(line)) {
+      if (block.length > 0 && isTableBlockBoundary(line) && !isSeparatorLine(line)) {
         break
       }
-      if (isTableLikeLine(line) || (block.length > 0 && isTableContinuationLine(line))) {
+      if (
+        isTableLikeLine(line) ||
+        (block.length > 0 && (isSeparatorLine(line) || isTableContinuationLine(line)))
+      ) {
         block.push(line)
         index += 1
         continue
@@ -329,6 +340,11 @@ function expandMaybeTableLine(line: string): string[] {
 
 function splitGluedTableStart(line: string) {
   const normalized = normalizeTableSourceLine(line)
+  const cells = tableCells(normalized)
+  if (cells.length >= 2 && isKnownHeaderCell(cells[0])) {
+    return normalized
+  }
+
   const match = tableStartPattern.exec(normalized)
   if (!match || match.index === 0) {
     return normalized
@@ -347,6 +363,7 @@ function looksLikeTableLine(line: string) {
 
   return (
     tableStartPattern.test(trimmed) ||
+    hasKnownHeaderRow(trimmed) ||
     /\|\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?/.test(trimmed) ||
     (/^\|/.test(trimmed) && countPipes(trimmed) >= 2)
   )
@@ -517,9 +534,11 @@ function normalizeTableCell(cell: string) {
 }
 
 function hasKnownHeaderRow(row: string) {
-  return tableCells(row).some((cell) =>
-    tableHeaderCellPattern.test(normalizeTableCell(cell))
-  )
+  return tableCells(row).some(isKnownHeaderCell)
+}
+
+function isKnownHeaderCell(cell: string) {
+  return tableHeaderCellPattern.test(normalizeTableCell(cell))
 }
 
 function isSeparatorRow(row: string) {
@@ -528,11 +547,17 @@ function isSeparatorRow(row: string) {
 }
 
 function isSeparatorLine(line: string) {
-  return isSeparatorRow(normalizeTableSourceLine(line))
+  const normalized = normalizeTableSourceLine(line)
+  return isSeparatorRow(normalized) || isLooseSeparatorLine(normalized)
 }
 
 function isSeparatorCell(cell: string) {
   return /^:?-{3,}:?$/.test(cell.trim())
+}
+
+function isLooseSeparatorLine(line: string) {
+  const trimmed = normalizeTableSourceLine(line).trim()
+  return /^\|?\s*:?-{3,}:?\s*\|?\s*$/.test(trimmed)
 }
 
 function normalizeSeparatorCell(cell: string) {
@@ -563,6 +588,14 @@ function countPipes(value: string) {
 
 function normalizeTableSourceLine(line: string) {
   return line.replace(/｜/g, "|")
+}
+
+function stripUnmatchedStrongMarkers(line: string) {
+  const markerCount = line.match(/\*\*/g)?.length ?? 0
+  if (markerCount % 2 === 0) {
+    return line
+  }
+  return line.replace(/\*\*/g, "")
 }
 
 function escapeRegExp(value: string) {
