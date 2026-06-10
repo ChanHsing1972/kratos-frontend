@@ -210,7 +210,9 @@ function normalizeModelMarkdown(markdown: string) {
 
 function normalizePlainMarkdown(markdown: string) {
   return normalizeLooseBlockSyntax(
-    normalizeCollapsedTables(normalizeHeadingSyntax(markdown))
+    normalizeCollapsedTables(
+      normalizeSingleCellTableArtifacts(normalizeHeadingSyntax(markdown))
+    )
   )
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/([。！？!?])\s*(#{1,6})(?=\S)/g, "$1\n\n$2 ")
@@ -228,6 +230,13 @@ function normalizePlainMarkdown(markdown: string) {
     .map(normalizeLineMarkdown)
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
+}
+
+function normalizeSingleCellTableArtifacts(markdown: string) {
+  return markdown.replace(
+    /^(\s*)\|\s*(?!:?-{3,}:?\s*\|?\s*$)([^|\n]+?)\s*\|?\s*$/gm,
+    "$1$2"
+  )
 }
 
 function normalizeHeadingSyntax(markdown: string) {
@@ -276,6 +285,7 @@ function normalizeLooseBlockSyntax(markdown: string) {
 function normalizeLineMarkdown(line: string) {
   return stripUnmatchedStrongMarkers(line)
     .replace(/^(\s*#{1,6})\s+(?:#\s*)+/, "$1 ")
+    .replace(/^(\s*)(?:[-*+•·]\s*){2,}$/, "")
     .replace(/^(\s*)[:：]\s+(?=\S)/, "$1")
     .replace(/^(\s*)(?:[-*+•·]\s*){2,}(?=\S)/, "$1- ")
     .replace(/^(\s*)[•·]\s*/, "$1- ")
@@ -410,6 +420,7 @@ function normalizeTableBlock(block: string[]) {
 
   const columnCount = Math.max(2, tableCells(firstRow).length)
   const rows: string[][] = []
+  const overflowLines: string[] = []
 
   for (let index = 0; index < expanded.length; index += 1) {
     if (isSeparatorLine(expanded[index])) {
@@ -427,9 +438,15 @@ function normalizeTableBlock(block: string[]) {
       candidate = `${candidate} ${expanded[index]}`
     }
 
-    const cells = normalizeCellCount(tableCells(candidate), columnCount)
-    if (cells.length >= 2) {
-      rows.push(cells)
+    const rawCells = tableCells(candidate)
+    if (rawCells.length >= 2) {
+      rows.push(normalizeCellCount(rawCells, columnCount))
+      continue
+    }
+
+    const overflow = cleanSingleCellTableOverflow(candidate)
+    if (overflow) {
+      overflowLines.push(overflow)
     }
   }
 
@@ -437,11 +454,17 @@ function normalizeTableBlock(block: string[]) {
     return block
   }
 
-  return [
+  const tableLines = [
     formatTableCells(rows[0]),
     buildSeparatorRow(rows[0].length),
     ...rows.slice(1).map(formatTableCells),
   ]
+
+  if (overflowLines.length > 0) {
+    return [...tableLines, "", ...overflowLines]
+  }
+
+  return [...tableLines, ""]
 }
 
 function normalizeTableLine(line: string) {
@@ -505,6 +528,14 @@ function tableCells(row: string) {
     .replace(/\|+$/, "")
     .split("|")
     .map((cell) => cell.trim())
+}
+
+function cleanSingleCellTableOverflow(row: string) {
+  const normalized = normalizeTableSourceLine(row).trim()
+  if (!normalized.includes("|")) {
+    return normalized
+  }
+  return normalized.replace(/^\|+/, "").replace(/\|+$/, "").trim()
 }
 
 function normalizeCellCount(cells: string[], columnCount: number) {
@@ -591,11 +622,18 @@ function normalizeTableSourceLine(line: string) {
 }
 
 function stripUnmatchedStrongMarkers(line: string) {
-  const markerCount = line.match(/\*\*/g)?.length ?? 0
-  if (markerCount % 2 === 0) {
-    return line
+  let normalized = line
+  const strongMarkerCount = normalized.match(/\*\*/g)?.length ?? 0
+  if (strongMarkerCount % 2 !== 0) {
+    normalized = normalized.replace(/\*\*/g, "")
   }
-  return line.replace(/\*\*/g, "")
+
+  const emphasisMarkerCount = normalized.match(/(?<!\*)\*(?!\*)/g)?.length ?? 0
+  if (emphasisMarkerCount % 2 !== 0) {
+    normalized = normalized.replace(/(?<!\*)\*(?!\*)/g, "")
+  }
+
+  return normalized
 }
 
 function escapeRegExp(value: string) {
