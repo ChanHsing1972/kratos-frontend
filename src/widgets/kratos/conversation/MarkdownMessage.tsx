@@ -285,6 +285,10 @@ function normalizeLooseBlockSyntax(markdown: string) {
 function normalizeLineMarkdown(line: string) {
   return stripUnmatchedStrongMarkers(line)
     .replace(/^(\s*#{1,6})\s+(?:#\s*)+/, "$1 ")
+    .replace(
+      /^(\s*(?:#{1,6}\s*)?(?:今日训练|今日计划|训练安排|恢复训练|示例方案|通用方案))\s*[|｜]\s*(?=\S)/,
+      "$1："
+    )
     .replace(/^(\s*)(?:[-*+•·]\s*){2,}$/, "")
     .replace(/^(\s*)[:：]\s+(?=\S)/, "$1")
     .replace(/^(\s*)(?:[-*+•·]\s*){2,}(?=\S)/, "$1- ")

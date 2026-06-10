@@ -776,6 +776,19 @@ export function KratosPage() {
           }
         }
 
+        if (event.type === "answer_replace") {
+          const nextBody = stripTrainingPlanJsonContract(
+            event.answer || event.content || message.body
+          )
+          return {
+            ...message,
+            body: nextBody,
+            suggestedDietRecords,
+            suggestedHealthData,
+            structuredCardPending,
+          }
+        }
+
         if (event.type === "error") {
           return {
             ...message,
