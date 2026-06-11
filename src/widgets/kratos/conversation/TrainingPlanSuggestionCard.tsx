@@ -7,6 +7,15 @@ import type {
 } from "@/entities/kratos/model/types"
 import { useExerciseMedia } from "@/shared/hooks/useExerciseMedia"
 import { ActionImage } from "@/shared/ui/ActionImage"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/card"
+import { Button } from "@/shared/ui/button"
 
 type TrainingPlanSuggestionCardProps = {
   created: boolean
@@ -40,92 +49,100 @@ export function TrainingPlanSuggestionCard({
       .slice(0, isProgram ? 7 : 3) ?? []
 
   return (
-    <section className="mt-4 rounded-[12px] border border-border bg-muted/40 p-4 shadow-[0_10px_24px_rgba(17,17,17,0.04)]">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-            {isProgram ? "AI 周期计划草稿" : "AI 今日训练建议"}
-          </p>
-          <h4 className="mt-1 text-[15px] font-black tracking-[-0.03em] text-foreground">
-            {plan.title}
-          </h4>
-          {plan.goal ? (
-            <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-              {plan.goal}
+    <Card className="mt-4 bg-muted/40">
+      <CardHeader >
+        <CardTitle >
+          {plan.title}
+        </CardTitle>
+        <CardDescription>
+          {plan.goal || (isProgram && (plan.duration_weeks || sessionCount)) ? (
+            <p className="flex flex-wrap items-center gap-x-1">
+              {plan.goal ? <span>{plan.goal}</span> : null}
+              {/* {plan.goal && isProgram && (plan.duration_weeks || sessionCount) ? (
+                <span>·</span>
+              ) : null}
+              {isProgram && (plan.duration_weeks || sessionCount) ? (
+                <span>
+                  {plan.duration_weeks ? `周期 ${plan.duration_weeks} 周` : null}
+                  {plan.duration_weeks && sessionCount ? " · " : null}
+                  {sessionCount ? `每周 ${sessionCount} 项安排` : null}
+                </span>
+              ) : null} */}
             </p>
           ) : null}
-          {isProgram && (plan.duration_weeks || sessionCount) ? (
-            <p className="mt-1 text-[12px] text-muted-foreground">
-              {plan.duration_weeks ? `周期：${plan.duration_weeks} 周` : null}
-              {plan.duration_weeks && sessionCount ? " · " : null}
-              {sessionCount ? `每周 ${sessionCount} 项安排` : null}
-            </p>
-          ) : null}
-        </div>
+        </CardDescription>
         {created ? (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-[8px] border border-primary bg-card px-2.5 py-1 text-[11px] font-bold text-foreground">
             <Check className="size-3.5" />
             已生成
           </span>
         ) : null}
-      </div>
+      </CardHeader>
 
-      {scheduleLines.length ? (
-        <div className="mt-3 space-y-2">
-          {scheduleLines.map((line) => (
-            <p
-              className="rounded-[8px] border border-border bg-card px-3 py-2 text-[12px] leading-5 text-muted-foreground"
-              key={line}
-            >
-              {line}
-            </p>
-          ))}
-        </div>
-      ) : null}
+      <CardContent>
+        {scheduleLines.length ? (
+          <div className="space-y-2">
+            {scheduleLines.map((line) => (
+              <p
+                className="text-sm leading-6 text-foreground"
+                key={line}
+              >
+                {line}
+              </p>
+            ))}
+          </div>
+        ) : null}
 
-      {mediaExercises.length ? (
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {mediaExercises.map((exercise) => (
-            <ExerciseMediaFigure
-              exercise={exercise}
-              key={`${exercise.id}-${exercise.name}`}
-            />
-          ))}
-        </div>
-      ) : null}
+        {mediaExercises.length ? (
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {mediaExercises.map((exercise) => (
+              <ExerciseMediaFigure
+                exercise={exercise}
+                key={`${exercise.id}-${exercise.name}`}
+              />
+            ))}
+          </div>
+        ) : null}
 
-      {videoExercises.length ? (
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          {videoExercises.map((exercise) => (
-            <TeachingVideoPreview
-              exercise={exercise}
-              key={`${exercise.id}-${exercise.name}`}
-            />
-          ))}
-        </div>
-      ) : null}
+        {videoExercises.length ? (
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {videoExercises.map((exercise) => (
+              <TeachingVideoPreview
+                exercise={exercise}
+                key={`${exercise.id}-${exercise.name}`}
+              />
+            ))}
+          </div>
+        ) : null}
+      </CardContent>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          className="inline-flex h-9 items-center gap-2 rounded-[8px] bg-primary px-3 text-[12px] font-bold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+      <CardFooter className="justify-end gap-2">
+
+        <Button
+          disabled={created || loading}
+          onClick={onEdit}
+          type="button"
+          variant="outline"
+        >
+          <PencilLine className="size-3.5" />
+          编辑
+        </Button>
+        <Button
           disabled={created || loading}
           onClick={onCreate}
           type="button"
         >
-          {created ? "已保存到训练计划" : loading ? "保存中..." : isProgram ? "保存草稿" : "生成今日计划"}
-          <ChevronRight className="size-3.5" />
-        </button>
-        <button
-          className="inline-flex h-9 items-center gap-2 rounded-[8px] border border-border bg-card px-3 text-[12px] font-bold text-foreground transition hover:border-primary disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={created || loading}
-          onClick={onEdit}
-          type="button"
-        >
-          <PencilLine className="size-3.5" />
-          先编辑
-        </button>
-      </div>
-    </section>
+          <Check className="size-3.5" />
+          {created
+            ? "已保存到训练计划"
+            : loading
+              ? "保存中..."
+              : isProgram
+                ? "保存草稿"
+                : "生成今日计划"}
+        </Button>
+      </CardFooter>
+    </Card>
   )
 }
 

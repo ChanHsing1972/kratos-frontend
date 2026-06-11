@@ -116,15 +116,15 @@ const dietImageAccept = "image/jpeg,image/png,image/webp"
 
 const coreModeOptions: ComposerModeOption[] = [
   {
-    description: "生成今日训练或长期周期计划",
+    description: "生成长期周期计划",
     icon: Sparkles,
     id: "training-plan",
     initialPrompt:
-      "请根据我的目标、身体数据、训练偏好和恢复情况，为我生成训练计划。",
+      "请根据我的目标、身体数据、训练偏好和恢复情况，为我生成本周训练计划。",
     label: "生成训练计划",
-    placeholder: "描述今天状态、周期、频率、器械、目标和限制…",
+    placeholder: "描述状态、周期、频率、器械、目标和限制…",
     promptPrefix:
-      "你现在处于「生成训练计划」模式。请根据我的意图判断需要生成今日训练还是长期周期训练计划。若我强调今天、当前状态、可用时间或临时安排，请读取我的档案、近期训练、身体数据、恢复状态和可用工具，生成今天可执行的训练方案；若我强调周期、频率、阶段目标或长期安排，请生成可保存的长期或周期训练计划，包含周期长度、每周安排、训练目标、恢复建议和营养建议。如果信息不足，先基于已知上下文给出保守方案并列出需要补充的问题。",
+      "你现在处于「生成训练计划」模式。请读取我的档案、近期训练、身体数据、恢复状态和可用工具，生成可保存的长期或周期训练计划，包含周期长度、每周安排、训练目标、恢复建议和营养建议。如果信息不足，先基于已知上下文给出保守方案并列出需要补充的问题。",
   },
   {
     description: "文字描述交给 Agent 估算；食物图片可直接识别",
@@ -522,7 +522,7 @@ function CapabilityMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        avoidCollisions={false}
+        avoidCollisions={true}
         className="max-h-[min(72vh,300px)] w-[min(88vw,240px)] rounded-2xl p-2"
         side="bottom"
         sideOffset={8}
