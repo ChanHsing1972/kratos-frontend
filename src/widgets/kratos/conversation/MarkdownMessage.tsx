@@ -211,7 +211,9 @@ function normalizeModelMarkdown(markdown: string) {
 function normalizePlainMarkdown(markdown: string) {
   return normalizeLooseBlockSyntax(
     normalizeCollapsedTables(
-      normalizeSingleCellTableArtifacts(normalizeHeadingSyntax(markdown))
+      normalizeSingleCellTableArtifacts(
+        normalizeTableListPrefixes(normalizeHeadingSyntax(markdown))
+      )
     )
   )
     .replace(/<br\s*\/?>/gi, "\n")
@@ -239,15 +241,24 @@ function normalizeSingleCellTableArtifacts(markdown: string) {
   )
 }
 
+function normalizeTableListPrefixes(markdown: string) {
+  return markdown.replace(/^(\s*)[-*+•·]\s+(?=\|)/gm, "$1")
+}
+
 function normalizeHeadingSyntax(markdown: string) {
   return markdown
+    .replace(/([^\n])\s*(#{2,6})\s*(?=[◆◇▪▫●•·]?\s*\S)/g, "$1\n\n$2 ")
+    .replace(/^(\s*#{1,6})(?!#)(?=\S)/gm, "$1 ")
     .split("\n")
     .flatMap((line) => splitKnownHeadingBody(cleanHeadingMarkers(line)))
     .join("\n")
 }
 
 function cleanHeadingMarkers(line: string) {
-  return line.replace(/^(\s*#{1,6})\s+(?:#\s*)+/, "$1 ")
+  return line
+    .replace(/^(\s*#{1,6})(?!#)(?=\S)/, "$1 ")
+    .replace(/^(\s*#{1,6})\s+(?:#\s*)+/, "$1 ")
+    .replace(/^(\s*#{1,6}\s+)[◆◇▪▫●•·]\s*/, "$1")
 }
 
 function splitKnownHeadingBody(line: string) {
@@ -284,7 +295,9 @@ function normalizeLooseBlockSyntax(markdown: string) {
 
 function normalizeLineMarkdown(line: string) {
   return stripUnmatchedStrongMarkers(line)
+    .replace(/^(\s*#{1,6})(?!#)(?=\S)/, "$1 ")
     .replace(/^(\s*#{1,6})\s+(?:#\s*)+/, "$1 ")
+    .replace(/^(\s*#{1,6}\s+)[◆◇▪▫●•·]\s*/, "$1")
     .replace(
       /^(\s*(?:#{1,6}\s*)?(?:今日训练|今日计划|训练安排|恢复训练|示例方案|通用方案))\s*[|｜]\s*(?=\S)/,
       "$1："
@@ -330,6 +343,9 @@ function normalizeCollapsedTables(markdown: string) {
     }
 
     if (block.length) {
+      if (output.length > 0 && output[output.length - 1].trim()) {
+        output.push("")
+      }
       output.push(...normalizeTableBlock(block))
     } else {
       output.push(lines[index])
