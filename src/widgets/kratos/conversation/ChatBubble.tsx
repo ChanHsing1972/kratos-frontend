@@ -48,8 +48,8 @@ export function ChatBubble({
       await copyText(message.body)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error("复制失败", err)
+    } catch {
+      setCopied(false)
     }
   }
 
@@ -141,6 +141,10 @@ export function ChatBubble({
             <TrainingPlanDraftPendingCard />
           ) : null}
 
+          {message.suggestedHealthData && message.streaming ? (
+            <CompactConfirmationPendingCard title="身体数据确认卡片" />
+          ) : null}
+
           {message.suggestedHealthData && !message.streaming ? (
             <HealthDataConfirmationCard
               data={message.suggestedHealthData}
@@ -148,6 +152,10 @@ export function ChatBubble({
               onConfirm={() => onConfirmHealthData(message.id)}
               saved={Boolean(message.healthDataSaved)}
             />
+          ) : null}
+
+          {message.suggestedDietRecords && message.streaming ? (
+            <CompactConfirmationPendingCard title="饮食记录确认卡片" />
           ) : null}
 
           {message.suggestedDietRecords && !message.streaming ? (
@@ -185,29 +193,69 @@ function TrainingPlanDraftPendingCard() {
   return (
     <section className="mt-4 rounded-[12px] border border-border bg-muted/40 p-4 shadow-[0_10px_24px_rgba(17,17,17,0.04)]">
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-            AI 周期计划草稿
-          </p>
-          <h4 className="mt-1 text-[15px] font-black text-foreground">
-            正在整理可保存的训练计划
-          </h4>
-          <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-            Kratos 正在把训练安排整理成可保存草稿，动作图片和教学视频会陆续补齐。
-          </p>
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-3 w-28 rounded-[8px]" />
+          <Skeleton className="h-5 w-56 rounded-[8px]" />
+          <Skeleton className="h-3 w-[72%] rounded-[8px]" />
         </div>
         <span className="inline-flex h-7 shrink-0 items-center rounded-[8px] border border-border bg-card px-2.5 text-[11px] font-bold text-muted-foreground">
           生成中
         </span>
       </div>
       <div className="mt-3 space-y-2">
-        <Skeleton className="h-12 rounded-[8px]" />
-        <Skeleton className="h-12 rounded-[8px]" />
-        <Skeleton className="h-12 rounded-[8px]" />
+        <Skeleton className="h-9 rounded-[8px]" />
+        <Skeleton className="h-9 rounded-[8px]" />
+        <Skeleton className="h-9 w-[88%] rounded-[8px]" />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[0, 1, 2, 3].map((item) => (
+          <div className="overflow-hidden rounded-[8px] border border-border bg-card" key={item}>
+            <Skeleton className="aspect-[4/3] rounded-none" />
+            <div className="p-2">
+              <Skeleton className="h-3 w-[78%] rounded-[8px]" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {[0, 1, 2].map((item) => (
+          <div className="overflow-hidden rounded-[8px] border border-border bg-card" key={item}>
+            <Skeleton className="aspect-video rounded-none" />
+            <div className="space-y-1.5 p-2">
+              <Skeleton className="h-3 w-[70%] rounded-[8px]" />
+              <Skeleton className="h-3 w-[88%] rounded-[8px]" />
+            </div>
+          </div>
+        ))}
       </div>
       <div className="mt-4 flex gap-2">
         <Skeleton className="h-9 w-24 rounded-[8px]" />
+        <Skeleton className="h-9 w-20 rounded-[8px]" />
+      </div>
+    </section>
+  )
+}
+
+function CompactConfirmationPendingCard({ title }: { title: string }) {
+  return (
+    <section className="mt-4 rounded-[12px] border border-border bg-muted/40 p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1 space-y-2">
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+            {title}
+          </p>
+          <Skeleton className="h-4 w-56 rounded-[8px]" />
+          <Skeleton className="h-3 w-[72%] rounded-[8px]" />
+        </div>
+        <Skeleton className="h-7 w-16 rounded-[8px]" />
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <Skeleton className="h-10 rounded-[8px]" />
+        <Skeleton className="h-10 rounded-[8px]" />
+      </div>
+      <div className="mt-4 flex gap-2">
         <Skeleton className="h-9 w-24 rounded-[8px]" />
+        <Skeleton className="h-9 w-20 rounded-[8px]" />
       </div>
     </section>
   )
@@ -222,31 +270,38 @@ function AttachmentPreviewList({
 }) {
   return (
     <div className={`flex flex-col gap-2 ${className ?? ""}`}>
-      {attachments.map((attachment) => {
-        const isImage = attachment.content_type.startsWith("image/")
-        return (
-          <a
-            className="flex max-w-full items-center gap-2 rounded-lg border border-border bg-background/70 p-2 text-xs text-foreground hover:bg-background"
-            href={absoluteApiUrl(attachment.url)}
-            key={attachment.url}
-            rel="noreferrer"
-            target="_blank"
-          >
-            {isImage ? (
-              <img
-                alt={attachment.filename}
-                className="size-10 rounded-md object-cover"
-                src={attachment.data_url || absoluteApiUrl(attachment.url)}
-              />
-            ) : (
-              <span className="grid size-10 place-items-center rounded-md bg-muted">
-                <Paperclip />
-              </span>
-            )}
-            <span className="min-w-0 flex-1 truncate">{attachment.filename}</span>
-          </a>
-        )
-      })}
+      {attachments.map((attachment) => (
+        <AttachmentPreviewItem attachment={attachment} key={attachment.url} />
+      ))}
     </div>
+  )
+}
+
+function AttachmentPreviewItem({ attachment }: { attachment: ChatAttachment }) {
+  const [imageFailed, setImageFailed] = useState(false)
+  const isImage = attachment.content_type.startsWith("image/") && !imageFailed
+  const href = absoluteApiUrl(attachment.url)
+
+  return (
+    <a
+      className="flex max-w-full items-center gap-2 rounded-lg border border-border bg-background/70 p-2 text-xs text-foreground hover:bg-background"
+      href={href}
+      rel="noreferrer"
+      target="_blank"
+    >
+      {isImage ? (
+        <img
+          alt={attachment.filename}
+          className="size-10 rounded-md object-cover"
+          onError={() => setImageFailed(true)}
+          src={attachment.data_url || href}
+        />
+      ) : (
+        <span className="grid size-10 place-items-center rounded-md bg-muted">
+          <Paperclip />
+        </span>
+      )}
+      <span className="min-w-0 flex-1 truncate">{attachment.filename}</span>
+    </a>
   )
 }

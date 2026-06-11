@@ -1,12 +1,11 @@
 import {
   getCurrentUser,
   getFitnessContext,
-  listAgentRuns,
-  listAgentTools,
-  listSkills,
+  listAgentSessions,
   listTrainingPlans,
 } from "@/entities/kratos/api/client"
 import type {
+  AgentConversationSession,
   AgentRun,
   AgentToolConfig,
   FitnessContext,
@@ -23,7 +22,8 @@ export type DashboardSnapshot = {
   tools: AgentToolConfig[]
 }
 
-export type InitialAuthSnapshot = DashboardSnapshot & {
+export type InitialAuthSnapshot = {
+  sessions: AgentConversationSession[]
   user: UserProfile
 }
 
@@ -37,20 +37,17 @@ let initialAuthSnapshot:
 export async function loadDashboardSnapshot(
   token: string
 ): Promise<DashboardSnapshot> {
-  const [context, plans, runs, skills, tools] = await Promise.all([
+  const [context, plans] = await Promise.all([
     getFitnessContext(token),
     listTrainingPlans(token),
-    listAgentRuns(token, 200),
-    listSkills(token),
-    listAgentTools(token),
   ])
 
   return {
     context,
     plans,
-    runs,
-    skills,
-    tools,
+    runs: [],
+    skills: [],
+    tools: [],
   }
 }
 
@@ -63,9 +60,13 @@ export function loadInitialAuthSnapshot(
 
   const promise = Promise.all([
     getCurrentUser(token),
-    loadDashboardSnapshot(token),
-  ]).then(([user, snapshot]) => ({
-    ...snapshot,
+    listAgentSessions(token, {
+      includeArchived: true,
+      includeDeleted: false,
+      limit: 80,
+    }),
+  ]).then(([user, sessions]) => ({
+    sessions,
     user,
   }))
 

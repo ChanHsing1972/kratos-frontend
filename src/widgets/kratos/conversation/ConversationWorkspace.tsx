@@ -26,6 +26,7 @@ type ComposerDataCategory = "body" | "health" | "diet"
 export type ConversationWorkspaceProps = {
   activeComposerMode: AgentComposerMode | null
   activeSessionTitle: string
+  activeSessionTitlePending: boolean
   agentStreaming: boolean
   chatTrainingPlanSavingId: string | null
   composerValue: string
@@ -62,6 +63,8 @@ export type ConversationWorkspaceProps = {
 
 export function ConversationWorkspace({
   activeComposerMode,
+  activeSessionTitle,
+  activeSessionTitlePending,
   agentStreaming,
   chatTrainingPlanSavingId,
   composerValue,
@@ -140,6 +143,10 @@ export function ConversationWorkspace({
           />
         ) : (
           <>
+            <ConversationHeader
+              pending={activeSessionTitlePending}
+              title={activeSessionTitle}
+            />
             <div className="relative min-h-0 flex-1">
               <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-card via-card/55 to-transparent" />
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 bg-gradient-to-b from-transparent via-card/55 to-card" />
@@ -205,30 +212,151 @@ export function ConversationWorkspace({
   )
 }
 
+function ConversationHeader({
+  pending,
+  title,
+}: {
+  pending: boolean
+  title: string
+}) {
+  return (
+    <header className="shrink-0 bg-card px-5 pt-7 pb-1 sm:px-6 sm:pt-9">
+      <div className="mx-auto w-full max-w-[820px]">
+        {pending ? (
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-28 rounded-[8px]" />
+            <Skeleton className="h-9 w-[min(360px,78vw)] rounded-[8px]" />
+          </div>
+        ) : (
+          <h1
+            className="max-w-[720px] truncate text-[28px] leading-tight font-black tracking-normal text-foreground sm:text-[34px]"
+            title={title}
+          >
+            <span className="conversation-title-reveal" key={title}>
+              {title}
+            </span>
+          </h1>
+        )}
+      </div>
+    </header>
+  )
+}
+
 function LoadingConversation() {
   return (
-    <div className="min-h-0 flex-1 bg-card">
-      <div className="mx-auto flex w-full max-w-[820px] flex-col gap-5 px-5 pt-8 sm:px-6 sm:pt-10">
-        <div className="flex justify-end">
-          <div className="w-[72%] max-w-[560px] space-y-2">
-            <Skeleton className="ml-auto h-4 w-24 rounded-[8px]" />
-            <Skeleton className="h-16 rounded-[8px]" />
-          </div>
-        </div>
-        <div className="w-[78%] max-w-[600px] space-y-3">
+    <div className="flex min-h-0 flex-1 flex-col bg-card">
+      <header className="shrink-0 px-5 pt-7 pb-1 sm:px-6 sm:pt-9">
+        <div className="mx-auto w-full max-w-[820px] space-y-3">
           <Skeleton className="h-4 w-28 rounded-[8px]" />
-          <Skeleton className="h-5 w-full rounded-[8px]" />
-          <Skeleton className="h-5 w-[86%] rounded-[8px]" />
-          <Skeleton className="h-28 rounded-[8px]" />
+          <Skeleton className="h-9 w-[min(360px,78vw)] rounded-[8px]" />
         </div>
-        <div className="flex justify-end">
-          <div className="w-[64%] max-w-[500px] space-y-2">
-            <Skeleton className="ml-auto h-4 w-20 rounded-[8px]" />
-            <Skeleton className="h-14 rounded-[8px]" />
+      </header>
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-card via-card/55 to-transparent" />
+        <div className="mx-auto flex w-full max-w-[820px] flex-col gap-5 px-5 pt-8 pb-10 sm:px-6">
+          <UserBubbleSkeleton />
+          <AssistantBubbleSkeleton />
+          <UserBubbleSkeleton compact />
+        </div>
+      </div>
+      <div className="shrink-0 bg-card px-5 pt-1 pb-3 sm:px-6">
+        <div className="mx-auto w-full max-w-[780px] rounded-[24px] border border-border bg-card p-4 shadow-[0_12px_34px_rgba(17,17,17,0.08)]">
+          <Skeleton className="h-5 w-52 rounded-[8px]" />
+          <div className="mt-7 flex items-center justify-between gap-4">
+            <div className="flex gap-2">
+              <Skeleton className="size-9 rounded-full" />
+              <Skeleton className="h-9 w-24 rounded-[8px]" />
+              <Skeleton className="h-9 w-24 rounded-[8px]" />
+            </div>
+            <Skeleton className="size-10 rounded-full" />
           </div>
+        </div>
+        <Skeleton className="mx-auto mt-2 h-3 w-[min(460px,80vw)] rounded-[8px]" />
+      </div>
+    </div>
+  )
+}
+
+function UserBubbleSkeleton({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className="flex justify-end pt-2">
+      <div className="w-[72%] max-w-[560px] space-y-2">
+        <Skeleton className="ml-auto h-3 w-20 rounded-[8px]" />
+        <div className="rounded-2xl bg-muted px-4 py-3">
+          <Skeleton className="h-4 w-full rounded-[8px]" />
+          {!compact ? <Skeleton className="mt-2 h-4 w-[78%] rounded-[8px]" /> : null}
         </div>
       </div>
     </div>
+  )
+}
+
+function AssistantBubbleSkeleton() {
+  return (
+    <div className="bg-card pt-0 pb-4">
+      <div className="flex gap-4">
+        <div className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+          <span className="text-[18px] font-black">K</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <Skeleton className="h-4 w-20 rounded-[8px]" />
+          <div className="mt-3 rounded-[12px] border border-border bg-muted/40 px-4 py-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-28 rounded-[8px]" />
+                <Skeleton className="h-3 w-44 rounded-[8px]" />
+              </div>
+              <Skeleton className="size-8 rounded-[8px]" />
+            </div>
+            <div className="mt-5 space-y-3 pl-8">
+              <Skeleton className="h-3 w-[70%] rounded-[8px]" />
+              <Skeleton className="h-3 w-[84%] rounded-[8px]" />
+              <Skeleton className="h-3 w-[62%] rounded-[8px]" />
+            </div>
+          </div>
+          <div className="mt-4 space-y-2">
+            <Skeleton className="h-4 w-full rounded-[8px]" />
+            <Skeleton className="h-4 w-[92%] rounded-[8px]" />
+            <Skeleton className="h-4 w-[74%] rounded-[8px]" />
+          </div>
+          <PlanCardSkeleton />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PlanCardSkeleton() {
+  return (
+    <section className="mt-4 rounded-[12px] border border-border bg-muted/40 p-4 shadow-[0_10px_24px_rgba(17,17,17,0.04)]">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-3 w-28 rounded-[8px]" />
+          <Skeleton className="h-5 w-56 rounded-[8px]" />
+          <Skeleton className="h-3 w-[72%] rounded-[8px]" />
+        </div>
+        <Skeleton className="h-7 w-16 rounded-[8px]" />
+      </div>
+      <div className="mt-3 space-y-2">
+        <Skeleton className="h-9 rounded-[8px]" />
+        <Skeleton className="h-9 rounded-[8px]" />
+        <Skeleton className="h-9 w-[88%] rounded-[8px]" />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[0, 1, 2, 3].map((item) => (
+          <div className="overflow-hidden rounded-[8px] border border-border bg-card" key={item}>
+            <Skeleton className="aspect-[4/3] rounded-none" />
+            <div className="p-2">
+              <Skeleton className="h-3 w-[78%] rounded-[8px]" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex gap-2">
+        <Skeleton className="h-9 w-24 rounded-[8px]" />
+        <Skeleton className="h-9 w-20 rounded-[8px]" />
+      </div>
+    </section>
   )
 }
 

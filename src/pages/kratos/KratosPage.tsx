@@ -28,7 +28,6 @@ import {
   estimateDietFromImage,
   exportAgentRunRagas,
   getAgentSession,
-  getCurrentUser,
   getErrorMessage,
   getTrainingPlanGuidance,
   getWorkoutHeartRateSummary,
@@ -83,7 +82,6 @@ import {
 } from "@/features/kratos/lib/formPayloads"
 import {
   clearCachedUser,
-  readActiveAgentSessionId,
   readCachedUser,
   readGeneratedTrainingPlanKeys,
   readWorkspaceSnapshot,
@@ -133,6 +131,7 @@ import { Toaster } from "@/shared/ui/sonner"
 import { useTheme } from "@/app/providers/theme-provider"
 import type {
   AgentCheckin,
+  AgentConversationSession,
   AgentStreamEvent,
   AgentToolConfig,
   AgentRun,
@@ -188,6 +187,8 @@ type TrainingSession = {
   startedAt: number
   workoutDate: string
 }
+
+const DEFAULT_CHAT_TITLE = "新会话"
 
 function routeFromLocation() {
   const path = window.location.pathname
@@ -426,21 +427,21 @@ export function KratosPage() {
   const cachedWorkspaceRef = useRef(readWorkspaceSnapshot())
   const [activeNav, setActiveNav] = useState(() => {
     const route = routeFromLocation()
-    return window.location.pathname === "/"
-      ? cachedWorkspaceRef.current?.activeNav ?? route.nav
-      : route.nav
+    return route.nav
   })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
   const [conversationLoading, setConversationLoading] = useState(false)
+  const [sessionListLoading, setSessionListLoading] = useState(
+    () =>
+      Boolean(localStorage.getItem(AUTH_TOKEN_KEY)) &&
+      !cachedWorkspaceRef.current?.chatSessions?.length
+  )
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(
     () => cachedWorkspaceRef.current?.chatSessions ?? []
   )
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() =>
-    routeFromLocation().sessionId ??
-    (routeFromLocation().nav === "new"
-      ? null
-      : cachedWorkspaceRef.current?.activeSessionId ?? readActiveAgentSessionId())
+    routeFromLocation().sessionId ?? null
   )
   const [authMode, setAuthMode] = useState<AuthMode>("login")
   const [authModalOpen, setAuthModalOpen] = useState(false)
@@ -482,6 +483,9 @@ export function KratosPage() {
   const [chatTrainingPlanSavingId, setChatTrainingPlanSavingId] = useState<
     string | null
   >(null)
+  const [pendingTitleSessionIds, setPendingTitleSessionIds] = useState<Set<string>>(
+    () => new Set()
+  )
   const [generatedTrainingPlanKeys, setGeneratedTrainingPlanKeys] = useState<
     Set<string>
   >(() => readGeneratedTrainingPlanKeys())
@@ -608,9 +612,14 @@ export function KratosPage() {
   const unreadCount = notifications.filter((item) => !item.read).length
   const activePlan =
     trainingPlans.find((plan) => plan.status === "active") ?? null
+  const activePlanId = activePlan?.id ?? null
   const activeSession =
     chatSessions.find((session) => session.id === activeSessionId) ?? null
-  const activeSessionTitle = activeSession?.title ?? "新会话"
+  const activeSessionTitle = activeSession?.title ?? DEFAULT_CHAT_TITLE
+  const activeSessionTitlePending =
+    Boolean(activeSessionId) &&
+    Boolean(activeSessionId && pendingTitleSessionIds.has(activeSessionId)) &&
+    activeSessionTitle === DEFAULT_CHAT_TITLE
   const activeSessionHasRunningMessage = messages.some(
     (message) => message.author === "assistant" && message.streaming
   )
@@ -620,6 +629,8 @@ export function KratosPage() {
     getLatestByDate(agentCheckins, (checkin) => checkin.checkin_date ?? checkin.created_at) ?? null
   const latestHealthMetric =
     getLatestByDate(healthMetrics, (metric) => metric.measured_at ?? metric.recorded_at) ?? null
+  const latestWorkoutLogId = workoutLogs[0]?.id ?? null
+  const latestWorkoutLogCreatedAt = workoutLogs[0]?.created_at ?? null
   const onboardingStatus: OnboardingStatus | null =
     fitnessContext?.onboarding ?? null
   const authToken = localStorage.getItem(AUTH_TOKEN_KEY)
@@ -891,34 +902,22 @@ export function KratosPage() {
     const cachedWorkspace = cachedWorkspaceRef.current
     const hasCachedUser = Boolean(readCachedUser() ?? cachedWorkspace?.user)
     setAuthLoading(!hasCachedUser)
-    setDashboardLoading(!cachedWorkspace)
+    setDashboardLoading(false)
 
     const route = routeFromLocation()
-    const cacheMatchesRoute =
-      cachedWorkspace &&
-      hasCachedUser &&
-      (!route.sessionId || route.sessionId === cachedWorkspace.activeSessionId)
-    if (cacheMatchesRoute) {
-      setAuthLoading(false)
-      setDashboardLoading(false)
-      return
-    }
-
     let ignore = false
 
     loadInitialAuthSnapshot(token)
-      .then(async ({ context, plans, runs, skills: nextSkills, tools: nextTools, user }) => {
+      .then(async ({ sessions, user }) => {
         if (ignore) {
           return
         }
         writeCachedUser(user)
         setCurrentUser(user)
-        applyDashboardSnapshot(context, plans, runs, nextSkills, nextTools)
-        const preferredSessionId =
-          route.sessionId ?? (route.nav === "new" ? null : readActiveAgentSessionId())
-        const selectedSessionId = await syncConversationSessions(
-          token,
-          preferredSessionId,
+        setSessionListLoading(false)
+        const selectedSessionId = applyConversationSessionSummaries(
+          sessions,
+          route.sessionId,
           { selectFirst: false }
         )
 
@@ -931,7 +930,17 @@ export function KratosPage() {
           return
         }
 
-        if (!selectedSessionId) {
+        if (route.sessionId && !selectedSessionId) {
+          setMessages(initialMessages)
+          setActiveSessionId(null)
+          setActiveNav("new")
+          writeActiveAgentSessionId(null)
+          replaceWorkspacePath("/chat/new")
+          sonnerToast.error("该历史会话不存在或已被删除")
+          return
+        }
+
+        if (!route.sessionId) {
           if (route.nav !== "训练计划" && route.nav !== "数据中心" && route.nav !== "饮食摄入" && route.nav !== "工具技能") {
             setMessages(initialMessages)
             setActiveSessionId(null)
@@ -941,7 +950,7 @@ export function KratosPage() {
           return
         }
 
-        if (route.sessionId) {
+        if (selectedSessionId) {
           await loadConversationSession(token, selectedSessionId, {
             silent: Boolean(cachedWorkspace),
           })
@@ -964,6 +973,7 @@ export function KratosPage() {
           return
         }
         setAuthLoading(false)
+        setSessionListLoading(false)
         setDashboardLoading(false)
       })
 
@@ -1023,7 +1033,7 @@ export function KratosPage() {
 
   useEffect(() => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
-    if (!token || !activePlan) {
+    if (activeNav !== "训练计划" || !token || !activePlanId) {
       setTrainingGuidance("")
       setTrainingGuidanceError(null)
       setTrainingGuidanceLoading(false)
@@ -1033,7 +1043,7 @@ export function KratosPage() {
     let cancelled = false
     setTrainingGuidanceLoading(true)
     setTrainingGuidanceError(null)
-    void getTrainingPlanGuidance(token, activePlan.id)
+    void getTrainingPlanGuidance(token, activePlanId)
       .then((response) => {
         if (cancelled) return
         setTrainingGuidance(response.message)
@@ -1052,10 +1062,11 @@ export function KratosPage() {
       cancelled = true
     }
   }, [
-    activePlan?.id,
+    activeNav,
+    activePlanId,
     latestCheckin?.id,
-    workoutLogs[0]?.id,
-    workoutLogs[0]?.created_at,
+    latestWorkoutLogCreatedAt,
+    latestWorkoutLogId,
   ])
 
   const openAuth = (mode: AuthMode) => {
@@ -1079,23 +1090,26 @@ export function KratosPage() {
 
       const token = await loginUser(form.username, form.password)
       localStorage.setItem(AUTH_TOKEN_KEY, token.access_token)
-      const user = await getCurrentUser(token.access_token)
+      const { sessions, user } = await loadInitialAuthSnapshot(token.access_token)
       writeCachedUser(user)
       setCurrentUser(user)
-      await refreshDashboard(token.access_token)
-      const selectedSessionId = await syncConversationSessions(
-        token.access_token,
-        readActiveAgentSessionId()
-      )
-
-      if (selectedSessionId) {
-        await loadConversationSession(token.access_token, selectedSessionId)
-      } else {
-        setMessages(initialMessages)
-        setActiveSessionId(null)
-        setActiveNav("new")
-        replaceWorkspacePath("/chat/new")
-      }
+      setFitnessContext(null)
+      setFitnessProfile(null)
+      setBodyMetrics([])
+      setHealthMetrics([])
+      setWorkoutLogs([])
+      setDietRecords([])
+      setAgentCheckins([])
+      setTrainingPlans([])
+      setSkills([])
+      setTools([])
+      applyConversationSessionSummaries(sessions, null, { selectFirst: false })
+      setSessionListLoading(false)
+      setMessages(initialMessages)
+      setActiveSessionId(null)
+      setActiveNav("new")
+      writeActiveAgentSessionId(null)
+      replaceWorkspacePath("/chat/new")
 
       setAuthModalOpen(false)
       setOnboardingOpen(authMode === "register")
@@ -1218,20 +1232,24 @@ export function KratosPage() {
     setSidebarDrawerOpen(false)
   }
 
-  const syncConversationSessions = async (
-    token: string,
+  const applyConversationSessionSummaries = (
+    sessions: AgentConversationSession[],
     preferredSessionId: string | null = activeSessionId,
-    options: { preserveActive?: boolean; selectFirst?: boolean } = {}
+    options: { preserveActive?: boolean; selectFirst?: boolean; showLoading?: boolean } = {}
   ) => {
-    const sessions = await listAgentSessions(token, {
-      includeArchived: true,
-      includeDeleted: false,
-      limit: 200,
-    })
     const nextSessions = chatSessionsFromAgentSessions(sessions)
       .filter((session) => !session.deleted && session.messageCount > 0)
       .sort(sortChatSessions)
     setChatSessions(nextSessions)
+    setPendingTitleSessionIds((current) => {
+      const next = new Set(current)
+      for (const session of nextSessions) {
+        if (session.title !== DEFAULT_CHAT_TITLE) {
+          next.delete(session.id)
+        }
+      }
+      return next
+    })
 
     if (options.preserveActive) {
       return activeSessionId
@@ -1248,6 +1266,29 @@ export function KratosPage() {
     setActiveSessionId(nextActiveSessionId)
     writeActiveAgentSessionId(nextActiveSessionId)
     return nextActiveSessionId
+  }
+
+  const syncConversationSessions = async (
+    token: string,
+    preferredSessionId: string | null = activeSessionId,
+    options: { preserveActive?: boolean; selectFirst?: boolean; showLoading?: boolean } = {}
+  ) => {
+    const showLoading = options.showLoading !== false
+    if (showLoading) {
+      setSessionListLoading(true)
+    }
+    try {
+      const sessions = await listAgentSessions(token, {
+        includeArchived: true,
+        includeDeleted: false,
+        limit: 200,
+      })
+      return applyConversationSessionSummaries(sessions, preferredSessionId, options)
+    } finally {
+      if (showLoading) {
+        setSessionListLoading(false)
+      }
+    }
   }
 
   const loadConversationSession = async (
@@ -1267,6 +1308,13 @@ export function KratosPage() {
       ])
 
       const mappedSession = chatSessionFromAgentSession(session)
+      if (mappedSession.title !== DEFAULT_CHAT_TITLE) {
+        setPendingTitleSessionIds((current) => {
+          const next = new Set(current)
+          next.delete(sessionId)
+          return next
+        })
+      }
       if (runs.length === 0) {
         setChatSessions((current) => current.filter((item) => item.id !== sessionId))
         if (activeSessionId === sessionId) {
@@ -1689,8 +1737,8 @@ export function KratosPage() {
     setDashboardLoading(true)
 
     try {
-      const { context, plans, runs, skills: nextSkills, tools: nextTools } = await loadDashboardSnapshot(token)
-      applyDashboardSnapshot(context, plans, runs, nextSkills, nextTools, options)
+      const { context, plans } = await loadDashboardSnapshot(token)
+      applyDashboardSnapshot(context, plans, options)
       return context
     } catch (error) {
       sonnerToast.error(getErrorMessage(error), { richColors: true })
@@ -1703,16 +1751,11 @@ export function KratosPage() {
   function applyDashboardSnapshot(
     context: FitnessContext,
     plans: TrainingPlan[],
-    _runs: AgentRun[],
-    nextSkills: Skill[],
-    nextTools: AgentToolConfig[],
     _options: { preserveMessages?: boolean } = {}
   ) {
     void _options
     setFitnessContext(context)
     setTrainingPlans(plans)
-    setSkills(nextSkills)
-    setTools(nextTools)
     setSkillError(null)
     setFitnessProfile(context.profile)
     setBodyMetrics(context.recent_body_metrics)
@@ -1723,7 +1766,12 @@ export function KratosPage() {
   }
 
   useEffect(() => {
-    if (activeNav !== "数据中心") {
+    const shouldLoadDashboard =
+      activeNav === "训练计划" ||
+      activeNav === "数据中心" ||
+      activeNav === "饮食摄入" ||
+      (profileMenuOpen && Boolean(currentUser) && !fitnessContext)
+    if (!shouldLoadDashboard) {
       return
     }
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
@@ -1736,10 +1784,10 @@ export function KratosPage() {
     }
     dataCenterRefreshRef.current = now
     void refreshDashboard(token, { preserveMessages: true })
-    // Refresh only when entering the data center or switching user; the
+    // Refresh only when entering data-backed surfaces or opening profile details; the
     // dashboard refresh function is intentionally not a dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeNav, currentUser?.id])
+  }, [activeNav, currentUser?.id, fitnessContext, profileMenuOpen])
 
   const upsertFitnessProfile = async (
     token: string,
@@ -1833,11 +1881,12 @@ export function KratosPage() {
     const clientTurnId = createId()
     activeClientTurnIdRef.current = clientTurnId
     if (!activeSessionId) {
-      const sessionTitle = "新会话"
+      const sessionTitle = DEFAULT_CHAT_TITLE
       setActiveSessionId(nextSessionId)
       writeActiveAgentSessionId(nextSessionId)
       setActiveNav(nextSessionId)
       pushWorkspacePath(`/chat/${encodeURIComponent(nextSessionId)}`)
+      setPendingTitleSessionIds((current) => new Set(current).add(nextSessionId))
       setChatSessions((current) =>
         [
           {
@@ -1903,7 +1952,7 @@ export function KratosPage() {
           if (event.session_id && event.session_id !== handledStreamSessionId) {
             handledStreamSessionId = event.session_id
             const serverSessionId = event.session_id
-            const sessionTitle = "新会话"
+            const sessionTitle = DEFAULT_CHAT_TITLE
             const optimisticSessionId = nextSessionId
             nextSessionId = serverSessionId
             activeSessionIdRef.current = serverSessionId
@@ -1913,6 +1962,13 @@ export function KratosPage() {
                 liveMessagesBySessionRef.current[serverSessionId] = liveMessages
                 delete liveMessagesBySessionRef.current[optimisticSessionId]
               }
+              setPendingTitleSessionIds((current) => {
+                const next = new Set(current)
+                if (next.delete(optimisticSessionId)) {
+                  next.add(serverSessionId)
+                }
+                return next
+              })
             }
             setActiveSessionId(serverSessionId)
             writeActiveAgentSessionId(serverSessionId)
@@ -1955,6 +2011,7 @@ export function KratosPage() {
       if (nextSessionId) {
         void syncConversationSessions(token, nextSessionId, {
           preserveActive: true,
+          showLoading: false,
         })
       }
       void refreshDashboard(token, { preserveMessages: true })
@@ -2845,6 +2902,15 @@ export function KratosPage() {
     }
   }
 
+  useEffect(() => {
+    if (activeNav !== "工具技能" || !currentUser) {
+      return
+    }
+    void refreshSkills()
+    // Skill/tool configuration is loaded when the capability page is opened.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeNav, currentUser?.id])
+
   const handleCreateSkill = async (payload: SkillPayload) => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
@@ -3143,6 +3209,7 @@ export function KratosPage() {
       <ConversationPage
         activeComposerMode={composerMode}
         activeSessionTitle={activeSessionTitle}
+        activeSessionTitlePending={activeSessionTitlePending}
         agentStreaming={agentStreaming}
         chatTrainingPlanSavingId={chatTrainingPlanSavingId}
         composerAttachments={composerAttachments}
@@ -3199,6 +3266,7 @@ export function KratosPage() {
           activeNav={activeNav}
           chatSessions={chatSessions}
           drawerOpen={sidebarDrawerOpen}
+          historyLoading={sessionListLoading}
           footer={
             <ProfileMenu
               authLoading={authLoading}

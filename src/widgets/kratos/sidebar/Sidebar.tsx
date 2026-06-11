@@ -21,6 +21,7 @@ type SidebarProps = {
   chatSessions: ChatSession[]
   drawerOpen: boolean
   footer: ReactNode
+  historyLoading: boolean
   onCreateConversation: () => void
   onDeleteConversation: (sessionId: string) => void
   onExportConversation: (sessionId: string) => void
@@ -38,6 +39,7 @@ export function Sidebar({
   chatSessions,
   drawerOpen,
   footer,
+  historyLoading,
   onCreateConversation,
   onDeleteConversation,
   onExportConversation,
@@ -96,6 +98,7 @@ export function Sidebar({
         <ConversationHistory
           activeNav={activeNav}
           chatSessions={chatSessions}
+          loading={historyLoading}
           onDeleteConversation={onDeleteConversation}
           onExportConversation={onExportConversation}
           onRenameConversation={onRenameConversation}

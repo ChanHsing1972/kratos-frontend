@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Check, ChevronDown, Sparkles } from "lucide-react"
 
 import type { AgentTraceStep } from "@/entities/kratos/model/types"
@@ -44,6 +44,11 @@ export function ThinkingCard({
     streaming,
   })
   const toolSummary = summarizeToolTrace(visibleSteps)
+  const latestStatusText = streaming
+    ? latestStreamingStatus
+      ? formatTraceContent(latestStreamingStatus)
+      : "正在读取资料、规划工具和组织回答"
+    : `${visibleSteps.length} 条推理事件`
 
   return (
     <section className="animate-fade-slide-in rounded-[12px] border border-border bg-muted/40 px-4 py-4">
@@ -54,18 +59,14 @@ export function ThinkingCard({
               <h3 className="text-sm leading-5 font-bold">
                 正在思考 · {elapsedSeconds}s
               </h3>
-              <p
+              <TypewriterText
+                active={Boolean(streaming)}
                 className={cn(
                   "mt-0.5 text-xs text-muted-foreground",
                   streaming && "thinking-status-sweep"
                 )}
-              >
-                {streaming
-                  ? latestStreamingStatus
-                    ? formatTraceContent(latestStreamingStatus)
-                    : "正在读取资料、规划工具和组织回答"
-                  : `${visibleSteps.length} 条推理事件`}
-              </p>
+                text={latestStatusText}
+              />
               {toolSummary ? (
                 <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
                   {toolSummary}
@@ -319,26 +320,40 @@ function TypewriterText({
   className: string
   text: string
 }) {
-  const [visibleLength, setVisibleLength] = useState(0)
+  const previousTextRef = useRef(text)
+  const [visibleLength, setVisibleLength] = useState(() =>
+    active ? 0 : text.length
+  )
 
   useEffect(() => {
     if (!active) {
+      previousTextRef.current = text
+      setVisibleLength(text.length)
       return undefined
     }
 
-    let currentLength = 0
+    setVisibleLength((currentLength) =>
+      text.startsWith(previousTextRef.current)
+        ? Math.min(currentLength, text.length)
+        : 0
+    )
+    previousTextRef.current = text
+    return undefined
+  }, [active, text])
+
+  useEffect(() => {
+    if (!active || visibleLength >= text.length) {
+      return undefined
+    }
+
     const timer = window.setInterval(() => {
-      currentLength = Math.min(text.length, currentLength + 3)
-      setVisibleLength(currentLength)
-      if (currentLength >= text.length) {
-        window.clearInterval(timer)
-      }
+      setVisibleLength((currentLength) => Math.min(text.length, currentLength + 3))
     }, 18)
 
     return () => {
       window.clearInterval(timer)
     }
-  }, [active, text])
+  }, [active, text, visibleLength])
 
   return <p className={className}>{text.slice(0, active ? visibleLength : text.length)}</p>
 }
