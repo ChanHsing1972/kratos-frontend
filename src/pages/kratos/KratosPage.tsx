@@ -238,12 +238,7 @@ function stripTrainingPlanJsonContract(
   message: string,
   options: { trim?: boolean } = {}
 ) {
-  const stripped = message.replace(
-    /```json\s*\{[\s\S]*?"workout_plan"[\s\S]*?\}\s*```/g,
-    ""
-  )
-
-  return options.trim === false ? stripped : stripped.trim()
+  return options.trim === false ? message : message.trim()
 }
 
 function buildModeAwareAgentMessage({

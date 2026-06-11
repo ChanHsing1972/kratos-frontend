@@ -30,8 +30,13 @@ const tableRowStartChars = "[\\u4e00-\\u9fffA-Za-z0-9（(*_`-]"
 const knownHeadingTitles = [
   "当前目标与关键数据摘要",
   "当前状态摘要",
+  "个人基础信息",
   "今日训练方案",
   "今日训练安排",
+  "今日下肢训练安排",
+  "下肢训练安排",
+  "今日上肢训练安排",
+  "上肢训练安排",
   "恢复训练安排",
   "今日必须完成事项",
   "下周训练计划优化建议",
@@ -52,7 +57,7 @@ const components: Components = {
   a: ({ className, ...props }) => (
     <a
       className={cn(
-        "font-semibold break-words text-foreground underline decoration-foreground/30 underline-offset-4 transition hover:decoration-foreground",
+        "font-medium break-words text-foreground underline decoration-foreground/25 underline-offset-4 transition hover:decoration-foreground",
         className
       )}
       rel="noreferrer"
@@ -63,7 +68,7 @@ const components: Components = {
   blockquote: ({ className, ...props }) => (
     <blockquote
       className={cn(
-        "my-3 border-l-2 border-border pl-3 text-[15px] leading-7 text-muted-foreground",
+        "my-4 border-l-4 border-border bg-muted/35 py-1.5 pr-3 pl-4 text-[15px] leading-7 text-muted-foreground [&_p]:my-1",
         className
       )}
       {...markdownProps(props)}
@@ -72,7 +77,7 @@ const components: Components = {
   code: ({ className, ...props }) => (
     <code
       className={cn(
-        "rounded-[6px] bg-muted px-1.5 py-0.5 font-mono text-[0.92em] text-foreground",
+        "rounded-[5px] bg-muted px-1.5 py-0.5 font-mono text-[0.9em] text-foreground",
         className
       )}
       {...markdownProps(props)}
@@ -80,31 +85,31 @@ const components: Components = {
   ),
   h1: ({ className, ...props }) => (
     <h1
-      className={cn("mt-5 mb-2 text-[22px] leading-8 font-black", className)}
+      className={cn("mt-7 mb-3 text-[24px] leading-8 font-semibold", className)}
       {...markdownProps(props)}
     />
   ),
   h2: ({ className, ...props }) => (
     <h2
-      className={cn("mt-4 mb-2 text-[20px] leading-7 font-bold", className)}
+      className={cn("mt-6 mb-2.5 text-[20px] leading-7 font-semibold", className)}
       {...markdownProps(props)}
     />
   ),
   h3: ({ className, ...props }) => (
     <h3
-      className={cn("mt-3 mb-1.5 text-[18px] leading-7 font-bold", className)}
+      className={cn("mt-5 mb-2 text-[17px] leading-7 font-semibold", className)}
       {...markdownProps(props)}
     />
   ),
   h4: ({ className, ...props }) => (
     <h4
-      className={cn("mt-3 mb-1 text-[16px] leading-6 font-bold", className)}
+      className={cn("mt-4 mb-1.5 text-[15px] leading-6 font-semibold", className)}
       {...markdownProps(props)}
     />
   ),
   hr: ({ className, ...props }) => (
     <hr
-      className={cn("my-4 border-border", className)}
+      className={cn("my-6 border-border", className)}
       {...markdownProps(props)}
     />
   ),
@@ -115,34 +120,37 @@ const components: Components = {
     />
   ),
   li: ({ className, ...props }) => (
-    <li className={cn("pl-1 leading-6", className)} {...markdownProps(props)} />
+    <li
+      className={cn("pl-1 leading-7 marker:text-muted-foreground", className)}
+      {...markdownProps(props)}
+    />
   ),
   ol: ({ className, ...props }) => (
     <ol
-      className={cn("my-2 list-decimal space-y-1 pl-5", className)}
+      className={cn("my-3 list-decimal space-y-1.5 pl-6", className)}
       {...markdownProps(props)}
     />
   ),
   p: ({ className, ...props }) => (
     <p
-      className={cn("my-2 leading-[1.72] first:mt-0 last:mb-0", className)}
+      className={cn("my-3 leading-[1.78] first:mt-0 last:mb-0", className)}
       {...markdownProps(props)}
     />
   ),
   pre: ({ className, ...props }) => (
     <pre
       className={cn(
-        "my-3 overflow-x-auto rounded-[8px] bg-muted p-3 text-[12px] leading-5",
+        "my-4 overflow-x-auto rounded-[8px] border border-border bg-muted/70 p-4 text-[13px] leading-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] [&_code]:bg-transparent [&_code]:p-0",
         className
       )}
       {...markdownProps(props)}
     />
   ),
   table: ({ className, ...props }) => (
-    <div className="my-3 max-w-full overflow-x-auto">
+    <div className="my-4 max-w-full overflow-x-auto rounded-[8px] border border-border">
       <table
         className={cn(
-          "min-w-full border-collapse border border-border text-left text-[14px] leading-6",
+          "min-w-full border-separate border-spacing-0 text-left text-[14px] leading-6",
           className
         )}
         {...markdownProps(props)}
@@ -155,7 +163,7 @@ const components: Components = {
   td: ({ className, ...props }) => (
     <td
       className={cn(
-        "max-w-[22rem] border border-border px-3 py-2 align-top break-words",
+        "max-w-[24rem] border-t border-border px-3.5 py-2.5 align-top break-words",
         className
       )}
       {...markdownProps(props)}
@@ -164,7 +172,7 @@ const components: Components = {
   th: ({ className, ...props }) => (
     <th
       className={cn(
-        "border border-border bg-muted/70 px-3 py-2 align-top font-bold whitespace-nowrap",
+        "bg-muted/80 px-3.5 py-2.5 align-top font-semibold whitespace-nowrap text-foreground",
         className
       )}
       {...markdownProps(props)}
@@ -172,7 +180,7 @@ const components: Components = {
   ),
   ul: ({ className, ...props }) => (
     <ul
-      className={cn("my-2 list-disc space-y-1 pl-5", className)}
+      className={cn("my-3 list-disc space-y-1.5 pl-6", className)}
       {...markdownProps(props)}
     />
   ),
@@ -182,7 +190,7 @@ export function MarkdownMessage({ children, className }: MarkdownMessageProps) {
   return (
     <div
       className={cn(
-        "markdown-message min-w-0 text-base leading-[1.75] break-words text-foreground [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0",
+        "markdown-message min-w-0 text-[15.5px] leading-[1.78] break-words text-foreground [overflow-wrap:anywhere] [&>:first-child]:mt-0 [&>:last-child]:mb-0 [&_strong]:font-semibold",
         className
       )}
     >
@@ -215,6 +223,17 @@ function normalizePlainMarkdown(markdown: string) {
     )
   )
     .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/([^\n])\s+(#{1,6}\s+)/g, "$1\n\n$2")
+    .replace(/([^\n])\s*(#{2,6})(?!#)(?=\S)/g, "$1\n\n$2 ")
+    .replace(
+      /([^\n])\s*-\s*(?=(?:性别|年龄|身高|体重|训练目标|训练经验|器械条件|每次训练时长|每周可训练天数|近期状态)[：:])/g,
+      "$1\n"
+    )
+    .replace(
+      /([^\n])\s+(?=(?:性别|年龄|身高|体重|训练目标|训练经验|器械条件|每次训练时长|每周可训练天数|近期状态)[：:])/g,
+      "$1\n"
+    )
+    .replace(/^个人基础信息$/gm, "## 个人基础信息")
     .replace(/([。！？!?])\s*(#{1,6})(?=\S)/g, "$1\n\n$2 ")
     .replace(/([^\n])\s+(#{1,6}\s+)/g, "$1\n\n$2")
     .replace(/([。！？!?；;：:])\s*([-*+]\s*)/g, "$1\n$2")
@@ -241,13 +260,16 @@ function normalizeSingleCellTableArtifacts(markdown: string) {
 
 function normalizeHeadingSyntax(markdown: string) {
   return markdown
+    .replace(/([^\n])\s+(#{1,6}\s+)/g, "$1\n\n$2")
     .split("\n")
     .flatMap((line) => splitKnownHeadingBody(cleanHeadingMarkers(line)))
     .join("\n")
 }
 
 function cleanHeadingMarkers(line: string) {
-  return line.replace(/^(\s*#{1,6})\s+(?:#\s*)+/, "$1 ")
+  return line
+    .replace(/^(\s*#{1,6})(?!#)(?=\S)/, "$1 ")
+    .replace(/^(\s*#{1,6})\s+(?:#\s*)+/, "$1 ")
 }
 
 function splitKnownHeadingBody(line: string) {
@@ -284,6 +306,7 @@ function normalizeLooseBlockSyntax(markdown: string) {
 
 function normalizeLineMarkdown(line: string) {
   return stripUnmatchedStrongMarkers(line)
+    .replace(/^(\s*#{1,6})(?!#)(?=\S)/, "$1 ")
     .replace(/^(\s*#{1,6})\s+(?:#\s*)+/, "$1 ")
     .replace(
       /^(\s*(?:#{1,6}\s*)?(?:今日训练|今日计划|训练安排|恢复训练|示例方案|通用方案))\s*[|｜]\s*(?=\S)/,

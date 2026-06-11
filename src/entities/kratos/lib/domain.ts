@@ -311,7 +311,8 @@ function agentRunResultUpdatedAt(resultPayload: unknown) {
 }
 
 export function trainingPlanPayloadFromAgentResult(
-  raw: unknown
+  raw: unknown,
+  _answerText = ""
 ): TrainingPlanPayload | undefined {
   const result = asRecord(raw)
   const artifacts = asRecord(result?.structured_artifacts)
@@ -522,6 +523,10 @@ export function chatSessionsFromAgentRuns(
 export function chatSessionFromAgentSession(
   session: AgentConversationSession
 ): ChatSession {
+  if (!session) {
+    throw new Error("会话数据为空，请刷新后重试")
+  }
+
   return {
     archived: session.is_archived,
     createdAt: session.created_at,
@@ -540,9 +545,11 @@ export function chatSessionFromAgentSession(
 }
 
 export function chatSessionsFromAgentSessions(
-  sessions: AgentConversationSession[]
+  sessions: Array<AgentConversationSession | null | undefined> | null | undefined
 ): ChatSession[] {
-  return sessions.map(chatSessionFromAgentSession)
+  return (sessions ?? [])
+    .filter((session): session is AgentConversationSession => Boolean(session))
+    .map(chatSessionFromAgentSession)
 }
 
 export function titleFromPrompt(prompt: string) {
