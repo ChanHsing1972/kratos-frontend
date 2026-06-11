@@ -43,6 +43,7 @@ export function ThinkingCard({
     steps: nonAnswerSteps,
     streaming,
   })
+  const toolSummary = summarizeToolTrace(visibleSteps)
 
   return (
     <section className="animate-fade-slide-in rounded-[12px] border border-border bg-muted/40 px-4 py-4">
@@ -65,6 +66,11 @@ export function ThinkingCard({
                     : "正在读取资料、规划工具和组织回答"
                   : `${visibleSteps.length} 条推理事件`}
               </p>
+              {toolSummary ? (
+                <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                  {toolSummary}
+                </p>
+              ) : null}
             </div>
             <Button
               onClick={onToggle}
@@ -192,12 +198,10 @@ function formatEvidence(item: AgentTraceStep | null) {
 
 function formatTraceContent(item: AgentTraceStep) {
   if (item.type === "action") {
-    const raw = asRecord(item.raw)
-    const toolName =
-      textValue(raw?.name) ??
-      textValue(raw?.tool_name) ??
-      item.content.match(/调用工具\s*([^(（]+)/)?.[1]?.trim()
-    return toolName ? `调用工具 ${toolName}（参数已隐藏）` : "调用工具（参数已隐藏）"
+    const toolName = toolNameFromTrace(item)
+    const status = toolStatusFromRaw(item.raw)
+    const suffix = status ? ` · ${status}` : ""
+    return toolName ? `调用工具 ${toolName}（参数已隐藏）${suffix}` : `调用工具（参数已隐藏）${suffix}`
   }
 
   if (item.type === "observation" && isVerboseTrace(item.content)) {
@@ -211,14 +215,47 @@ function formatTraceContent(item: AgentTraceStep) {
   return item.content
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object"
-    ? (value as Record<string, unknown>)
-    : null
+function summarizeToolTrace(steps: AgentTraceStep[]) {
+  const actionSteps = steps.filter((step) => step.type === "action")
+  if (actionSteps.length === 0) {
+    return ""
+  }
+
+  const toolNames = actionSteps
+    .map(toolNameFromTrace)
+    .filter((name): name is string => Boolean(name))
+  const uniqueToolNames = Array.from(new Set(toolNames))
+  const observationCount = steps.filter((step) => step.type === "observation").length
+  const failedCount = actionSteps.filter((step) => toolStatusFromRaw(step.raw) === "失败").length
+  const statusText = failedCount > 0 ? `${failedCount} 个失败` : `${observationCount} 条结果`
+  const namesText = uniqueToolNames.length ? `：${uniqueToolNames.join("、")}` : ""
+
+  return `工具调用 ${actionSteps.length} 次${namesText}，${statusText}`
 }
 
-function textValue(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : null
+function toolNameFromTrace(item: AgentTraceStep) {
+  const raw = rawRecord(item.raw)
+  const fromRaw = raw?.name ?? raw?.tool_name
+  if (typeof fromRaw === "string" && fromRaw.trim()) {
+    return fromRaw.trim()
+  }
+  return item.content.match(/调用工具\s*([^(（]+)/)?.[1]?.trim()
+}
+
+function toolStatusFromRaw(raw: unknown) {
+  const status = rawRecord(raw)?.status
+  if (status === "success") return "成功"
+  if (status === "failed") return "失败"
+  if (status === "running") return "执行中"
+  if (status === "pending") return "等待中"
+  return ""
+}
+
+function rawRecord(raw: unknown): Record<string, unknown> | null {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>
+  }
+  return null
 }
 
 function isVerboseTrace(content: string) {
