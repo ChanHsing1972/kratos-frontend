@@ -112,7 +112,10 @@ export function ChatBubble({
           ) : null}
           <div className="mt-3 min-h-7">
             {message.body ? (
-              <MarkdownMessage className="text-foreground">
+              <MarkdownMessage
+                className="text-foreground"
+                streaming={message.streaming}
+              >
                 {message.body}
               </MarkdownMessage>
             ) : (

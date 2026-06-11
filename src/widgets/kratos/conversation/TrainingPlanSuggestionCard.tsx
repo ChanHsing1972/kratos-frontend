@@ -1,4 +1,4 @@
-import { Check, ChevronRight, ExternalLink, PencilLine, Play } from "lucide-react"
+import { Check, ExternalLink, PencilLine, Play } from "lucide-react"
 
 import { proxiedBilibiliImageUrl } from "@/entities/kratos/api/client"
 import type {

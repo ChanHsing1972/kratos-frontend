@@ -235,7 +235,7 @@ function healthDataFromAgentRaw(raw: unknown): SuggestedHealthData | undefined {
     : undefined
 }
 
-function stripTrainingPlanJsonContract(
+function visibleAgentAnswer(
   message: string,
   options: { trim?: boolean } = {}
 ) {
@@ -755,7 +755,7 @@ export function KratosPage() {
 
         if (event.type === "done") {
           const nextBody = event.answer
-            ? stripTrainingPlanJsonContract(event.answer)
+            ? visibleAgentAnswer(event.answer)
             : message.body
           return {
             ...message,
@@ -771,7 +771,7 @@ export function KratosPage() {
         if (event.type === "answer_delta") {
           return {
             ...message,
-            body: stripTrainingPlanJsonContract(
+            body: visibleAgentAnswer(
               `${message.body}${event.delta ?? ""}`,
               { trim: false }
             ),
@@ -779,7 +779,7 @@ export function KratosPage() {
         }
 
         if (event.type === "answer_replace") {
-          const nextBody = stripTrainingPlanJsonContract(
+          const nextBody = visibleAgentAnswer(
             event.answer || event.content || message.body
           )
           return {
@@ -806,7 +806,7 @@ export function KratosPage() {
 
         if (event.type === "final") {
           const suggestedTrainingPlan = trainingPlanPayloadFromAgentResult(event.raw)
-          const nextBody = stripTrainingPlanJsonContract(
+          const nextBody = visibleAgentAnswer(
             event.answer || event.content || message.body
           )
           const generatedAlready = suggestedTrainingPlan
