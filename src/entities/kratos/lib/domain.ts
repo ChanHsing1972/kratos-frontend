@@ -314,6 +314,7 @@ export function trainingPlanPayloadFromAgentResult(
   raw: unknown,
   _answerText = ""
 ): TrainingPlanPayload | undefined {
+  void _answerText
   const result = asRecord(raw)
   const artifacts = asRecord(result?.structured_artifacts)
   const workoutPlan =
