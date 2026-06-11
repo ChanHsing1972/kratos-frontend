@@ -63,8 +63,6 @@ export type ConversationWorkspaceProps = {
 
 export function ConversationWorkspace({
   activeComposerMode,
-  activeSessionTitle,
-  activeSessionTitlePending,
   agentStreaming,
   chatTrainingPlanSavingId,
   composerValue,
@@ -143,10 +141,6 @@ export function ConversationWorkspace({
           />
         ) : (
           <>
-            <ConversationHeader
-              pending={activeSessionTitlePending}
-              title={activeSessionTitle}
-            />
             <div className="relative min-h-0 flex-1">
               <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-20 bg-gradient-to-b from-card via-card/55 to-transparent" />
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 bg-gradient-to-b from-transparent via-card/55 to-card" />
@@ -212,45 +206,9 @@ export function ConversationWorkspace({
   )
 }
 
-function ConversationHeader({
-  pending,
-  title,
-}: {
-  pending: boolean
-  title: string
-}) {
-  return (
-    <header className="shrink-0 bg-card px-5 pt-7 pb-1 sm:px-6 sm:pt-9">
-      <div className="mx-auto w-full max-w-[820px]">
-        {pending ? (
-          <div className="space-y-3">
-            <Skeleton className="h-4 w-28 rounded-[8px]" />
-            <Skeleton className="h-9 w-[min(360px,78vw)] rounded-[8px]" />
-          </div>
-        ) : (
-          <h1
-            className="max-w-[720px] truncate text-[28px] leading-tight font-black tracking-normal text-foreground sm:text-[34px]"
-            title={title}
-          >
-            <span className="conversation-title-reveal" key={title}>
-              {title}
-            </span>
-          </h1>
-        )}
-      </div>
-    </header>
-  )
-}
-
 function LoadingConversation() {
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
-      <header className="shrink-0 px-5 pt-7 pb-1 sm:px-6 sm:pt-9">
-        <div className="mx-auto w-full max-w-[820px] space-y-3">
-          <Skeleton className="h-4 w-28 rounded-[8px]" />
-          <Skeleton className="h-9 w-[min(360px,78vw)] rounded-[8px]" />
-        </div>
-      </header>
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-card via-card/55 to-transparent" />
         <div className="mx-auto flex w-full max-w-[820px] flex-col gap-5 px-5 pt-8 pb-10 sm:px-6">
