@@ -754,12 +754,8 @@ export function KratosPage() {
         }
 
         if (event.type === "done") {
-          const nextBody = event.answer
-            ? visibleAgentAnswer(event.answer)
-            : message.body
           return {
             ...message,
-            body: nextBody,
             completedAt: Date.now(),
             streaming: false,
             suggestedDietRecords,
@@ -778,19 +774,6 @@ export function KratosPage() {
           }
         }
 
-        if (event.type === "answer_replace") {
-          const nextBody = visibleAgentAnswer(
-            event.answer || event.content || message.body
-          )
-          return {
-            ...message,
-            body: nextBody,
-            suggestedDietRecords,
-            suggestedHealthData,
-            structuredCardPending,
-          }
-        }
-
         if (event.type === "error") {
           return {
             ...message,
@@ -806,9 +789,9 @@ export function KratosPage() {
 
         if (event.type === "final") {
           const suggestedTrainingPlan = trainingPlanPayloadFromAgentResult(event.raw)
-          const nextBody = visibleAgentAnswer(
-            event.answer || event.content || message.body
-          )
+          const nextBody = !message.body.trim() && event.content
+            ? visibleAgentAnswer(event.content)
+            : message.body
           const generatedAlready = suggestedTrainingPlan
             ? generatedTrainingPlanKeys.has(
               trainingPlanDraftKey(suggestedTrainingPlan)

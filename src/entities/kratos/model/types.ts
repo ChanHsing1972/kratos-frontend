@@ -22,7 +22,6 @@ export type AgentTraceStep = {
   | "reflection"
   | "final"
   | "answer_delta"
-  | "answer_replace"
   | "done"
   | "error"
   content: string

@@ -274,7 +274,6 @@ function isVerboseTrace(content: string) {
 const traceMeta: Record<AgentTraceStep["type"], string> = {
   action: "Action",
   answer_delta: "Answer",
-  answer_replace: "Answer",
   done: "Done",
   error: "Error",
   final: "Final",

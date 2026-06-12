@@ -1,12 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "streamdown/styles.css";
 @import "@fontsource-variable/inter";
 @import "@fontsource/noto-sans-sc/chinese-simplified-400.css";
 @import "@fontsource/noto-sans-sc/chinese-simplified-500.css";
 @import "@fontsource/noto-sans-sc/chinese-simplified-600.css";
 @import "@fontsource/noto-sans-sc/chinese-simplified-700.css";
 @import "@fontsource/noto-sans-sc/chinese-simplified-900.css";
+
+@source "../node_modules/streamdown/dist/*.js";
 
 @font-face {
   font-family: "Kratos PingFang SC";

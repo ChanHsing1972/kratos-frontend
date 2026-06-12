@@ -1,5 +1,4 @@
-import ReactMarkdown, { type Components } from "react-markdown"
-import remarkGfm from "remark-gfm"
+import { Streamdown, type Components } from "streamdown"
 
 import { cn } from "@/shared/lib/utils"
 
@@ -177,15 +176,18 @@ export function MarkdownMessage({
         className
       )}
     >
-      <ReactMarkdown
+      <Streamdown
         components={components}
-        remarkPlugins={[remarkGfm]}
+        controls={false}
+        isAnimating={streaming}
+        mode={streaming ? "streaming" : "static"}
+        parseIncompleteMarkdown={streaming}
         skipHtml
       >
         {streaming
           ? stabilizeStreamingMarkdown(children)
           : normalizeMarkdownInput(children)}
-      </ReactMarkdown>
+      </Streamdown>
     </div>
   )
 }
