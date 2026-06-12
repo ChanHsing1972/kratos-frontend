@@ -2767,10 +2767,7 @@ export function KratosPage() {
     setChatTrainingPlanSavingId(messageId)
 
     try {
-      const plan = await createTrainingPlan(token, {
-        ...payload,
-        status: "draft",
-      })
+      const plan = await createTrainingPlan(token, payload)
       const nextKeys = new Set(generatedTrainingPlanKeys)
       nextKeys.add(generatedKey)
       setGeneratedTrainingPlanKeys(nextKeys)

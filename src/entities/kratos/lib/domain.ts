@@ -16,7 +16,6 @@ import type {
   SuggestedHealthData,
   TrainingPlan,
   TrainingPlanPayload,
-  TrainingSchedule,
   TrainingPlanTemplate,
   UserProfile,
   WorkoutLog,
@@ -317,56 +316,38 @@ export function trainingPlanPayloadFromAgentResult(
   void _answerText
   const result = asRecord(raw)
   const artifacts = asRecord(result?.structured_artifacts)
-  const workoutPlan =
-    asRecord(artifacts?.workout_plan) ?? asRecord(result?.workout_plan)
-  if (!workoutPlan) {
+  const draft =
+    asRecord(artifacts?.training_plan_draft) ??
+    asRecord(result?.training_plan_draft)
+  if (!draft) {
     return undefined
   }
 
-  const sessions = asRecordArray(workoutPlan.sessions)
-  const requestedPlanKind = textValue(workoutPlan.plan_kind)
-  const planKind =
-    requestedPlanKind === "daily"
-      ? "daily"
-      : requestedPlanKind === "program" ||
-        sessions.length > 1
-        ? "program"
-        : "daily"
-  const weeklySchedule = buildWeeklyScheduleFromWorkoutSessions(sessions, planKind)
-  if (!weeklySchedule) {
+  const title = textValue(draft.title)
+  const planKind = textValue(draft.plan_kind)
+  const scheduleJson = asRecord(draft.schedule_json)
+  const weeklySchedule = textValue(draft.weekly_schedule)
+  if (
+    !title ||
+    (planKind !== "daily" && planKind !== "program") ||
+    !scheduleJson ||
+    !Array.isArray(scheduleJson.weeks) ||
+    !weeklySchedule
+  ) {
     return undefined
   }
-
-  const startDate = localTrainingDateValue(new Date())
-  const durationWeeks =
-    numberValue(workoutPlan.duration_weeks) ??
-    (planKind === "program" ? 4 : null)
-  const title =
-    planKind === "daily"
-      ? normalizeDailyPlanTitle(textValue(workoutPlan.title))
-      : normalizeProgramPlanTitle(textValue(workoutPlan.title))
-  const goal = textValue(workoutPlan.goal) ?? "基于聊天上下文生成的训练计划"
-  const precautions = uniqueLines([
-    ...stringArray(workoutPlan.precautions),
-    ...extractGuidanceLinesFromWorkoutSessions(sessions),
-  ])
 
   return {
-    goal,
-    nutrition_guidance: null,
-    recovery_guidance: precautions.length
-      ? precautions.join("\n")
-      : "训练前充分热身，训练后完成拉伸；如出现疼痛或明显疲劳，及时降低强度。",
-    start_date: startDate,
-    end_date:
-      planKind === "program" && durationWeeks
-        ? addDaysToDateValue(startDate, durationWeeks * 7 - 1)
-        : null,
-    status: "draft",
-    duration_weeks: durationWeeks,
+    end_date: textValue(draft.end_date),
+    goal: textValue(draft.goal),
+    duration_weeks: numberValue(draft.duration_weeks),
+    nutrition_guidance: textValue(draft.nutrition_guidance),
     plan_kind: planKind,
-    schedule_json: buildStructuredSchedule(sessions, planKind),
-    summary: buildWorkoutPlanSummary(title, goal, sessions),
+    schedule_json: scheduleJson as TrainingPlanPayload["schedule_json"],
+    recovery_guidance: textValue(draft.recovery_guidance),
+    start_date: textValue(draft.start_date),
+    status: textValue(draft.status) ?? "draft",
+    summary: textValue(draft.summary),
     title,
     weekly_schedule: weeklySchedule,
   }
@@ -450,32 +431,6 @@ function pendingHealthDataFromTrace(traceSteps: AgentRunTraceStep[]) {
     }
   }
   return undefined
-}
-
-function buildStructuredSchedule(sessions: Record<string, unknown>[], planKind: "daily" | "program"): TrainingSchedule | null {
-  if (!sessions.length) {
-    return null
-  }
-  const structuredSessions = sessions.map((session, index) => ({
-    exercises: asRecordArray(session.exercises).map((exercise, exerciseIndex) => ({
-      id: `agent-exercise-${index}-${exerciseIndex}`,
-      media: asRecord(exercise.media),
-      name: textValue(exercise.name) ?? textValue(exercise.title) ?? `动作 ${exerciseIndex + 1}`,
-      notes: textValue(exercise.notes),
-      rest_seconds: null,
-      target_reps: textValue(exercise.reps),
-      target_rpe: null,
-      target_sets: numberValue(exercise.sets),
-      target_weight_kg: null,
-    })),
-    id: `agent-session-${index}`,
-    title: textValue(session.title) ?? textValue(session.focus) ?? `训练 ${index + 1}`,
-    weekday: workoutSessionWeekday(session, index, planKind),
-  }))
-  return {
-    version: 1,
-    weeks: [{ sessions: structuredSessions, week: 1 }],
-  }
 }
 
 export function chatSessionsFromAgentRuns(
@@ -635,258 +590,6 @@ function formatStoredTime(value: string) {
 
 export function toDateInputValue(date: Date) {
   return date.toISOString().slice(0, 10)
-}
-
-function localTrainingDateValue(date: Date) {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, "0")
-  const day = `${date.getDate()}`.padStart(2, "0")
-  return `${year}-${month}-${day}`
-}
-
-function buildWeeklyScheduleFromWorkoutSessions(sessions: Record<string, unknown>[], planKind: "daily" | "program") {
-  const lines = sessions
-    .map((session, index) => {
-      const title = cleanScheduleTitle(
-        textValue(session.title) ?? textValue(session.focus) ?? `训练 ${index + 1}`
-      )
-      const exercises = asRecordArray(session.exercises)
-        .map(formatWorkoutExercise)
-        .filter((item): item is string => Boolean(item))
-      const notes = stringArray(session.notes)
-        .map(cleanWorkoutLine)
-        .filter((item): item is string => Boolean(item))
-      const fallbackNotes = notes.filter((note) =>
-        isTrainingActionLine(note) || /恢复|休息|快走|拉伸|瑜伽|活动/.test(note)
-      )
-      const explicitScheduleLine = cleanWorkoutLine(textValue(session.schedule_line))
-      const actions = uniqueLines(exercises.length ? exercises : fallbackNotes).slice(0, 8)
-      const actionText = explicitScheduleLine ?? actions.join("；")
-
-      if (!actionText && isGuidanceLine(title)) {
-        return null
-      }
-
-      return `${workoutSessionWeekday(session, index, planKind)}|${title}${actionText ? `：${actionText}` : ""}`
-    })
-    .filter(Boolean)
-
-  return lines.join("\n")
-}
-
-function workoutSessionWeekday(session: Record<string, unknown>, index: number, planKind: "daily" | "program") {
-  const storedWeekday = textValue(session.weekday)
-  if (storedWeekday) return storedWeekday
-  if (planKind === "daily") return weekdayLabel(new Date())
-  return ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][index % 7]
-}
-
-function weekdayLabel(date: Date) {
-  const labels = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
-  return labels[date.getDay()]
-}
-
-function normalizeDailyPlanTitle(title: string | null) {
-  if (!title || title === "训练计划" || title === "Kratos 生成训练计划") {
-    return "今日训练计划"
-  }
-
-  return /今日|今天|每日|单日/.test(title) ? title : `今日${title}`
-}
-
-function normalizeProgramPlanTitle(title: string | null) {
-  if (!title || title === "训练计划" || title === "Kratos 生成训练计划") {
-    return "Kratos 生成训练计划"
-  }
-
-  return title
-}
-
-function addDaysToDateValue(value: string, days: number) {
-  const [yearText, monthText, dayText] = value.split("-")
-  const date = new Date(
-    Number(yearText),
-    Number(monthText) - 1,
-    Number(dayText)
-  )
-  date.setDate(date.getDate() + days)
-  return localTrainingDateValue(date)
-}
-
-function formatWorkoutExercise(exercise: Record<string, unknown>) {
-  const name = cleanWorkoutLine(textValue(exercise.name) ?? textValue(exercise.title))
-  if (!name) {
-    return null
-  }
-
-  const sets = numberValue(exercise.sets)
-  const reps = cleanWorkoutLine(textValue(exercise.reps))
-  const duration = numberValue(exercise.duration_minutes)
-  const notes = cleanExerciseNotes(name, textValue(exercise.notes))
-  const repsAlreadyIncludeSets = reps ? hasSetRepPattern(reps) : false
-  const prescription = [
-    sets && !repsAlreadyIncludeSets ? `${sets} 组` : null,
-    reps ? normalizeRepsText(reps) : null,
-    duration ? `${duration} 分钟` : null,
-  ].filter(Boolean)
-
-  const amount = prescription.join(" x ")
-  return `${name}${amount ? ` ${amount}` : ""}${notes ? `（${notes}）` : ""}`
-}
-
-function extractGuidanceLinesFromWorkoutSessions(sessions: Record<string, unknown>[]) {
-  return sessions.flatMap((session) => {
-    const notes = stringArray(session.notes)
-    const exerciseNotes = asRecordArray(session.exercises)
-      .map((exercise) => textValue(exercise.notes))
-      .filter((item): item is string => Boolean(item))
-
-    return [...notes, ...exerciseNotes]
-      .filter((line): line is string => Boolean(line))
-      .map(cleanWorkoutLine)
-      .filter((line): line is string => Boolean(line))
-      .filter(isRecoveryGuidanceLine)
-  })
-}
-
-function cleanScheduleTitle(value: string) {
-  const cleaned = value
-    .replace(/^[-\d\s.、]+/, "")
-    .replace(/[：:]\s*$/, "")
-    .trim()
-
-  if (!cleaned || isPlanContextLine(cleaned) || cleaned.length > 24) {
-    return "训练安排"
-  }
-
-  return cleaned
-}
-
-function cleanWorkoutLine(value: string | null) {
-  if (!value) {
-    return null
-  }
-
-  const compacted = stripPlanContextPrefix(value)
-    .replace(/^[-•\s]+/, "")
-    .replace(/\s+/g, " ")
-    .replace(/([：:])\s*\1+/g, "$1")
-    .trim()
-
-  return compacted || null
-}
-
-function cleanExerciseNotes(name: string, notes: string | null) {
-  const cleaned = cleanWorkoutLine(notes)
-  if (!cleaned || cleaned === name || cleaned.startsWith(`${name}：`) || cleaned.startsWith(`${name}:`)) {
-    return null
-  }
-
-  if (isGuidanceLine(cleaned)) {
-    return null
-  }
-
-  return cleaned
-}
-
-function normalizeRepsText(value: string) {
-  return /次|分钟|秒/.test(value) ? value : `${value} 次`
-}
-
-function hasSetRepPattern(value: string) {
-  return /\d+\s*(?:组|轮)?\s*[xX×*]\s*\d+/.test(value)
-}
-
-function isTrainingActionLine(value: string) {
-  const line = value.trim()
-  if (!line || isGuidanceLine(line)) {
-    return false
-  }
-
-  return /(\d+\s*组|\d+\s*[x×*]\s*\d+|\d+\s*(次|分钟|秒)|每组|RM|递增|递减|力竭)/i.test(line)
-}
-
-function isGuidanceLine(value: string) {
-  return /热身|冷身|拉伸|动态拉伸|静态拉伸|关节活动|注意事项|注意|避免|疼痛|刺痛|头晕|不适|补充蛋白|补充水分|睡眠|恢复|风险|如有|如果|立即停止|呼吸均匀/.test(value)
-}
-
-function isRecoveryGuidanceLine(value: string) {
-  const line = value.trim()
-  if (!isGuidanceLine(line)) {
-    return false
-  }
-
-  if (/^\|/.test(line) || /^(每天训练结构|每日训练结构|主训练|热身|拉伸|冷身)[：:（(]/.test(line)) {
-    return false
-  }
-
-  if (/(周[一二三四五六日天]|第\s*\d+\s*天)/.test(line)) {
-    return false
-  }
-
-  if (isTrainingActionLine(line)) {
-    return false
-  }
-
-  return true
-}
-
-function isPlanContextLine(value: string) {
-  return /你反馈|结合你的情况|结合.*情况|这是生成|今日计划安排|身高|体重|当前为|健身房训练|训练经验/.test(value)
-}
-
-function stripPlanContextPrefix(value: string) {
-  const firstPrescription = value.search(
-    /(\d+\s*组|\d+\s*[xX×*]\s*\d+|\d+\s*(?:次|分钟|秒)|每组|RM)/i
-  )
-  if (firstPrescription < 0) {
-    return value
-  }
-
-  const beforePrescription = value.slice(0, firstPrescription)
-  if (!isPlanContextLine(beforePrescription)) {
-    return value
-  }
-
-  const chineseColon = beforePrescription.lastIndexOf("：")
-  const asciiColon = beforePrescription.lastIndexOf(":")
-  const colon = Math.max(chineseColon, asciiColon)
-  if (colon < 0) {
-    return value
-  }
-
-  return value.slice(colon + 1).trim()
-}
-
-function uniqueLines(lines: string[]) {
-  const seen = new Set<string>()
-  return lines.filter((line) => {
-    const normalized = line.replace(/\s+/g, "")
-    if (seen.has(normalized)) {
-      return false
-    }
-    seen.add(normalized)
-    return true
-  })
-}
-
-function buildWorkoutPlanSummary(
-  title: string,
-  goal: string,
-  sessions: Record<string, unknown>[]
-) {
-  const focuses = sessions
-    .map((session) => textValue(session.focus) ?? textValue(session.title))
-    .filter(Boolean)
-    .slice(0, 4)
-
-  return [
-    `由 Kratos 对话生成：${title}。`,
-    goal ? `目标：${goal}。` : null,
-    focuses.length ? `训练重点：${focuses.join("、")}。` : null,
-  ]
-    .filter(Boolean)
-    .join("")
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
