@@ -199,7 +199,11 @@ function normalizeMarkdownInput(markdown: string) {
 function stabilizeStreamingMarkdown(markdown: string) {
   const normalized = normalizeMarkdownInput(markdown)
   const openFence = findOpenCodeFence(normalized)
-  return openFence ? `${normalized}\n${openFence}` : normalized
+  if (openFence) {
+    return `${normalized}\n${openFence}`
+  }
+
+  return stabilizeInlineMarkdown(stabilizeTrailingTable(normalized))
 }
 
 function findOpenCodeFence(markdown: string) {
@@ -223,4 +227,158 @@ function findOpenCodeFence(markdown: string) {
   }
 
   return openFence
+}
+
+function stabilizeTrailingTable(markdown: string) {
+  const lines = markdown.split("\n")
+  let end = lines.length - 1
+
+  while (end >= 0 && lines[end].trim() === "") {
+    end -= 1
+  }
+
+  if (end < 0 || end !== lines.length - 1) {
+    return markdown
+  }
+
+  let start = end
+  while (start >= 0 && isPotentialTableLine(lines[start])) {
+    start -= 1
+  }
+  start += 1
+
+  const tableLines = lines.slice(start, end + 1)
+  if (!looksLikeStreamingTable(tableLines)) {
+    return markdown
+  }
+
+  const normalizedRows = normalizeStreamingTableRows(tableLines)
+  if (!normalizedRows.length) {
+    return markdown
+  }
+
+  return [...lines.slice(0, start), ...normalizedRows, ...lines.slice(end + 1)].join("\n")
+}
+
+function looksLikeStreamingTable(lines: string[]) {
+  if (lines.length === 0) {
+    return false
+  }
+
+  const dataRows = lines.filter((line) => !isTableSeparatorLine(line))
+  if (dataRows.length === 0) {
+    return false
+  }
+
+  const maxCells = Math.max(...dataRows.map((line) => splitTableCells(line).length))
+  return maxCells >= 2 && dataRows.some((line) => countPipes(line) >= 2)
+}
+
+function normalizeStreamingTableRows(lines: string[]) {
+  const rows = lines
+    .filter((line) => line.trim())
+    .map((line) => splitTableCells(line))
+    .filter((cells) => cells.length >= 2)
+
+  if (!rows.length) {
+    return []
+  }
+
+  const columnCount = Math.max(...rows.map((cells) => cells.length))
+  const header = padCells(rows[0], columnCount)
+  const bodyRows = rows.slice(isTableSeparatorLine(lines[1] ?? "") ? 2 : 1)
+
+  return [
+    formatTableRow(header),
+    formatTableRow(Array.from({ length: columnCount }, () => "---")),
+    ...bodyRows.map((cells) => formatTableRow(padCells(cells, columnCount))),
+  ]
+}
+
+function splitTableCells(line: string) {
+  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "")
+  return trimmed.split("|").map((cell) => cell.trim())
+}
+
+function padCells(cells: string[], count: number) {
+  return [...cells, ...Array.from({ length: Math.max(0, count - cells.length) }, () => "")]
+}
+
+function formatTableRow(cells: string[]) {
+  return `| ${cells.map((cell) => cell || " ").join(" | ")} |`
+}
+
+function isPotentialTableLine(line: string) {
+  const trimmed = line.trim()
+  return Boolean(trimmed) && countPipes(trimmed) >= 1
+}
+
+function isTableSeparatorLine(line: string) {
+  const cells = splitTableCells(line)
+  return cells.length > 0 && cells.every((cell) => /^:?-{2,}:?$/.test(cell.trim()))
+}
+
+function countPipes(line: string) {
+  return (line.match(/\|/g) ?? []).length
+}
+
+function stabilizeInlineMarkdown(markdown: string) {
+  let next = markdown
+  if (hasUnclosedInlineCode(next)) {
+    next += "`"
+  }
+  if (hasOddUnescapedMarker(next, "**")) {
+    next += "**"
+  }
+  if (hasOddUnescapedMarker(next, "__")) {
+    next += "__"
+  }
+  return next
+}
+
+function hasUnclosedInlineCode(markdown: string) {
+  const withoutFences = markdown.replace(/^ {0,3}(`{3,}|~{3,}).*$/gm, "")
+  return countStandaloneBackticks(withoutFences) % 2 === 1
+}
+
+function hasOddUnescapedMarker(markdown: string, marker: string) {
+  return countUnescapedMarker(markdown, marker) % 2 === 1
+}
+
+function countStandaloneBackticks(markdown: string) {
+  let count = 0
+  for (let index = 0; index < markdown.length; index += 1) {
+    if (markdown[index] !== "`") {
+      continue
+    }
+    if (markdown[index - 1] === "`" || markdown[index + 1] === "`") {
+      continue
+    }
+    count += 1
+  }
+  return count
+}
+
+function countUnescapedMarker(markdown: string, marker: string) {
+  let count = 0
+  let index = 0
+  while (index < markdown.length) {
+    const found = markdown.indexOf(marker, index)
+    if (found < 0) {
+      break
+    }
+    if (!isEscaped(markdown, found)) {
+      count += 1
+    }
+    index = found + marker.length
+  }
+  return count
+}
+
+function isEscaped(text: string, index: number) {
+  let slashCount = 0
+  for (let cursor = index - 1; cursor >= 0 && text[cursor] === "\\"; cursor -= 1) {
+    slashCount += 1
+  }
+  return slashCount % 2 === 1
 }
