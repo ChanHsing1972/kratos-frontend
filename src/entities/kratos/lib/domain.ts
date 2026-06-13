@@ -559,6 +559,7 @@ function normalizeTraceType(type: string): AgentTraceStep["type"] {
   const knownTypes: AgentTraceStep["type"][] = [
     "action",
     "answer_delta",
+    "answer_replace",
     "done",
     "error",
     "final",

@@ -760,7 +760,7 @@ export function KratosPage() {
             : false
           return {
             ...message,
-            body: !message.body.trim() && event.answer
+            body: event.answer
               ? visibleAgentAnswer(event.answer)
               : message.body,
             completedAt: Date.now(),
@@ -786,6 +786,19 @@ export function KratosPage() {
           }
         }
 
+        if (event.type === "answer_replace") {
+          return {
+            ...message,
+            body: visibleAgentAnswer(
+              event.answer || event.content || message.body,
+              { trim: false }
+            ),
+            suggestedDietRecords,
+            suggestedHealthData,
+            structuredCardPending,
+          }
+        }
+
         if (event.type === "error") {
           return {
             ...message,
@@ -802,7 +815,7 @@ export function KratosPage() {
 
         if (event.type === "final") {
           const suggestedTrainingPlan = trainingPlanPayloadFromAgentResult(event.raw)
-          const nextBody = !message.body.trim() && event.content
+          const nextBody = event.content
             ? visibleAgentAnswer(event.content)
             : message.body
           return {

@@ -31,7 +31,9 @@ export function ThinkingCard({
   onToggle,
 }: ThinkingCardProps) {
   const [evidenceStep, setEvidenceStep] = useState<AgentTraceStep | null>(null)
-  const nonAnswerSteps = steps.filter((step) => step.type !== "answer_delta")
+  const nonAnswerSteps = steps.filter(
+    (step) => step.type !== "answer_delta" && step.type !== "answer_replace"
+  )
   const traceSteps = nonAnswerSteps.filter((step) => step.type !== "final")
   const visibleSteps = traceSteps.length > 0 ? traceSteps : nonAnswerSteps
   const latestStreamingStatus = [...visibleSteps]
@@ -274,6 +276,7 @@ function isVerboseTrace(content: string) {
 const traceMeta: Record<AgentTraceStep["type"], string> = {
   action: "Action",
   answer_delta: "Answer",
+  answer_replace: "Answer",
   done: "Done",
   error: "Error",
   final: "Final",
