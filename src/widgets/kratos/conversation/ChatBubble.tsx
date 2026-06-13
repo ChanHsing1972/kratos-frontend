@@ -140,10 +140,6 @@ export function ChatBubble({
             />
           ) : null}
 
-          {message.structuredCardPending && message.streaming && !message.suggestedTrainingPlan ? (
-            <TrainingPlanDraftPendingCard />
-          ) : null}
-
           {message.suggestedHealthData && message.streaming ? (
             <CompactConfirmationPendingCard title="身体数据确认卡片" />
           ) : null}
@@ -187,53 +183,6 @@ export function ChatBubble({
             </button>
           </div>
         </div>
-      </div>
-    </section>
-  )
-}
-
-function TrainingPlanDraftPendingCard() {
-  return (
-    <section className="mt-4 rounded-[12px] border border-border bg-muted/40 p-4 shadow-[0_10px_24px_rgba(17,17,17,0.04)]">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1 space-y-2">
-          <Skeleton className="h-3 w-28 rounded-[8px]" />
-          <Skeleton className="h-5 w-56 rounded-[8px]" />
-          <Skeleton className="h-3 w-[72%] rounded-[8px]" />
-        </div>
-        <span className="inline-flex h-7 shrink-0 items-center rounded-[8px] border border-border bg-card px-2.5 text-[11px] font-bold text-muted-foreground">
-          生成中
-        </span>
-      </div>
-      <div className="mt-3 space-y-2">
-        <Skeleton className="h-9 rounded-[8px]" />
-        <Skeleton className="h-9 rounded-[8px]" />
-        <Skeleton className="h-9 w-[88%] rounded-[8px]" />
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {[0, 1, 2, 3].map((item) => (
-          <div className="overflow-hidden rounded-[8px] border border-border bg-card" key={item}>
-            <Skeleton className="aspect-[4/3] rounded-none" />
-            <div className="p-2">
-              <Skeleton className="h-3 w-[78%] rounded-[8px]" />
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        {[0, 1, 2].map((item) => (
-          <div className="overflow-hidden rounded-[8px] border border-border bg-card" key={item}>
-            <Skeleton className="aspect-video rounded-none" />
-            <div className="space-y-1.5 p-2">
-              <Skeleton className="h-3 w-[70%] rounded-[8px]" />
-              <Skeleton className="h-3 w-[88%] rounded-[8px]" />
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-4 flex gap-2">
-        <Skeleton className="h-9 w-24 rounded-[8px]" />
-        <Skeleton className="h-9 w-20 rounded-[8px]" />
       </div>
     </section>
   )

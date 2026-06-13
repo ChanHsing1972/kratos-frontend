@@ -711,9 +711,6 @@ export function KratosPage() {
     event: AgentStreamEvent
     sessionId: string
   }) => {
-    if (event.type === "final") {
-      setAgentStreaming(false)
-    }
     if (event.type === "done") {
       activeStreamRef.current = null
       setAgentStreaming(false)
@@ -754,13 +751,28 @@ export function KratosPage() {
         }
 
         if (event.type === "done") {
+          const suggestedTrainingPlan =
+            message.pendingTrainingPlanDraft ?? message.suggestedTrainingPlan
+          const generatedAlready = suggestedTrainingPlan
+            ? generatedTrainingPlanKeys.has(
+              trainingPlanDraftKey(suggestedTrainingPlan)
+            )
+            : false
           return {
             ...message,
+            body: !message.body.trim() && event.answer
+              ? visibleAgentAnswer(event.answer)
+              : message.body,
             completedAt: Date.now(),
             streaming: false,
+            pendingTrainingPlanDraft: undefined,
             suggestedDietRecords,
+            suggestedTrainingPlan,
             structuredCardPending,
             suggestedHealthData,
+            trainingPlanCreatedId: generatedAlready
+              ? (message.trainingPlanCreatedId ?? -1)
+              : message.trainingPlanCreatedId,
           }
         }
 
@@ -780,6 +792,7 @@ export function KratosPage() {
             completedAt: Date.now(),
             error: event.content,
             streaming: false,
+            pendingTrainingPlanDraft: undefined,
             suggestedDietRecords,
             suggestedHealthData,
             structuredCardPending,
@@ -792,24 +805,14 @@ export function KratosPage() {
           const nextBody = !message.body.trim() && event.content
             ? visibleAgentAnswer(event.content)
             : message.body
-          const generatedAlready = suggestedTrainingPlan
-            ? generatedTrainingPlanKeys.has(
-              trainingPlanDraftKey(suggestedTrainingPlan)
-            )
-            : false
           return {
             ...message,
             body: nextBody,
-            completedAt: Date.now(),
-            streaming: false,
+            pendingTrainingPlanDraft:
+              suggestedTrainingPlan ?? message.pendingTrainingPlanDraft,
             suggestedDietRecords,
             suggestedHealthData,
             structuredCardPending,
-            suggestedTrainingPlan:
-              suggestedTrainingPlan ?? message.suggestedTrainingPlan,
-            trainingPlanCreatedId: generatedAlready
-              ? (message.trainingPlanCreatedId ?? -1)
-              : message.trainingPlanCreatedId,
             trace: [...(message.trace ?? []), event],
           }
         }
@@ -1770,7 +1773,7 @@ export function KratosPage() {
     // Refresh only when entering data-backed surfaces or opening profile details; the
     // dashboard refresh function is intentionally not a dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeNav, currentUser?.id, fitnessContext, profileMenuOpen])
+  }, [activeNav, currentUser?.id, profileMenuOpen])
 
   const upsertFitnessProfile = async (
     token: string,

@@ -697,6 +697,7 @@ export type ChatMessage = {
   time: string
   completedAt?: number
   error?: string
+  pendingTrainingPlanDraft?: TrainingPlanPayload
   suggestedTrainingPlan?: TrainingPlanPayload
   trainingPlanCreatedId?: number
   suggestedHealthData?: SuggestedHealthData

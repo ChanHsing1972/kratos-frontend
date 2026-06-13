@@ -59,6 +59,7 @@ import {
   trainingPlanTemplates,
 } from "@/entities/kratos/lib/domain"
 import { cn } from "@/shared/lib/utils"
+import { useExerciseMedia } from "@/shared/hooks/useExerciseMedia"
 import type {
   AgentCheckin,
   HeartRateSummary,
@@ -2008,7 +2009,11 @@ function ActionDetailDialog({
   action: TrainingDayAction | null
   onOpenChange: (open: boolean) => void
 }) {
-  const videos = action?.media?.teaching_videos ?? []
+  const { media: fetchedMedia } = useExerciseMedia(action?.title ?? "")
+  const media = action?.media?.media_url || action?.media?.teaching_videos?.length
+    ? action.media
+    : fetchedMedia
+  const videos = media?.teaching_videos ?? []
 
   return (
     <Dialog onOpenChange={onOpenChange} open={Boolean(action)}>
@@ -2018,13 +2023,13 @@ function ActionDetailDialog({
             <DialogHeader>
               <DialogTitle>{action.title}</DialogTitle>
               <DialogDescription>
-                {action.media?.exercise_name ?? "动作讲解、训练处方和教学视频"}
+                {media?.exercise_name ?? "动作讲解、训练处方和教学视频"}
               </DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
               <div className="relative aspect-square overflow-hidden rounded-lg border border-border bg-muted">
-                <ActionImage actionName={action.title} className="absolute inset-0" fit="contain" media={action.media} />
+                <ActionImage actionName={action.title} className="absolute inset-0" fit="contain" media={media} />
               </div>
               <div className="grid content-start gap-3">
                 <PlanSummaryTile label="次数组数" value={formatActionPrescription(action)} />
