@@ -3378,7 +3378,7 @@ export function KratosPage() {
         saving={dietSaving}
       />
       <DetailModal panel={detailPanel} onClose={() => setDetailPanel(null)} />
-      <Toaster position="bottom-right" />
+      <Toaster position="top-right" />
 
       <AlertDialog open={!!deletingPlan} onOpenChange={(open) => {
         if (!open) setDeletingPlan(null)

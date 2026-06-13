@@ -1,4 +1,4 @@
-import { Check, ExternalLink, ListChecks, PencilLine, Play, Video } from "lucide-react"
+import { Calendar, Check, ExternalLink, ListChecks, PencilLine, Play, Video } from "lucide-react"
 
 import { proxiedBilibiliImageUrl } from "@/entities/kratos/api/client"
 import type {
@@ -29,6 +29,7 @@ import {
 } from "@/shared/ui/item"
 import { Separator } from "@/shared/ui/separator"
 import { Skeleton } from "@/shared/ui/skeleton"
+import { Spinner } from "@/shared/ui/spinner"
 
 type TrainingPlanSuggestionCardProps = {
   created: boolean
@@ -47,7 +48,7 @@ export function TrainingPlanSuggestionCard({
 }: TrainingPlanSuggestionCardProps) {
   const sessions = plan.schedule_json?.weeks.flatMap((week) => week.sessions) ?? []
   const exercises = sessions.flatMap((session) => session.exercises)
-  const visibleSessions = sessions.slice(0, 3)
+  const visibleSessions = sessions.slice(0, 7)
   const visibleExercises = exercises.filter((exercise) => exercise.name.trim()).slice(0, 5)
   const videoEntries = visibleExercises
     .map((exercise) => ({
@@ -61,7 +62,7 @@ export function TrainingPlanSuggestionCard({
   const isProgram = plan.plan_kind === "program"
 
   return (
-    <Card className="mt-4" size="sm">
+    <Card className="mt-4" size="default">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ListChecks className="size-4" />
@@ -78,11 +79,11 @@ export function TrainingPlanSuggestionCard({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-3">
+        {/* <div className="grid gap-2 sm:grid-cols-3">
           <PlanMetric label="训练日" value={`${sessions.length || 1}`} />
           <PlanMetric label="动作数" value={`${visibleExercises.length || exercises.length}`} />
           <PlanMetric label="目标" value={plan.goal || "按计划执行"} />
-        </div>
+        </div> */}
 
         {visibleSessions.length ? (
           <ItemGroup data-size="sm">
@@ -99,7 +100,7 @@ export function TrainingPlanSuggestionCard({
             </div>
             <div className="flex flex-wrap gap-2">
               {visibleExercises.map((exercise) => (
-                <Badge key={`${exercise.id}-${exercise.name}`} variant="outline">
+                <Badge key={`${exercise.id}-${exercise.name}`} variant="secondary">
                   {exercise.name}
                   {formatExerciseDose(exercise) ? ` · ${formatExerciseDose(exercise)}` : ""}
                 </Badge>
@@ -131,7 +132,7 @@ export function TrainingPlanSuggestionCard({
           编辑
         </Button>
         <Button disabled={created || loading} onClick={onCreate} type="button">
-          <Check className="size-4" />
+          {loading ? <Spinner /> : <Check className="size-4" />}
           {created
             ? "已保存"
             : loading
@@ -147,7 +148,7 @@ export function TrainingPlanSuggestionCard({
 
 export function TrainingPlanSuggestionCardSkeleton() {
   return (
-    <Card className="mt-4" size="sm">
+    <Card className="mt-4" size="default">
       <CardHeader>
         <Skeleton className="h-5 w-48" />
         <Skeleton className="h-4 w-[78%]" />
@@ -163,7 +164,7 @@ export function TrainingPlanSuggestionCardSkeleton() {
         </div>
         <ItemGroup data-size="sm">
           {Array.from({ length: 3 }).map((_, index) => (
-            <Item key={index} size="sm" variant="outline">
+            <Item key={index} size="sm" variant="muted">
               <ItemMedia variant="icon">
                 <Skeleton className="size-4 rounded-full" />
               </ItemMedia>
@@ -192,9 +193,9 @@ function SessionItem({ session }: { session: TrainingScheduleSession }) {
   const extraCount = Math.max(0, session.exercises.length - 3)
 
   return (
-    <Item size="sm" variant="outline">
+    <Item size="sm" variant="muted">
       <ItemMedia variant="icon">
-        <ListChecks className="size-4" />
+        <Calendar className="size-4" />
       </ItemMedia>
       <ItemContent>
         <ItemTitle>

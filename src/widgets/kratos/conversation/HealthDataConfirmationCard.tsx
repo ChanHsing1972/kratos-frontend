@@ -21,6 +21,7 @@ import {
   ItemTitle,
 } from "@/shared/ui/item"
 import { Skeleton } from "@/shared/ui/skeleton"
+import { Spinner } from "@/shared/ui/spinner"
 
 type HealthDataConfirmationCardProps = {
   data: SuggestedHealthData
@@ -42,18 +43,18 @@ export function HealthDataConfirmationCard({
   saved,
 }: HealthDataConfirmationCardProps) {
   const items = buildHealthItems(data)
-  const primaryItems = items.slice(0, 4)
+  const primaryItems = items.slice(0, 7)
   const extraCount = Math.max(0, items.length - primaryItems.length)
 
   return (
-    <Card className="mt-4" size="sm">
+    <Card className="mt-4" size="default">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ShieldCheck className="size-4" />
           确认健康数据
         </CardTitle>
         <CardDescription>
-          识别到的身体或恢复信息，确认后才会保存并用于后续训练调整。
+          识别到身体或恢复信息，请确认是否保存并用于后续训练调整。
         </CardDescription>
         <CardAction>
           <Badge variant={saved ? "default" : "secondary"}>
@@ -65,7 +66,7 @@ export function HealthDataConfirmationCard({
       <CardContent>
         <ItemGroup data-size="sm">
           {primaryItems.map((item) => (
-            <Item key={`${item.source}-${item.key}`} size="sm" variant="outline">
+            <Item key={`${item.source}-${item.key}`} size="sm" variant="muted">
               <ItemMedia variant="icon">
                 <HeartPulse className="size-4" />
               </ItemMedia>
@@ -87,7 +88,7 @@ export function HealthDataConfirmationCard({
 
       <CardFooter className="justify-end gap-2">
         <Button disabled={loading || saved} onClick={onConfirm} type="button">
-          {saved ? <Check className="size-4" /> : null}
+          {loading ? <Spinner /> : <Check className="size-4" />}
           {saved ? "已保存" : loading ? "保存中..." : "确认并保存"}
         </Button>
       </CardFooter>
@@ -97,7 +98,7 @@ export function HealthDataConfirmationCard({
 
 export function HealthDataConfirmationCardSkeleton() {
   return (
-    <Card className="mt-4" size="sm">
+    <Card className="mt-4" size="default">
       <CardHeader>
         <Skeleton className="h-5 w-36" />
         <Skeleton className="h-4 w-[70%]" />
@@ -108,7 +109,7 @@ export function HealthDataConfirmationCardSkeleton() {
       <CardContent>
         <ItemGroup data-size="sm">
           {Array.from({ length: 3 }).map((_, index) => (
-            <Item key={index} size="sm" variant="outline">
+            <Item key={index} size="sm" variant="muted">
               <ItemMedia variant="icon">
                 <Skeleton className="size-4 rounded-full" />
               </ItemMedia>

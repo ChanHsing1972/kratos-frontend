@@ -1,4 +1,4 @@
-import { Check, Flame, Utensils } from "lucide-react"
+import { Check, CookingPot, Flame, Soup, Utensils } from "lucide-react"
 
 import type { FoodImageEstimateResult } from "@/entities/kratos/model/types"
 import { Badge } from "@/shared/ui/badge"
@@ -21,6 +21,7 @@ import {
   ItemTitle,
 } from "@/shared/ui/item"
 import { Skeleton } from "@/shared/ui/skeleton"
+import { Spinner } from "@/shared/ui/spinner"
 
 type DietRecordConfirmationCardProps = {
   data: FoodImageEstimateResult
@@ -36,11 +37,11 @@ export function DietRecordConfirmationCard({
   saved,
 }: DietRecordConfirmationCardProps) {
   const { items, total } = data
-  const visibleItems = items.slice(0, 4)
+  const visibleItems = items.slice(0, 7)
   const extraCount = Math.max(0, items.length - visibleItems.length)
 
   return (
-    <Card className="mt-4" size="sm">
+    <Card className="mt-4" size="default">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Utensils className="size-4" />
@@ -57,11 +58,19 @@ export function DietRecordConfirmationCard({
       </CardHeader>
 
       <CardContent className="space-y-3">
+
+        <div className="grid gap-2 rounded-lg border p-3 text-sm sm:grid-cols-4">
+          <Macro label="热量" unit="kcal" value={total.estimated_kcal} />
+          <Macro label="蛋白质" unit="g" value={total.protein_g} />
+          <Macro label="脂肪" unit="g" value={total.fat_g} />
+          <Macro label="碳水" unit="g" value={total.carbs_g} />
+        </div>
+
         <ItemGroup data-size="sm">
           {visibleItems.map((item, index) => (
-            <Item key={`${item.name}-${index}`} size="sm" variant="outline">
+            <Item key={`${item.name}-${index}`} size="sm" variant="muted">
               <ItemMedia variant="icon">
-                <Flame className="size-4" />
+                <Soup className="size-4" />
               </ItemMedia>
               <ItemContent>
                 <ItemTitle>{item.name || "未知食物"}</ItemTitle>
@@ -74,12 +83,6 @@ export function DietRecordConfirmationCard({
           ))}
         </ItemGroup>
 
-        <div className="grid gap-2 rounded-lg border p-3 text-sm sm:grid-cols-4">
-          <Macro label="热量" unit="kcal" value={total.estimated_kcal} />
-          <Macro label="蛋白质" unit="g" value={total.protein_g} />
-          <Macro label="脂肪" unit="g" value={total.fat_g} />
-          <Macro label="碳水" unit="g" value={total.carbs_g} />
-        </div>
 
         {extraCount ? (
           <p className="text-xs text-muted-foreground">
@@ -93,7 +96,7 @@ export function DietRecordConfirmationCard({
 
       <CardFooter className="justify-end gap-2">
         <Button disabled={loading || saved} onClick={onConfirm} type="button">
-          {saved ? <Check className="size-4" /> : null}
+          {loading ? <Spinner /> : <Check className="size-4" />}
           {saved ? "已保存" : loading ? "保存中..." : "确认并保存"}
         </Button>
       </CardFooter>
@@ -103,7 +106,7 @@ export function DietRecordConfirmationCard({
 
 export function DietRecordConfirmationCardSkeleton() {
   return (
-    <Card className="mt-4" size="sm">
+    <Card className="mt-4" size="default">
       <CardHeader>
         <Skeleton className="h-5 w-32" />
         <Skeleton className="h-4 w-56" />
@@ -114,7 +117,7 @@ export function DietRecordConfirmationCardSkeleton() {
       <CardContent className="space-y-3">
         <ItemGroup data-size="sm">
           {Array.from({ length: 3 }).map((_, index) => (
-            <Item key={index} size="sm" variant="outline">
+            <Item key={index} size="sm" variant="muted">
               <ItemMedia variant="icon">
                 <Skeleton className="size-4 rounded-full" />
               </ItemMedia>

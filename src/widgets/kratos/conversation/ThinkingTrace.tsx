@@ -47,7 +47,7 @@ export function ThinkingCard({
     steps: nonAnswerSteps,
     streaming,
   })
-  const toolSummary = summarizeToolTrace(visibleSteps)
+  // const toolSummary = summarizeToolTrace(visibleSteps)
   const latestStatusText = streaming
     ? latestStreamingStatus
       ? formatTraceContent(latestStreamingStatus)
@@ -71,11 +71,11 @@ export function ThinkingCard({
                 )}
                 text={latestStatusText}
               />
-              {toolSummary ? (
+              {/* {toolSummary ? (
                 <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
                   {toolSummary}
                 </p>
-              ) : null}
+              ) : null} */}
             </div>
             <Button
               onClick={onToggle}
