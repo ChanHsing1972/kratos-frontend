@@ -1,4 +1,4 @@
-import { Check, CookingPot, Flame, Soup, Utensils } from "lucide-react"
+import { Check, Soup, Utensils } from "lucide-react"
 
 import type { FoodImageEstimateResult } from "@/entities/kratos/model/types"
 import { Badge } from "@/shared/ui/badge"

@@ -242,23 +242,23 @@ function shouldCollapseTraceStep(previous: AgentTraceStep, next: AgentTraceStep)
   return formatTraceContent(previous) === formatTraceContent(next)
 }
 
-function summarizeToolTrace(steps: AgentTraceStep[]) {
-  const actionSteps = steps.filter((step) => step.type === "action")
-  if (actionSteps.length === 0) {
-    return ""
-  }
+// function summarizeToolTrace(steps: AgentTraceStep[]) {
+//   const actionSteps = steps.filter((step) => step.type === "action")
+//   if (actionSteps.length === 0) {
+//     return ""
+//   }
 
-  const toolNames = actionSteps
-    .map(toolNameFromTrace)
-    .filter((name): name is string => Boolean(name))
-  const uniqueToolNames = Array.from(new Set(toolNames))
-  const observationCount = steps.filter((step) => step.type === "observation").length
-  const failedCount = actionSteps.filter((step) => toolStatusFromRaw(step.raw) === "失败").length
-  const statusText = failedCount > 0 ? `${failedCount} 个失败` : `${observationCount} 条结果`
-  const namesText = uniqueToolNames.length ? `：${uniqueToolNames.join("、")}` : ""
+//   const toolNames = actionSteps
+//     .map(toolNameFromTrace)
+//     .filter((name): name is string => Boolean(name))
+//   const uniqueToolNames = Array.from(new Set(toolNames))
+//   const observationCount = steps.filter((step) => step.type === "observation").length
+//   const failedCount = actionSteps.filter((step) => toolStatusFromRaw(step.raw) === "失败").length
+//   const statusText = failedCount > 0 ? `${failedCount} 个失败` : `${observationCount} 条结果`
+//   const namesText = uniqueToolNames.length ? `：${uniqueToolNames.join("、")}` : ""
 
-  return `工具调用 ${actionSteps.length} 次${namesText}，${statusText}`
-}
+//   return `工具调用 ${actionSteps.length} 次${namesText}，${statusText}`
+// }
 
 function toolNameFromTrace(item: AgentTraceStep) {
   const raw = rawRecord(item.raw)

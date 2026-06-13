@@ -260,14 +260,14 @@ function VideoLink({
   )
 }
 
-function PlanMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border p-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 line-clamp-1 font-medium">{value}</div>
-    </div>
-  )
-}
+// function PlanMetric({ label, value }: { label: string; value: string }) {
+//   return (
+//     <div className="rounded-lg border p-3">
+//       <div className="text-xs text-muted-foreground">{label}</div>
+//       <div className="mt-1 line-clamp-1 font-medium">{value}</div>
+//     </div>
+//   )
+// }
 
 function formatExerciseDose(exercise: TrainingScheduleExercise) {
   const parts = [
