@@ -1,87 +1,159 @@
-import { Check, Utensils } from "lucide-react"
+import { Check, Flame, Utensils } from "lucide-react"
 
 import type { FoodImageEstimateResult } from "@/entities/kratos/model/types"
+import { Badge } from "@/shared/ui/badge"
+import { Button } from "@/shared/ui/button"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/card"
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@/shared/ui/item"
+import { Skeleton } from "@/shared/ui/skeleton"
 
 type DietRecordConfirmationCardProps = {
-    data: FoodImageEstimateResult
-    loading: boolean
-    saved: boolean
-    onConfirm: () => void
+  data: FoodImageEstimateResult
+  loading: boolean
+  saved: boolean
+  onConfirm: () => void
 }
 
 export function DietRecordConfirmationCard({
-    data,
-    loading,
-    onConfirm,
-    saved,
+  data,
+  loading,
+  onConfirm,
+  saved,
 }: DietRecordConfirmationCardProps) {
-    const { items, total } = data
+  const { items, total } = data
+  const visibleItems = items.slice(0, 4)
+  const extraCount = Math.max(0, items.length - visibleItems.length)
 
-    return (
-        <section className="mt-4 rounded-[12px] border border-border bg-muted/40 p-4">
-            <div className="flex items-start gap-3">
-                <Utensils className="mt-0.5 size-5 shrink-0 text-orange-500" />
-                <div>
-                    <h4 className="text-[14px] font-bold">确认饮食记录</h4>
-                    <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-                        我通过图片估算了以下食物热量，确认后将保存到今日饮食记录。
-                    </p>
-                </div>
-            </div>
-            <div className="mt-3 space-y-2">
-                {items.map((item, index) => (
-                    <div
-                        className="flex items-center justify-between gap-2 rounded-[8px] border bg-card px-3 py-2"
-                        key={`${item.name}-${index}`}
-                    >
-                        <div className="min-w-0 flex-1">
-                            <p className="text-[13px] font-semibold truncate">{item.name}</p>
-                            <p className="text-[11px] text-muted-foreground">
-                                约 {item.estimated_weight_g}g
-                                {item.confidence < 0.7 ? " · 低置信度" : ""}
-                            </p>
-                        </div>
-                        <div className="shrink-0 text-right">
-                            <p className="text-[13px] font-bold tabular-nums">
-                                {item.estimated_kcal}{" "}
-                                <span className="text-[11px] font-normal text-muted-foreground">kcal</span>
-                            </p>
-                            <p className="text-[11px] text-muted-foreground tabular-nums">
-                                蛋白质 {item.protein_g}g
-                            </p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-            <div className="mt-3 flex items-center justify-between rounded-[8px] border bg-card px-3 py-2">
-                <span className="text-[12px] font-semibold text-muted-foreground">合计</span>
-                <div className="flex items-center gap-3 text-[12px]">
-                    <span className="tabular-nums">
-                        <span className="font-bold">{total.estimated_kcal}</span> kcal
-                    </span>
-                    <span className="tabular-nums text-muted-foreground">
-                        蛋白质 {total.protein_g}g
-                    </span>
-                    <span className="tabular-nums text-muted-foreground">
-                        脂肪 {total.fat_g}g
-                    </span>
-                    <span className="tabular-nums text-muted-foreground">
-                        碳水 {total.carbs_g}g
-                    </span>
-                </div>
-            </div>
-            {data.warning ? (
-                <p className="mt-2 text-[11px] leading-4 text-amber-600">{data.warning}</p>
-            ) : null}
-            <button
-                className="mt-4 inline-flex h-9 items-center gap-2 rounded-[8px] bg-primary px-3 text-[12px] font-bold text-primary-foreground disabled:opacity-50"
-                disabled={loading || saved}
-                onClick={onConfirm}
-                type="button"
-            >
-                {saved ? <Check className="size-3.5" /> : null}
-                {saved ? "已保存" : loading ? "保存中..." : "确认并保存"}
-            </button>
-        </section>
-    )
+  return (
+    <Card className="mt-4" size="sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Utensils className="size-4" />
+          确认饮食记录
+        </CardTitle>
+        <CardDescription>
+          图片估算结果会在确认后保存到今日饮食记录。
+        </CardDescription>
+        <CardAction>
+          <Badge variant={saved ? "default" : "secondary"}>
+            {saved ? "已保存" : `${Math.round(total.estimated_kcal)} kcal`}
+          </Badge>
+        </CardAction>
+      </CardHeader>
+
+      <CardContent className="space-y-3">
+        <ItemGroup data-size="sm">
+          {visibleItems.map((item, index) => (
+            <Item key={`${item.name}-${index}`} size="sm" variant="outline">
+              <ItemMedia variant="icon">
+                <Flame className="size-4" />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle>{item.name || "未知食物"}</ItemTitle>
+                <ItemDescription>
+                  约 {formatNumber(item.estimated_weight_g)}g · {formatNumber(item.estimated_kcal)} kcal
+                  {item.confidence < 0.7 ? " · 低置信度" : ""}
+                </ItemDescription>
+              </ItemContent>
+            </Item>
+          ))}
+        </ItemGroup>
+
+        <div className="grid gap-2 rounded-lg border p-3 text-sm sm:grid-cols-4">
+          <Macro label="热量" unit="kcal" value={total.estimated_kcal} />
+          <Macro label="蛋白质" unit="g" value={total.protein_g} />
+          <Macro label="脂肪" unit="g" value={total.fat_g} />
+          <Macro label="碳水" unit="g" value={total.carbs_g} />
+        </div>
+
+        {extraCount ? (
+          <p className="text-xs text-muted-foreground">
+            另有 {extraCount} 项食物会一并保存。
+          </p>
+        ) : null}
+        {data.warning ? (
+          <p className="text-xs leading-5 text-muted-foreground">{data.warning}</p>
+        ) : null}
+      </CardContent>
+
+      <CardFooter className="justify-end gap-2">
+        <Button disabled={loading || saved} onClick={onConfirm} type="button">
+          {saved ? <Check className="size-4" /> : null}
+          {saved ? "已保存" : loading ? "保存中..." : "确认并保存"}
+        </Button>
+      </CardFooter>
+    </Card>
+  )
+}
+
+export function DietRecordConfirmationCardSkeleton() {
+  return (
+    <Card className="mt-4" size="sm">
+      <CardHeader>
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-4 w-56" />
+        <CardAction>
+          <Skeleton className="h-5 w-20 rounded-full" />
+        </CardAction>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <ItemGroup data-size="sm">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Item key={index} size="sm" variant="outline">
+              <ItemMedia variant="icon">
+                <Skeleton className="size-4 rounded-full" />
+              </ItemMedia>
+              <ItemContent>
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-40" />
+              </ItemContent>
+            </Item>
+          ))}
+        </ItemGroup>
+        <Skeleton className="h-16 w-full" />
+      </CardContent>
+      <CardFooter className="justify-end">
+        <Skeleton className="h-8 w-24" />
+      </CardFooter>
+    </Card>
+  )
+}
+
+function Macro({
+  label,
+  unit,
+  value,
+}: {
+  label: string
+  unit: string
+  value: number
+}) {
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-1 font-medium tabular-nums">
+        {formatNumber(value)}
+        <span className="ml-1 text-xs text-muted-foreground">{unit}</span>
+      </div>
+    </div>
+  )
+}
+
+function formatNumber(value: number) {
+  return Number.isInteger(value) ? `${value}` : value.toFixed(1)
 }

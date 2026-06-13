@@ -4,11 +4,11 @@ import { getExerciseMedia, AUTH_TOKEN_KEY, type ExerciseMediaResponse } from "..
 const mediaCache = new Map<string, ExerciseMediaResponse | null>()
 const mediaRequests = new Map<string, Promise<ExerciseMediaResponse>>()
 
-export function useExerciseMedia(actionName: string) {
+export function useExerciseMedia(actionName: string, enabled = true) {
   const normalizedInitialName = actionName.trim()
-  const cached = mediaCache.get(normalizedInitialName)
-  const [media, setMedia] = useState<ExerciseMediaResponse | null>(cached ?? null)
-  const [loading, setLoading] = useState(!mediaCache.has(normalizedInitialName))
+  const initialMedia = mediaCache.get(normalizedInitialName) ?? null
+  const [media, setMedia] = useState<ExerciseMediaResponse | null>(initialMedia)
+  const [loading, setLoading] = useState(enabled && !mediaCache.has(normalizedInitialName))
 
   useEffect(() => {
     const normalizedName = actionName.trim()
@@ -28,6 +28,11 @@ export function useExerciseMedia(actionName: string) {
           setLoading(nextLoading)
         }
       })
+    }
+
+    if (!enabled) {
+      updateMediaState(mediaCache.get(normalizedName) ?? null, false)
+      return cleanup
     }
 
     if (!normalizedName) {
@@ -69,7 +74,7 @@ export function useExerciseMedia(actionName: string) {
       })
 
     return cleanup
-  }, [actionName])
+  }, [actionName, enabled])
 
   return { media, mediaUrl: media?.media_url ?? null, loading }
 }

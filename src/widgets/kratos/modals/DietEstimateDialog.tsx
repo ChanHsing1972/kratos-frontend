@@ -16,6 +16,20 @@ import {
   DialogTitle,
 } from "@/shared/ui/dialog"
 import { Input } from "@/shared/ui/input"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/card"
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@/shared/ui/item"
 
 type EditableFoodEstimateItem = FoodEstimateItem & {
   selected: boolean
@@ -59,7 +73,9 @@ export function DietEstimateDialog({
       <DialogContent className="grid max-h-[86svh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>热量识别</DialogTitle>
-          <DialogDescription>{estimate?.warning}</DialogDescription>
+          <DialogDescription>
+            勾选要保存的食物，必要时修正重量和营养估算。
+          </DialogDescription>
         </DialogHeader>
 
         {estimate ? (
@@ -71,37 +87,41 @@ export function DietEstimateDialog({
               <SummaryMetric label="碳水" value={total.carbs_g} unit="g" />
             </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <div>
-                  <div className="text-sm font-medium">识别到的食物</div>
-                  <div className="text-xs text-muted-foreground">
-                    勾选需要保存的条目，也可以手动修正重量和营养估算。
-                  </div>
-                </div>
-                <Badge variant="secondary">{selectedItems.length}/{items.length} 已选择</Badge>
-              </div>
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between gap-3">
+                  <span>识别到的食物</span>
+                  <Badge variant="secondary">{selectedItems.length}/{items.length} 已选择</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ItemGroup data-size="sm">
+                  {items.length ? (
+                    items.map((item, index) => (
+                      <EstimateItemCard
+                        item={item}
+                        key={`${item.name}-${index}`}
+                        onCheckedChange={(checked) =>
+                          updateItem(index, { selected: checked })
+                        }
+                        onMacroChange={(patch) => updateItem(index, patch)}
+                        onWeightChange={(value) => updateWeight(index, value)}
+                      />
+                    ))
+                  ) : (
+                    <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                      未识别到明确食物
+                    </p>
+                  )}
+                </ItemGroup>
+              </CardContent>
+            </Card>
 
-              {items.length ? (
-                <div className="space-y-2">
-                  {items.map((item, index) => (
-                    <EstimateItemCard
-                      item={item}
-                      key={`${item.name}-${index}`}
-                      onCheckedChange={(checked) =>
-                        updateItem(index, { selected: checked })
-                      }
-                      onMacroChange={(patch) => updateItem(index, patch)}
-                      onWeightChange={(value) => updateWeight(index, value)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">
-                  未识别到明确食物
-                </div>
-              )}
-            </div>
+            {estimate.warning ? (
+              <p className="rounded-lg border p-3 text-sm text-muted-foreground">
+                {estimate.warning}
+              </p>
+            ) : null}
           </div>
         ) : null}
 
@@ -160,78 +180,60 @@ function EstimateItemCard({
   onWeightChange: (value: number) => void
 }) {
   return (
-    <div
-      className={
-        item.selected
-          ? "rounded-2xl border bg-card p-4 shadow-sm transition-colors"
-          : "rounded-2xl border bg-muted/20 p-4 opacity-65 transition-colors"
-      }
-    >
-      <div className="flex gap-3">
+    <Item size="sm" variant="outline" className={item.selected ? "" : "opacity-60"}>
+      <ItemMedia>
         <Checkbox
           checked={item.selected}
-          className="mt-1"
           onCheckedChange={(checked) => onCheckedChange(checked === true)}
         />
+      </ItemMedia>
 
-        <div className="min-w-0 flex-1 space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-base font-semibold tracking-tight">
-                  {item.name || "未知食物"}
-                </span>
-                <Badge className="rounded-full" variant="outline">
-                  置信度 {Math.round(item.confidence * 100)}%
-                </Badge>
-              </div>
-              {item.assumptions.length ? (
-                <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                  {item.assumptions.join("；")}
-                </p>
-              ) : null}
-            </div>
+      <ItemContent>
+        <ItemTitle>
+          {item.name || "未知食物"}
+          <Badge className="ml-2" variant="outline">
+            {Math.round(item.confidence * 100)}%
+          </Badge>
+        </ItemTitle>
+        <ItemDescription>
+          约 {formatNumber(item.estimated_kcal)} kcal
+          {item.assumptions.length ? ` · ${item.assumptions.join("；")}` : ""}
+        </ItemDescription>
 
-            <div className="rounded-full bg-muted px-3 py-1 text-sm font-medium text-muted-foreground">
-              约 {formatNumber(item.estimated_kcal)} kcal
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <MacroInput
-              label="吃了多少"
-              suffix="g"
-              value={item.estimated_weight_g}
-              onChange={onWeightChange}
-            />
-            <MacroInput
-              label="热量"
-              suffix="kcal"
-              value={item.estimated_kcal}
-              onChange={(value) => onMacroChange({ estimated_kcal: value })}
-            />
-            <MacroInput
-              label="蛋白质"
-              suffix="g"
-              value={item.protein_g}
-              onChange={(value) => onMacroChange({ protein_g: value })}
-            />
-            <MacroInput
-              label="脂肪"
-              suffix="g"
-              value={item.fat_g}
-              onChange={(value) => onMacroChange({ fat_g: value })}
-            />
-            <MacroInput
-              label="碳水"
-              suffix="g"
-              value={item.carbs_g}
-              onChange={(value) => onMacroChange({ carbs_g: value })}
-            />
-          </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <MacroInput
+            label="重量"
+            suffix="g"
+            value={item.estimated_weight_g}
+            onChange={onWeightChange}
+          />
+          <MacroInput
+            label="热量"
+            suffix="kcal"
+            value={item.estimated_kcal}
+            onChange={(value) => onMacroChange({ estimated_kcal: value })}
+          />
+          <MacroInput
+            label="蛋白质"
+            suffix="g"
+            value={item.protein_g}
+            onChange={(value) => onMacroChange({ protein_g: value })}
+          />
+          <MacroInput
+            label="脂肪"
+            suffix="g"
+            value={item.fat_g}
+            onChange={(value) => onMacroChange({ fat_g: value })}
+          />
+          <MacroInput
+            label="碳水"
+            suffix="g"
+            value={item.carbs_g}
+            onChange={(value) => onMacroChange({ carbs_g: value })}
+          />
         </div>
-      </div>
-    </div>
+      </ItemContent>
+    </Item>
   )
 }
 
@@ -247,7 +249,7 @@ function MacroInput({
   value: number
 }) {
   return (
-    <label className="grid gap-1.5 rounded-xl border bg-background px-3 py-2">
+    <label className="grid gap-1.5 rounded-lg border bg-background px-3 py-2">
       <span className="text-xs text-muted-foreground">{label}</span>
       <span className="flex items-center gap-2">
         <Input
@@ -274,13 +276,15 @@ function SummaryMetric({
   value: number
 }) {
   return (
-    <div className="rounded-lg border bg-muted/30 px-3 py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 text-lg font-semibold">
-        {formatNumber(value)}
-        <span className="ml-1 text-xs font-medium text-muted-foreground">{unit}</span>
-      </div>
-    </div>
+    <Card size="sm">
+      <CardContent className="py-1">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="mt-1 text-lg font-semibold">
+          {formatNumber(value)}
+          <span className="ml-1 text-xs font-medium text-muted-foreground">{unit}</span>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

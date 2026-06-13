@@ -35,7 +35,9 @@ export function ThinkingCard({
     (step) => step.type !== "answer_delta" && step.type !== "answer_replace"
   )
   const traceSteps = nonAnswerSteps.filter((step) => step.type !== "final")
-  const visibleSteps = traceSteps.length > 0 ? traceSteps : nonAnswerSteps
+  const visibleSteps = compactVisibleTraceSteps(
+    traceSteps.length > 0 ? traceSteps : nonAnswerSteps
+  )
   const latestStreamingStatus = [...visibleSteps]
     .reverse()
     .find((step) => step.type === "status" || step.type === "thought")
@@ -216,6 +218,28 @@ function formatTraceContent(item: AgentTraceStep) {
   }
 
   return item.content
+}
+
+function compactVisibleTraceSteps(steps: AgentTraceStep[]) {
+  const compacted: AgentTraceStep[] = []
+  for (const step of steps) {
+    const previous = compacted[compacted.length - 1]
+    if (previous && shouldCollapseTraceStep(previous, step)) {
+      continue
+    }
+    compacted.push(step)
+  }
+  return compacted
+}
+
+function shouldCollapseTraceStep(previous: AgentTraceStep, next: AgentTraceStep) {
+  if (previous.type !== next.type) {
+    return false
+  }
+  if (!["status", "thought", "observation"].includes(next.type)) {
+    return false
+  }
+  return formatTraceContent(previous) === formatTraceContent(next)
 }
 
 function summarizeToolTrace(steps: AgentTraceStep[]) {

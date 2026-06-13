@@ -10,10 +10,18 @@ import type {
 import { copyText } from "@/shared/lib/clipboard"
 import { MarkdownMessage } from "@/widgets/kratos/conversation/MarkdownMessage"
 import { ThinkingCard, ThinkingDots } from "@/widgets/kratos/conversation/ThinkingTrace"
-import { TrainingPlanSuggestionCard } from "@/widgets/kratos/conversation/TrainingPlanSuggestionCard"
-import { HealthDataConfirmationCard } from "@/widgets/kratos/conversation/HealthDataConfirmationCard"
-import { DietRecordConfirmationCard } from "@/widgets/kratos/conversation/DietRecordConfirmationCard"
-import { Skeleton } from "@/shared/ui/skeleton"
+import {
+  TrainingPlanSuggestionCard,
+  TrainingPlanSuggestionCardSkeleton,
+} from "@/widgets/kratos/conversation/TrainingPlanSuggestionCard"
+import {
+  HealthDataConfirmationCard,
+  HealthDataConfirmationCardSkeleton,
+} from "@/widgets/kratos/conversation/HealthDataConfirmationCard"
+import {
+  DietRecordConfirmationCard,
+  DietRecordConfirmationCardSkeleton,
+} from "@/widgets/kratos/conversation/DietRecordConfirmationCard"
 
 type ChatBubbleProps = {
   creatingTrainingPlan: boolean
@@ -140,8 +148,16 @@ export function ChatBubble({
             />
           ) : null}
 
+          {message.structuredCardPending &&
+            message.streaming &&
+            !message.suggestedTrainingPlan &&
+            !message.suggestedHealthData &&
+            !message.suggestedDietRecords ? (
+            <TrainingPlanSuggestionCardSkeleton />
+          ) : null}
+
           {message.suggestedHealthData && message.streaming ? (
-            <CompactConfirmationPendingCard title="身体数据确认卡片" />
+            <HealthDataConfirmationCardSkeleton />
           ) : null}
 
           {message.suggestedHealthData && !message.streaming ? (
@@ -154,7 +170,7 @@ export function ChatBubble({
           ) : null}
 
           {message.suggestedDietRecords && message.streaming ? (
-            <CompactConfirmationPendingCard title="饮食记录确认卡片" />
+            <DietRecordConfirmationCardSkeleton />
           ) : null}
 
           {message.suggestedDietRecords && !message.streaming ? (
@@ -183,31 +199,6 @@ export function ChatBubble({
             </button>
           </div>
         </div>
-      </div>
-    </section>
-  )
-}
-
-function CompactConfirmationPendingCard({ title }: { title: string }) {
-  return (
-    <section className="mt-4 rounded-[12px] border border-border bg-muted/40 p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1 space-y-2">
-          <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-            {title}
-          </p>
-          <Skeleton className="h-4 w-56 rounded-[8px]" />
-          <Skeleton className="h-3 w-[72%] rounded-[8px]" />
-        </div>
-        <Skeleton className="h-7 w-16 rounded-[8px]" />
-      </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        <Skeleton className="h-10 rounded-[8px]" />
-        <Skeleton className="h-10 rounded-[8px]" />
-      </div>
-      <div className="mt-4 flex gap-2">
-        <Skeleton className="h-9 w-24 rounded-[8px]" />
-        <Skeleton className="h-9 w-20 rounded-[8px]" />
       </div>
     </section>
   )

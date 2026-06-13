@@ -1,6 +1,26 @@
-import { Check, ShieldCheck } from "lucide-react"
+import { Check, HeartPulse, ShieldCheck } from "lucide-react"
 
 import type { SuggestedHealthData } from "@/entities/kratos/model/types"
+import { Badge } from "@/shared/ui/badge"
+import { Button } from "@/shared/ui/button"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/card"
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@/shared/ui/item"
+import { Skeleton } from "@/shared/ui/skeleton"
 
 type HealthDataConfirmationCardProps = {
   data: SuggestedHealthData
@@ -9,48 +29,143 @@ type HealthDataConfirmationCardProps = {
   onConfirm: () => void
 }
 
+type HealthItem = {
+  key: string
+  source: string
+  value: unknown
+}
+
 export function HealthDataConfirmationCard({
   data,
   loading,
   onConfirm,
   saved,
 }: HealthDataConfirmationCardProps) {
-  const items = [
-    ...Object.entries(data.profile ?? {}),
-    ...Object.entries(data.body_metric ?? {}),
-    ...Object.entries(data.health_metric ?? {}),
-    ...Object.entries(data.checkin ?? {}),
-  ].filter(([, value]) => value !== null && value !== undefined)
+  const items = buildHealthItems(data)
+  const primaryItems = items.slice(0, 4)
+  const extraCount = Math.max(0, items.length - primaryItems.length)
 
   return (
-    <section className="mt-4 rounded-[12px] border border-border bg-muted/40 p-4">
-      <div className="flex items-start gap-3">
-        <ShieldCheck className="mt-0.5 size-5 shrink-0" />
-        <div>
-          <h4 className="text-[14px] font-bold">确认记录健康数据</h4>
-          <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-            我识别到了身体或恢复信息。只有您确认后才会保存并用于后续训练调整。
+    <Card className="mt-4" size="sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ShieldCheck className="size-4" />
+          确认健康数据
+        </CardTitle>
+        <CardDescription>
+          识别到的身体或恢复信息，确认后才会保存并用于后续训练调整。
+        </CardDescription>
+        <CardAction>
+          <Badge variant={saved ? "default" : "secondary"}>
+            {saved ? "已保存" : `${items.length} 项`}
+          </Badge>
+        </CardAction>
+      </CardHeader>
+
+      <CardContent>
+        <ItemGroup data-size="sm">
+          {primaryItems.map((item) => (
+            <Item key={`${item.source}-${item.key}`} size="sm" variant="outline">
+              <ItemMedia variant="icon">
+                <HeartPulse className="size-4" />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle>{healthLabel(item.key)}</ItemTitle>
+                <ItemDescription>
+                  {formatHealthValue(item.key, item.value)} · {item.source}
+                </ItemDescription>
+              </ItemContent>
+            </Item>
+          ))}
+        </ItemGroup>
+        {extraCount ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            另有 {extraCount} 项将在保存时一起写入。
           </p>
-        </div>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {items.map(([key, value]) => (
-          <span className="rounded-md border bg-card px-2 py-1 text-[12px]" key={key}>
-            {healthLabel(key)}：{String(value)}
-          </span>
-        ))}
-      </div>
-      <button
-        className="mt-4 inline-flex h-9 items-center gap-2 rounded-[8px] bg-primary px-3 text-[12px] font-bold text-primary-foreground disabled:opacity-50"
-        disabled={loading || saved}
-        onClick={onConfirm}
-        type="button"
-      >
-        {saved ? <Check className="size-3.5" /> : null}
-        {saved ? "已保存" : loading ? "保存中..." : "确认并保存"}
-      </button>
-    </section>
+        ) : null}
+      </CardContent>
+
+      <CardFooter className="justify-end gap-2">
+        <Button disabled={loading || saved} onClick={onConfirm} type="button">
+          {saved ? <Check className="size-4" /> : null}
+          {saved ? "已保存" : loading ? "保存中..." : "确认并保存"}
+        </Button>
+      </CardFooter>
+    </Card>
   )
+}
+
+export function HealthDataConfirmationCardSkeleton() {
+  return (
+    <Card className="mt-4" size="sm">
+      <CardHeader>
+        <Skeleton className="h-5 w-36" />
+        <Skeleton className="h-4 w-[70%]" />
+        <CardAction>
+          <Skeleton className="h-5 w-12 rounded-full" />
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <ItemGroup data-size="sm">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Item key={index} size="sm" variant="outline">
+              <ItemMedia variant="icon">
+                <Skeleton className="size-4 rounded-full" />
+              </ItemMedia>
+              <ItemContent>
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3 w-36" />
+              </ItemContent>
+            </Item>
+          ))}
+        </ItemGroup>
+      </CardContent>
+      <CardFooter className="justify-end">
+        <Skeleton className="h-8 w-24" />
+      </CardFooter>
+    </Card>
+  )
+}
+
+function buildHealthItems(data: SuggestedHealthData): HealthItem[] {
+  return [
+    ...itemsFromRecord("个人档案", data.profile),
+    ...itemsFromRecord("身体数据", data.body_metric),
+    ...itemsFromRecord("恢复指标", data.health_metric),
+    ...itemsFromRecord("训练反馈", data.checkin),
+  ].filter((item) => item.value !== null && item.value !== undefined)
+}
+
+function itemsFromRecord(
+  source: string,
+  record: Record<string, unknown> | null | undefined
+): HealthItem[] {
+  return Object.entries(record ?? {}).map(([key, value]) => ({
+    key,
+    source,
+    value,
+  }))
+}
+
+function formatHealthValue(key: string, value: unknown) {
+  const unitMap: Record<string, string> = {
+    active_kcal: "kcal",
+    arm_cm: "cm",
+    body_fat_percentage: "%",
+    calf_cm: "cm",
+    chest_cm: "cm",
+    dietary_kcal: "kcal",
+    height_cm: "cm",
+    hrv_ms: "ms",
+    resting_heart_rate: "bpm",
+    sleep_hours: "小时",
+    target_weight_kg: "kg",
+    thigh_cm: "cm",
+    waist_cm: "cm",
+    weight_kg: "kg",
+  }
+  const unit = unitMap[key]
+  return unit ? `${String(value)} ${unit}` : String(value)
 }
 
 function healthLabel(key: string) {

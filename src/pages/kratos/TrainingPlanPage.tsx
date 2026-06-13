@@ -26,7 +26,14 @@ import { Spinner } from "@/shared/ui/spinner"
 import { Skeleton } from "@/shared/ui/skeleton"
 import { Calendar } from "@/shared/ui/calendar"
 import { Badge } from "@/shared/ui/badge"
-import { CardContent } from "@/shared/ui/card"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/card"
 import {
   Carousel,
   CarouselContent,
@@ -52,6 +59,7 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu"
 import {
+  type ExerciseMediaResponse,
   proxiedBilibiliImageUrl,
 } from "@/entities/kratos/api/client"
 import {
@@ -74,6 +82,15 @@ import { ActionImage } from "@/shared/ui/ActionImage"
 import { ButtonGroup } from "@/shared/ui/button-group"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/shared/ui/empty"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/ui/input-group"
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@/shared/ui/item"
 
 type TrainingPlanPageProps = {
   activePlan: TrainingPlan | null
@@ -1109,6 +1126,7 @@ function TodayTrainingHero({
   dashboardLoading,
   guidanceError,
   guidanceLoading,
+  guidanceMessage,
   hasActivePlan,
   postTrainingAdjustment,
   postTrainingFeedback,
@@ -1294,7 +1312,7 @@ function TodayTrainingHero({
               <div className="mt-2 rounded-2xl rounded-tl-md bg-muted px-4 py-3 text-[13px] leading-5 text-foreground">
                 <TrainingSuggestionBubbleContent
                   adjustment={postTrainingAdjustment}
-                  defaultMessage={hasActivePlan ? dailySuggestion : planGoal}
+                  defaultMessage={hasActivePlan ? (guidanceMessage || dailySuggestion) : planGoal}
                   error={postTrainingFeedbackError}
                   guidanceError={guidanceError}
                   guidanceLoading={guidanceLoading}
@@ -1872,7 +1890,7 @@ function TrainingPlanDetailDialog({
   return (
     <>
       <Dialog onOpenChange={onOpenChange} open={open}>
-        <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-3xl">
+        <DialogContent className="grid max-h-[90svh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{plan.title}</DialogTitle>
             <DialogDescription>
@@ -1880,68 +1898,79 @@ function TrainingPlanDetailDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <section className="grid gap-3 sm:grid-cols-3">
-            <PlanSummaryTile label="目标" value={plan.goal ?? "未设置"} />
-            <PlanSummaryTile
-              label="周期"
-              value={`${plan.start_date ?? "未设置"} - ${plan.end_date ?? "未设置"}`}
-            />
-            <PlanSummaryTile
-              label="类型"
-              value={plan.plan_kind === "daily" ? "单日计划" : `${plan.duration_weeks ?? 1} 周计划`}
-            />
-          </section>
+          <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
+            <section className="grid gap-3 sm:grid-cols-3">
+              <PlanSummaryTile label="目标" value={plan.goal ?? "未设置"} />
+              <PlanSummaryTile
+                label="周期"
+                value={`${plan.start_date ?? "未设置"} - ${plan.end_date ?? "未设置"}`}
+              />
+              <PlanSummaryTile
+                label="类型"
+                value={plan.plan_kind === "daily" ? "单日计划" : `${plan.duration_weeks ?? 1} 周计划`}
+              />
+            </section>
 
-          <section className="grid gap-3">
-            <h3 className="text-[15px] font-semibold">训练安排</h3>
-            {detailDays.length ? (
-              <div className="grid gap-3">
-                {detailDays.map((day) => (
-                  <div className="grid gap-2 rounded-lg border border-border p-3" key={day.id}>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-[13px] font-semibold text-muted-foreground">{day.day}</p>
-                        <h4 className="text-[15px] font-semibold">{day.title}</h4>
-                      </div>
-                      <Badge variant="secondary">{day.actions.length} 个动作</Badge>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {day.actions.map((action) => (
-                        <button
-                          className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-lg border border-border bg-card p-2 text-left transition hover:border-primary/40 hover:bg-muted"
-                          key={action.id}
-                          onClick={() => setSelectedAction(action)}
-                          type="button"
-                        >
-                          <span className="relative aspect-square overflow-hidden rounded-md bg-muted">
-                            <ActionImage actionName={action.title} className="absolute inset-0" fit="contain" media={action.media} />
-                          </span>
-                          <span className="min-w-0 self-center">
-                            <span className="block truncate text-[14px] font-semibold">{action.title}</span>
-                            <span className="mt-1 block text-[12px] text-muted-foreground">
-                              {formatActionPrescription(action)}
-                            </span>
-                            <span className="mt-1 line-clamp-2 text-[12px] leading-5 text-muted-foreground">
-                              {action.notes || action.media?.exercise_name || "点击查看动作讲解和教学视频"}
-                            </span>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle>训练安排</CardTitle>
+                <CardDescription>点击动作查看讲解和教学视频。</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {detailDays.length ? (
+                  <div className="grid gap-3">
+                    {detailDays.map((day) => (
+                      <Card key={day.id} size="sm">
+                        <CardHeader>
+                          <CardTitle>{day.day} · {day.title}</CardTitle>
+                          <CardAction>
+                            <Badge variant="secondary">{day.actions.length} 个动作</Badge>
+                          </CardAction>
+                        </CardHeader>
+                        <CardContent>
+                          <ItemGroup data-size="sm">
+                            {day.actions.map((action) => (
+                              <Item
+                                asChild
+                                key={action.id}
+                                size="sm"
+                                variant="outline"
+                              >
+                                <button onClick={() => setSelectedAction(action)} type="button">
+                                  <ItemMedia variant="image">
+                                    <ActionImage actionName={action.title} fit="contain" media={action.media} />
+                                  </ItemMedia>
+                                  <ItemContent>
+                                    <ItemTitle>{action.title}</ItemTitle>
+                                    <ItemDescription>
+                                      {formatActionPrescription(action)}
+                                      {action.notes ? ` · ${action.notes}` : ""}
+                                    </ItemDescription>
+                                  </ItemContent>
+                                  <ItemActions>
+                                    <ChevronRight className="size-4 text-muted-foreground" />
+                                  </ItemActions>
+                                </button>
+                              </Item>
+                            ))}
+                          </ItemGroup>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                暂无结构化训练动作。
-              </p>
-            )}
-          </section>
+                ) : (
+                  <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    暂无结构化训练动作。
+                  </p>
+                )}
+              </CardContent>
+            </Card>
 
-          <section className="grid gap-3 sm:grid-cols-2">
-            <GuidanceBlock label="恢复建议" value={plan.recovery_guidance} />
-            <GuidanceBlock label="营养建议" value={plan.nutrition_guidance} />
-          </section>
+            <section className="grid gap-3 sm:grid-cols-2">
+              <GuidanceBlock label="恢复建议" value={plan.recovery_guidance} />
+              <GuidanceBlock label="营养建议" value={plan.nutrition_guidance} />
+            </section>
+          </div>
 
           <DialogFooter>
             <DialogClose asChild>
@@ -1965,10 +1994,12 @@ function TrainingPlanDetailDialog({
 
 function PlanSummaryTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
-      <p className="text-[12px] font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 text-[14px] font-semibold leading-5">{value}</p>
-    </div>
+    <Card size="sm">
+      <CardContent>
+        <p className="text-[12px] font-medium text-muted-foreground">{label}</p>
+        <p className="mt-1 text-[14px] font-semibold leading-5">{value}</p>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -1985,20 +2016,24 @@ function GuidanceBlock({
     .filter(Boolean) ?? []
 
   return (
-    <section className="rounded-lg border border-border p-3">
-      <h3 className="text-[14px] font-semibold">{label}</h3>
-      {lines.length ? (
-        <div className="mt-2 grid gap-2">
-          {lines.map((line) => (
-            <p className="rounded-md bg-muted px-3 py-2 text-[13px] leading-5 text-muted-foreground" key={line}>
-              {line}
-            </p>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-2 text-[13px] text-muted-foreground">未填写</p>
-      )}
-    </section>
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle>{label}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {lines.length ? (
+          <div className="grid gap-2">
+            {lines.map((line) => (
+              <p className="rounded-md bg-muted px-3 py-2 text-[13px] leading-5 text-muted-foreground" key={line}>
+                {line}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[13px] text-muted-foreground">未填写</p>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -2009,15 +2044,15 @@ function ActionDetailDialog({
   action: TrainingDayAction | null
   onOpenChange: (open: boolean) => void
 }) {
-  const { media: fetchedMedia } = useExerciseMedia(action?.title ?? "")
-  const media = action?.media?.media_url || action?.media?.teaching_videos?.length
-    ? action.media
-    : fetchedMedia
+  const embeddedMedia = action?.media ?? null
+  const hasEmbeddedAsset = hasExerciseMediaAsset(embeddedMedia)
+  const { media: fetchedMedia } = useExerciseMedia(action?.title ?? "", Boolean(action && !hasEmbeddedAsset))
+  const media = hasEmbeddedAsset ? embeddedMedia : mergeExerciseMedia(embeddedMedia, fetchedMedia)
   const videos = media?.teaching_videos ?? []
 
   return (
     <Dialog onOpenChange={onOpenChange} open={Boolean(action)}>
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="grid max-h-[90svh] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-2xl">
         {action ? (
           <>
             <DialogHeader>
@@ -2027,71 +2062,106 @@ function ActionDetailDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
-              <div className="relative aspect-square overflow-hidden rounded-lg border border-border bg-muted">
-                <ActionImage actionName={action.title} className="absolute inset-0" fit="contain" media={media} />
-              </div>
-              <div className="grid content-start gap-3">
-                <PlanSummaryTile label="次数组数" value={formatActionPrescription(action)} />
-                <PlanSummaryTile
-                  label="休息与强度"
-                  value={formatActionIntensity(action)}
-                />
-                <section className="rounded-lg border border-border p-3">
-                  <h3 className="text-[14px] font-semibold">动作讲解</h3>
-                  <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
-                    {action.notes || "保持动作稳定、控制节奏，在目标次数范围内优先保证动作质量。"}
-                  </p>
-                </section>
-              </div>
-            </div>
+            <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
+              <div className="grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
+                <Card size="sm">
+                  <CardContent>
+                    <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+                      <ActionImage actionName={action.title} className="absolute inset-0" fit="contain" media={media} />
+                    </div>
+                  </CardContent>
+                </Card>
 
-            <section className="grid gap-3">
-              <h3 className="text-[15px] font-semibold">教学视频</h3>
-              {videos.length ? (
-                <div className="grid gap-2">
-                  {videos.slice(0, 4).map((video) => (
-                    <a
-                      className="flex min-w-0 items-center gap-3 rounded-lg border border-border p-2 transition hover:border-primary/40 hover:bg-muted"
-                      href={video.url}
-                      key={`${video.source}-${video.external_id ?? video.url}`}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      <span className="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-md bg-muted">
-                        {video.thumbnail_url ? (
-                          <img
-                            alt={video.title}
-                            className="absolute inset-0 h-full w-full object-cover"
-                            draggable={false}
-                            src={proxiedBilibiliImageUrl(video.thumbnail_url) ?? video.thumbnail_url}
-                          />
-                        ) : null}
-                        <span className="relative grid size-8 place-items-center rounded-full bg-foreground/70 text-background">
-                          <Play className="size-3.5 fill-current" />
-                        </span>
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] font-semibold">{video.title}</span>
-                        <span className="block truncate text-[12px] text-muted-foreground">
-                          {video.author ?? video.source}
-                        </span>
-                      </span>
-                      <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
-                    </a>
-                  ))}
+                <div className="grid content-start gap-3">
+                  <section className="grid grid-cols-2 gap-3">
+                    <PlanSummaryTile label="次数组数" value={formatActionPrescription(action)} />
+                    <PlanSummaryTile label="休息与强度" value={formatActionIntensity(action)} />
+                  </section>
+
+                  <Card size="sm">
+                    <CardHeader>
+                      <CardTitle>动作讲解</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-[13px] leading-6 text-muted-foreground">
+                        {action.notes || media?.exercise_name || "保持动作稳定、控制节奏，在目标次数范围内优先保证动作质量。"}
+                      </p>
+                    </CardContent>
+                  </Card>
                 </div>
-              ) : (
-                <p className="rounded-lg border border-dashed p-3 text-[13px] text-muted-foreground">
-                  暂无匹配的教学视频。
-                </p>
-              )}
-            </section>
+              </div>
+
+              <Card size="sm">
+                <CardHeader>
+                  <CardTitle>教学视频</CardTitle>
+                  <CardDescription>优先展示计划生成时已匹配的教学资源。</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {videos.length ? (
+                    <ItemGroup data-size="sm">
+                      {videos.slice(0, 4).map((video) => (
+                        <Item asChild key={`${video.source}-${video.external_id ?? video.url}`} size="sm" variant="outline">
+                          <a href={video.url} rel="noreferrer" target="_blank">
+                            <ItemMedia variant="image" className="size-12 group-data-[size=sm]/item:size-12">
+                              {video.thumbnail_url ? (
+                                <img
+                                  alt={video.title}
+                                  draggable={false}
+                                  src={proxiedBilibiliImageUrl(video.thumbnail_url) ?? video.thumbnail_url}
+                                />
+                              ) : (
+                                <span className="grid h-full w-full place-items-center bg-muted">
+                                  <Play className="size-3.5" />
+                                </span>
+                              )}
+                            </ItemMedia>
+                            <ItemContent>
+                              <ItemTitle>{video.title}</ItemTitle>
+                              <ItemDescription>{video.author ?? video.source}</ItemDescription>
+                            </ItemContent>
+                            <ItemActions>
+                              <ExternalLink className="size-4 text-muted-foreground" />
+                            </ItemActions>
+                          </a>
+                        </Item>
+                      ))}
+                    </ItemGroup>
+                  ) : (
+                    <p className="rounded-lg border border-dashed p-3 text-[13px] text-muted-foreground">
+                      暂无匹配的教学视频。
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </>
         ) : null}
       </DialogContent>
     </Dialog>
   )
+}
+
+function hasExerciseMediaAsset(media: TrainingExerciseMedia | null | undefined) {
+  return Boolean(media?.media_url || media?.image_url || media?.video_url)
+}
+
+function mergeExerciseMedia(
+  embeddedMedia: TrainingExerciseMedia | null,
+  fetchedMedia: ExerciseMediaResponse | null
+) {
+  if (!embeddedMedia) {
+    return fetchedMedia
+  }
+  if (!fetchedMedia) {
+    return embeddedMedia
+  }
+  return {
+    ...fetchedMedia,
+    ...embeddedMedia,
+    teaching_videos: embeddedMedia.teaching_videos?.length
+      ? embeddedMedia.teaching_videos
+      : fetchedMedia.teaching_videos,
+  }
 }
 
 function formatActionPrescription(action: TrainingDayAction) {

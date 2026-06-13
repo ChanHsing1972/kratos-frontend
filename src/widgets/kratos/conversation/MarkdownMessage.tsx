@@ -119,10 +119,10 @@ const components: Components = {
     />
   ),
   table: ({ className, ...props }) => (
-    <div className="my-4 max-w-full overflow-x-auto rounded-[8px] border border-border">
+    <div className="my-4 w-full max-w-full overflow-x-auto rounded-[8px] border border-border">
       <table
         className={cn(
-          "min-w-full border-separate border-spacing-0 text-left text-[14px] leading-6",
+          "w-full min-w-[42rem] table-fixed border-separate border-spacing-0 text-left text-[14px] leading-6",
           className
         )}
         {...markdownProps(props)}
@@ -144,7 +144,7 @@ const components: Components = {
   th: ({ className, ...props }) => (
     <th
       className={cn(
-        "bg-muted/80 px-3.5 py-2.5 align-top font-semibold whitespace-nowrap text-foreground",
+        "bg-muted/80 px-3.5 py-2.5 align-top font-semibold break-words text-foreground",
         className
       )}
       {...markdownProps(props)}
@@ -203,7 +203,7 @@ function stabilizeStreamingMarkdown(markdown: string) {
     return `${normalized}\n${openFence}`
   }
 
-  return stabilizeInlineMarkdown(stabilizeTrailingTable(normalized))
+  return stabilizeInlineMarkdown(stabilizeTrailingIncompleteTableRow(normalized))
 }
 
 function findOpenCodeFence(markdown: string) {
@@ -229,97 +229,49 @@ function findOpenCodeFence(markdown: string) {
   return openFence
 }
 
-function stabilizeTrailingTable(markdown: string) {
+function stabilizeTrailingIncompleteTableRow(markdown: string) {
   const lines = markdown.split("\n")
-  let end = lines.length - 1
+  let lastIndex = lines.length - 1
 
-  while (end >= 0 && lines[end].trim() === "") {
-    end -= 1
+  while (lastIndex >= 0 && lines[lastIndex].trim() === "") {
+    lastIndex -= 1
   }
 
-  if (end < 0 || end !== lines.length - 1) {
+  if (lastIndex < 2) {
     return markdown
   }
 
-  let start = end
-  while (start >= 0 && isPotentialTableLine(lines[start])) {
-    start -= 1
-  }
-  start += 1
-
-  const tableLines = lines.slice(start, end + 1)
-  if (!looksLikeStreamingTable(tableLines)) {
+  const lastLine = lines[lastIndex].trim()
+  if (!lastLine.includes("|") || lastLine.endsWith("|")) {
     return markdown
   }
 
-  const normalizedRows = normalizeStreamingTableRows(tableLines)
-  if (!normalizedRows.length) {
+  if (!hasTableSeparatorBefore(lines, lastIndex)) {
     return markdown
   }
 
-  return [...lines.slice(0, start), ...normalizedRows, ...lines.slice(end + 1)].join("\n")
+  return lines.slice(0, lastIndex).join("\n")
 }
 
-function looksLikeStreamingTable(lines: string[]) {
-  if (lines.length === 0) {
-    return false
+function hasTableSeparatorBefore(lines: string[], rowIndex: number) {
+  for (let index = rowIndex - 1; index >= 1; index -= 1) {
+    const line = lines[index].trim()
+    if (!line) {
+      return false
+    }
+    if (isTableSeparatorLine(line)) {
+      return lines[index - 1]?.includes("|") ?? false
+    }
+    if (!line.includes("|")) {
+      return false
+    }
   }
-
-  const dataRows = lines.filter((line) => !isTableSeparatorLine(line))
-  if (dataRows.length === 0) {
-    return false
-  }
-
-  const maxCells = Math.max(...dataRows.map((line) => splitTableCells(line).length))
-  return maxCells >= 2 && dataRows.some((line) => countPipes(line) >= 2)
-}
-
-function normalizeStreamingTableRows(lines: string[]) {
-  const rows = lines
-    .filter((line) => line.trim())
-    .map((line) => splitTableCells(line))
-    .filter((cells) => cells.length >= 2)
-
-  if (!rows.length) {
-    return []
-  }
-
-  const columnCount = Math.max(...rows.map((cells) => cells.length))
-  const header = padCells(rows[0], columnCount)
-  const bodyRows = rows.slice(isTableSeparatorLine(lines[1] ?? "") ? 2 : 1)
-
-  return [
-    formatTableRow(header),
-    formatTableRow(Array.from({ length: columnCount }, () => "---")),
-    ...bodyRows.map((cells) => formatTableRow(padCells(cells, columnCount))),
-  ]
-}
-
-function splitTableCells(line: string) {
-  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "")
-  return trimmed.split("|").map((cell) => cell.trim())
-}
-
-function padCells(cells: string[], count: number) {
-  return [...cells, ...Array.from({ length: Math.max(0, count - cells.length) }, () => "")]
-}
-
-function formatTableRow(cells: string[]) {
-  return `| ${cells.map((cell) => cell || " ").join(" | ")} |`
-}
-
-function isPotentialTableLine(line: string) {
-  const trimmed = line.trim()
-  return Boolean(trimmed) && countPipes(trimmed) >= 1
+  return false
 }
 
 function isTableSeparatorLine(line: string) {
-  const cells = splitTableCells(line)
-  return cells.length > 0 && cells.every((cell) => /^:?-{2,}:?$/.test(cell.trim()))
-}
-
-function countPipes(line: string) {
-  return (line.match(/\|/g) ?? []).length
+  const cells = line.replace(/^\|/, "").replace(/\|$/, "").split("|")
+  return cells.length >= 2 && cells.every((cell) => /^:?-{2,}:?$/.test(cell.trim()))
 }
 
 function stabilizeInlineMarkdown(markdown: string) {
