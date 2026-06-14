@@ -3261,6 +3261,7 @@ export function KratosPage() {
         <Sidebar
           activeNav={activeNav}
           chatSessions={chatSessions}
+          collapsed={sidebarCollapsed}
           drawerOpen={sidebarDrawerOpen}
           historyLoading={sessionListLoading}
           footer={
@@ -3296,6 +3297,7 @@ export function KratosPage() {
           onCreateConversation={handleCreateConversation}
           onDeleteConversation={handleDeleteConversation}
           onExportConversation={handleExportConversation}
+          onExpand={() => setSidebarCollapsed(false)}
           onRenameConversation={handleRenameConversation}
           onNavSelect={handleNavSelect}
           onSelectConversation={handleSelectConversation}

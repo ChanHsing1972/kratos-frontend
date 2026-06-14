@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { PanelLeft } from "lucide-react"
+import { PanelLeft, PanelLeftOpen } from "lucide-react"
 
 import type { ChatSession } from "@/entities/kratos/model/types"
 import {
@@ -19,12 +19,14 @@ import { PrimaryNavigation } from "@/widgets/kratos/sidebar/PrimaryNavigation"
 type SidebarProps = {
   activeNav: string
   chatSessions: ChatSession[]
+  collapsed: boolean
   drawerOpen: boolean
   footer: ReactNode
   historyLoading: boolean
   onCreateConversation: () => void
   onDeleteConversation: (sessionId: string) => void
   onExportConversation: (sessionId: string) => void
+  onExpand: () => void
   onNavSelect: (label: string) => void
   onRenameConversation: (sessionId: string, title: string) => void
   onSelectConversation: (sessionId: string) => void
@@ -37,12 +39,14 @@ type SidebarProps = {
 export function Sidebar({
   activeNav,
   chatSessions,
+  collapsed,
   drawerOpen,
   footer,
   historyLoading,
   onCreateConversation,
   onDeleteConversation,
   onExportConversation,
+  onExpand,
   onNavSelect,
   onRenameConversation,
   onSelectConversation,
@@ -60,9 +64,28 @@ export function Sidebar({
       <SidebarHeader className="mt-1">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton className="pr-2" size="lg" tooltip="Kratos">
-              <div className="hidden aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary font-black text-sidebar-primary-foreground transition-all duration-300 group-data-[collapsible=icon]:flex">
-                K
+            <SidebarMenuButton
+              aria-label={collapsed ? "打开侧边栏" : "新建对话"}
+              className="group/brand pr-2"
+              onClick={() => {
+                if (collapsed) {
+                  onExpand()
+                  return
+                }
+                onCreateConversation()
+              }}
+              size="lg"
+              tooltip={collapsed ? "打开侧边栏" : "新建对话"}
+              type="button"
+            >
+              <div className="relative hidden aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary font-black text-sidebar-primary-foreground transition-all duration-200 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:cursor-e-resize group-data-[collapsible=icon]:hover:bg-sidebar-accent group-data-[collapsible=icon]:hover:text-sidebar-accent-foreground">
+                <span className="transition-opacity duration-150 group-hover/brand:opacity-0">
+                  K
+                </span>
+                <PanelLeftOpen
+                  aria-hidden="true"
+                  className="absolute size-4 opacity-0 transition-opacity duration-150 group-hover/brand:opacity-100"
+                />
               </div>
               <div className="grid flex-1 text-left text-lg leading-tight opacity-100 transition-[opacity,transform] duration-200 ease-out group-data-[collapsible=icon]:opacity-0">
                 <span className="truncate text-[24px] font-black tracking-[-0.06em]">
