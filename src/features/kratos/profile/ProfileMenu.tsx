@@ -8,7 +8,6 @@ import {
 import {
   Bell,
   BellRing,
-  ChevronDown,
   CheckCheck,
   Edit3,
   LoaderCircle,

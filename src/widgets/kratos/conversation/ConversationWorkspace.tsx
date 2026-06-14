@@ -94,7 +94,8 @@ export function ConversationWorkspace({
   tools,
 }: ConversationWorkspaceProps) {
   const scrollViewportRef = useRef<HTMLDivElement>(null)
-  const bottomAnchorRef = useRef<HTMLDivElement>(null)
+  const shouldAutoScrollRef = useRef(true)
+  const scrollRafRef = useRef<number | null>(null)
   const isEmptyConversation = messages.length === 0
   const liveMessageKey = messages
     .map(
@@ -104,13 +105,37 @@ export function ConversationWorkspace({
     .join("|")
 
   useEffect(() => {
-    requestAnimationFrame(() => {
-      bottomAnchorRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "end",
-      })
+    const viewport = scrollViewportRef.current
+    if (!viewport || !shouldAutoScrollRef.current) {
+      return
+    }
+
+    if (scrollRafRef.current !== null) {
+      cancelAnimationFrame(scrollRafRef.current)
+    }
+
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = null
+      viewport.scrollTop = viewport.scrollHeight
     })
   }, [liveMessageKey])
+
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current !== null) {
+        cancelAnimationFrame(scrollRafRef.current)
+      }
+    }
+  }, [])
+
+  function handleConversationScroll() {
+    const viewport = scrollViewportRef.current
+    if (!viewport) {
+      return
+    }
+
+    shouldAutoScrollRef.current = isNearScrollBottom(viewport)
+  }
 
   return (
     <main className="flex h-full min-w-0 flex-1 flex-col border-border bg-card xl:border-r">
@@ -146,6 +171,7 @@ export function ConversationWorkspace({
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 bg-gradient-to-b from-transparent via-card/55 to-card" />
               <div
                 className="h-full min-h-0 overflow-y-auto bg-card"
+                onScroll={handleConversationScroll}
                 ref={scrollViewportRef}
               >
                 <div className="mx-auto flex w-full max-w-[820px] flex-col gap-[17px] px-5 pt-8 pb-0 sm:px-6 sm:pt-10">
@@ -164,7 +190,6 @@ export function ConversationWorkspace({
                       thinkingExpanded={thinkingExpanded}
                     />
                   ))}
-                  <div ref={bottomAnchorRef} />
                 </div>
               </div>
             </div>
@@ -204,6 +229,12 @@ export function ConversationWorkspace({
       </div>
     </main>
   )
+}
+
+function isNearScrollBottom(element: HTMLDivElement) {
+  const distanceToBottom =
+    element.scrollHeight - element.scrollTop - element.clientHeight
+  return distanceToBottom <= 96
 }
 
 function LoadingConversation() {

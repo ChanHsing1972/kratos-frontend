@@ -119,10 +119,10 @@ const components: Components = {
     />
   ),
   table: ({ className, ...props }) => (
-    <div className="my-4 w-full max-w-full overflow-x-auto rounded-[8px] border border-border">
+    <div className="markdown-table-scroll my-4 w-full max-w-full overflow-x-auto overscroll-x-contain rounded-[8px] border border-border bg-card">
       <table
         className={cn(
-          "w-full min-w-[42rem] table-fixed border-separate border-spacing-0 text-left text-[14px] leading-6",
+          "w-full min-w-[46rem] table-auto border-separate border-spacing-0 text-left text-[14px] leading-6",
           className
         )}
         {...markdownProps(props)}
@@ -135,7 +135,7 @@ const components: Components = {
   td: ({ className, ...props }) => (
     <td
       className={cn(
-        "max-w-[28rem] border-t border-border px-3.5 py-2.5 align-top break-words",
+        "min-w-[8.5rem] max-w-[24rem] border-t border-border px-3.5 py-2.5 align-top break-words",
         className
       )}
       {...markdownProps(props)}
@@ -144,7 +144,7 @@ const components: Components = {
   th: ({ className, ...props }) => (
     <th
       className={cn(
-        "bg-muted/80 px-3.5 py-2.5 align-top font-semibold break-words text-foreground",
+        "min-w-[8.5rem] bg-muted/80 px-3.5 py-2.5 align-top font-semibold break-words text-foreground",
         className
       )}
       {...markdownProps(props)}
@@ -203,7 +203,7 @@ function stabilizeStreamingMarkdown(markdown: string) {
     return `${normalized}\n${openFence}`
   }
 
-  return stabilizeInlineMarkdown(stabilizeTrailingIncompleteTableRow(normalized))
+  return stabilizeInlineMarkdown(stabilizeStreamingTableTail(normalized))
 }
 
 function findOpenCodeFence(markdown: string) {
@@ -229,7 +229,7 @@ function findOpenCodeFence(markdown: string) {
   return openFence
 }
 
-function stabilizeTrailingIncompleteTableRow(markdown: string) {
+function stabilizeStreamingTableTail(markdown: string) {
   const lines = markdown.split("\n")
   let lastIndex = lines.length - 1
 
@@ -241,37 +241,93 @@ function stabilizeTrailingIncompleteTableRow(markdown: string) {
     return markdown
   }
 
-  const lastLine = lines[lastIndex].trim()
-  if (!lastLine.includes("|") || lastLine.endsWith("|")) {
+  const lastLine = lines[lastIndex]
+  const trimmedLastLine = lastLine.trim()
+  if (!trimmedLastLine.includes("|")) {
     return markdown
   }
 
-  if (!hasTableSeparatorBefore(lines, lastIndex)) {
+  if (isTableSeparatorFragment(trimmedLastLine)) {
+    return stabilizeStreamingSeparatorLine(lines, lastIndex)
+  }
+
+  const columnCount = findTableColumnCountBefore(lines, lastIndex)
+  if (!columnCount) {
     return markdown
   }
 
-  return lines.slice(0, lastIndex).join("\n")
+  const cells = splitTableLine(trimmedLastLine)
+  if (trimmedLastLine.endsWith("|") && cells.length >= columnCount) {
+    return markdown
+  }
+
+  lines[lastIndex] = formatTableLine(padTableCells(cells, columnCount))
+  return lines.join("\n")
 }
 
-function hasTableSeparatorBefore(lines: string[], rowIndex: number) {
+function stabilizeStreamingSeparatorLine(lines: string[], rowIndex: number) {
+  const headerLine = lines[rowIndex - 1]?.trim()
+  if (!headerLine?.includes("|")) {
+    return lines.join("\n")
+  }
+
+  const columnCount = splitTableLine(headerLine).length
+  const separatorCells = splitTableLine(lines[rowIndex].trim()).map((cell) =>
+    normalizeSeparatorCell(cell)
+  )
+  lines[rowIndex] = formatTableLine(padTableCells(separatorCells, columnCount, "---"))
+  return lines.join("\n")
+}
+
+function findTableColumnCountBefore(lines: string[], rowIndex: number) {
   for (let index = rowIndex - 1; index >= 1; index -= 1) {
     const line = lines[index].trim()
     if (!line) {
-      return false
+      return null
     }
     if (isTableSeparatorLine(line)) {
-      return lines[index - 1]?.includes("|") ?? false
+      return splitTableLine(line).length
     }
     if (!line.includes("|")) {
-      return false
+      return null
     }
   }
-  return false
+  return null
 }
 
 function isTableSeparatorLine(line: string) {
   const cells = line.replace(/^\|/, "").replace(/\|$/, "").split("|")
   return cells.length >= 2 && cells.every((cell) => /^:?-{2,}:?$/.test(cell.trim()))
+}
+
+function isTableSeparatorFragment(line: string) {
+  const content = line.replace(/[|\-:\s]/g, "")
+  return line.includes("-") && content.length === 0
+}
+
+function splitTableLine(line: string) {
+  return line
+    .replace(/^\s*\|?/, "")
+    .replace(/\|?\s*$/, "")
+    .split("|")
+    .map((cell) => cell.trim())
+}
+
+function padTableCells(cells: string[], columnCount: number, value = "") {
+  const next = [...cells]
+  while (next.length < columnCount) {
+    next.push(value)
+  }
+  return next
+}
+
+function normalizeSeparatorCell(cell: string) {
+  const trimmed = cell.trim()
+  return /^:?-{2,}:?$/.test(trimmed) ? trimmed : "---"
+}
+
+function formatTableLine(cells: string[]) {
+  return `| ${cells.join(" | ")} |`
 }
 
 function stabilizeInlineMarkdown(markdown: string) {
