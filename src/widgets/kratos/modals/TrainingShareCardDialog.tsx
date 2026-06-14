@@ -292,7 +292,6 @@ export function TrainingShareCardSaveButton({
   captureRef,
   className,
   variant,
-  showLabel = true,
 }: {
   card: WorkoutShareCard
   captureRef: RefObject<HTMLElement | null>

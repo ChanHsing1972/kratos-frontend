@@ -27,12 +27,7 @@ import { Skeleton } from "@/shared/ui/skeleton"
 import { Calendar } from "@/shared/ui/calendar"
 import { Badge } from "@/shared/ui/badge"
 import {
-  Card,
-  CardAction,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/shared/ui/card"
 import {
   Carousel,
