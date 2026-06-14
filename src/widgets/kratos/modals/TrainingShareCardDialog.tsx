@@ -1,12 +1,12 @@
 import type { ReactNode, RefObject } from "react"
 import { useRef, useState } from "react"
 import { toPng } from "html-to-image"
-import { Activity, CalendarDays, Download, Flame, Trophy } from "lucide-react"
+import { Activity, CalendarDays, Download, Flame, Trophy, X } from "lucide-react"
 import { toast as sonnerToast } from "sonner"
 
 import type { WorkoutShareCard } from "@/entities/kratos/model/types"
 import { Button } from "@/shared/ui/button"
-import { Dialog, DialogContent, DialogFooter } from "@/shared/ui/dialog"
+import { Dialog, DialogClose, DialogContent } from "@/shared/ui/dialog"
 import { Spinner } from "@/shared/ui/spinner"
 
 const SHARE_CARD_WIDTH = 432
@@ -27,27 +27,32 @@ export function TrainingShareCardDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden sm:max-w-[472px]">
+      <DialogContent className="w-fit overflow-hidden border-0 bg-transparent p-0 shadow-none sm:max-w-none [&>button]:hidden">
         {card ? (
           <TrainingShareCardPreview card={card} captureRef={shareCardRef} />
         ) : (
           <TrainingShareCardGenerating />
         )}
-        <DialogFooter>
-          <Button
-            onClick={() => onOpenChange(false)}
-            type="button"
-            variant="outline"
-          >
-            完成
-          </Button>
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
           {card ? (
             <TrainingShareCardSaveButton
               card={card}
               captureRef={shareCardRef}
+              className="h-9 rounded-full bg-white/85 text-black shadow-sm backdrop-blur hover:bg-white"
+              showLabel={false}
             />
           ) : null}
-        </DialogFooter>
+          <DialogClose asChild>
+            <Button
+              aria-label="关闭分享卡"
+              className="size-9 rounded-full bg-white/85 p-0 text-black shadow-sm backdrop-blur hover:bg-white"
+              type="button"
+              variant="ghost"
+            >
+              <X className="size-4" />
+            </Button>
+          </DialogClose>
+        </div>
       </DialogContent>
     </Dialog>
   )
@@ -55,7 +60,10 @@ export function TrainingShareCardDialog({
 
 function TrainingShareCardGenerating() {
   return (
-    <div className="-m-5 grid min-h-[560px] place-items-center text-center text-black">
+    <div
+      className="grid place-items-center bg-[#101010] text-center text-white"
+      style={{ minHeight: SHARE_CARD_MIN_HEIGHT, width: SHARE_CARD_WIDTH }}
+    >
       <div>
         <div className="mx-auto grid place-items-center">
           <Spinner className="size-6 animate-spin" />
@@ -87,7 +95,7 @@ export function TrainingShareCardPreview({
   )
 
   return (
-    <div className="overflow-x-auto bg-[#f7f3e8]">
+    <div className="overflow-hidden">
       <div
         className="relative overflow-hidden bg-[#101010] text-white"
         ref={captureRef}
@@ -284,17 +292,19 @@ export function TrainingShareCardSaveButton({
   captureRef,
   className,
   variant,
+  showLabel = true,
 }: {
   card: WorkoutShareCard
   captureRef: RefObject<HTMLElement | null>
   className?: string
   variant?:
-    | "default"
-    | "outline"
-    | "ghost"
-    | "link"
-    | "destructive"
-    | "secondary"
+  | "default"
+  | "outline"
+  | "ghost"
+  | "link"
+  | "destructive"
+  | "secondary"
+  showLabel?: boolean
 }) {
   const [saving, setSaving] = useState(false)
   return (
@@ -312,11 +322,10 @@ export function TrainingShareCardSaveButton({
       variant={variant}
     >
       {saving ? (
-        <Spinner data-icon="inline-start" />
+        <Spinner />
       ) : (
-        <Download data-icon="inline-start" />
+        <Download />
       )}
-      {saving ? "保存中" : "保存图片"}
     </Button>
   )
 }
@@ -397,9 +406,9 @@ function formatDurationParts(totalSeconds: number) {
   const restMinutes = minutes % 60
   return restMinutes
     ? {
-        unit: "时 分",
-        value: `${hours}:${String(restMinutes).padStart(2, "0")}`,
-      }
+      unit: "时 分",
+      value: `${hours}:${String(restMinutes).padStart(2, "0")}`,
+    }
     : { unit: "时", value: String(hours) }
 }
 

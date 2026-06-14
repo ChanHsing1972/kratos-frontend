@@ -118,7 +118,7 @@ export function ChatBubble({
               />
             </div>
           ) : null}
-          <div className="mt-3 min-h-7">
+          <div className="mt-6 min-h-7">
             {message.body ? (
               <MarkdownMessage
                 className="text-foreground"
