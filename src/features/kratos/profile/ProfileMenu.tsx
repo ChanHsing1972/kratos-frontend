@@ -20,6 +20,7 @@ import {
   Activity,
   ClipboardList,
   Trophy,
+  ChevronsUpDown,
 } from "lucide-react"
 
 import { profileFormFromUser } from "@/entities/kratos/lib/domain"
@@ -198,8 +199,8 @@ export function ProfileMenu({
                 <span className="truncate font-medium">{user.username}</span>
                 <span className="truncate text-xs">个人用户</span>
               </div>
-              <ChevronDown
-                className={cn("ml-auto", menuOpen && "rotate-180")}
+              <ChevronsUpDown
+                className={cn("ml-auto")}
               />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
