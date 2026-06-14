@@ -91,6 +91,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/shared/ui/item"
+import { Separator } from "@/shared/ui/separator"
 
 type TrainingPlanPageProps = {
   activePlan: TrainingPlan | null
@@ -1890,7 +1891,7 @@ function TrainingPlanDetailDialog({
   return (
     <>
       <Dialog onOpenChange={onOpenChange} open={open}>
-        <DialogContent className="grid max-h-[90svh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-3xl">
+        <DialogContent className="grid max-h-[90svh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{plan.title}</DialogTitle>
             <DialogDescription>
@@ -1898,78 +1899,75 @@ function TrainingPlanDetailDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
-            <section className="grid gap-3 sm:grid-cols-3">
+          <div className="min-h-0 space-y-6 overflow-y-auto">
+            <section className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-start">
               <PlanSummaryTile label="目标" value={plan.goal ?? "未设置"} />
+              <Separator orientation="vertical" className="hidden h-auto sm:block" />
               <PlanSummaryTile
                 label="周期"
                 value={`${plan.start_date ?? "未设置"} - ${plan.end_date ?? "未设置"}`}
               />
+              <Separator orientation="vertical" className="hidden h-auto sm:block" />
               <PlanSummaryTile
                 label="类型"
                 value={plan.plan_kind === "daily" ? "单日计划" : `${plan.duration_weeks ?? 1} 周计划`}
               />
             </section>
 
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle>训练安排</CardTitle>
-                <CardDescription>点击动作查看讲解和教学视频。</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {detailDays.length ? (
-                  <div className="grid gap-3">
-                    {detailDays.map((day) => (
-                      <Card key={day.id} size="sm">
-                        <CardHeader>
-                          <CardTitle>{day.day} · {day.title}</CardTitle>
-                          <CardAction>
-                            <Badge variant="secondary">{day.actions.length} 个动作</Badge>
-                          </CardAction>
-                        </CardHeader>
-                        <CardContent>
-                          <ItemGroup data-size="sm">
-                            {day.actions.map((action) => (
-                              <Item
-                                asChild
-                                key={action.id}
-                                size="sm"
-                                variant="outline"
-                              >
-                                <button onClick={() => setSelectedAction(action)} type="button">
-                                  <ItemMedia variant="image">
-                                    <ActionImage actionName={action.title} fit="contain" media={action.media} />
-                                  </ItemMedia>
-                                  <ItemContent>
-                                    <ItemTitle>{action.title}</ItemTitle>
-                                    <ItemDescription>
-                                      {formatActionPrescription(action)}
-                                      {action.notes ? ` · ${action.notes}` : ""}
-                                    </ItemDescription>
-                                  </ItemContent>
-                                  <ItemActions>
-                                    <ChevronRight className="size-4 text-muted-foreground" />
-                                  </ItemActions>
-                                </button>
-                              </Item>
-                            ))}
-                          </ItemGroup>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                    暂无结构化训练动作。
-                  </p>
-                )}
-              </CardContent>
-            </Card>
 
-            <section className="grid gap-3 sm:grid-cols-2">
-              <GuidanceBlock label="恢复建议" value={plan.recovery_guidance} />
-              <GuidanceBlock label="营养建议" value={plan.nutrition_guidance} />
-            </section>
+            {detailDays.length ? (
+              <div className="grid gap-6">
+                {detailDays.map((day) => (
+                  <section key={day.id} className="grid gap-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="text-sm font-medium">{day.day} · {day.title}</h3>
+                      <Badge variant="secondary">{day.actions.length} 个动作</Badge>
+                    </div>
+                    <ItemGroup className="grid gap-2 sm:grid-cols-2" data-size="default">
+                      {day.actions.map((action) => (
+                        <Item
+                          asChild
+                          className="min-w-0 overflow-hidden text-left"
+                          key={action.id}
+                          size="default"
+                          variant="muted"
+                        >
+                          <Button
+                            aria-label={`查看 ${action.title} 详情`}
+                            onClick={() => setSelectedAction(action)}
+                            type="button"
+                            variant="ghost"
+                            className="flex w-full h-auto"
+                          >
+                            <ItemMedia className="shrink-0" variant="image">
+                              <ActionImage actionName={action.title} fit="contain" media={action.media} />
+                            </ItemMedia>
+                            <ItemContent className="min-w-0 overflow-hidden">
+                              <ItemTitle className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap font-normal">
+                                {action.title}
+                              </ItemTitle>
+                              <ItemDescription className="overflow-hidden text-ellipsis whitespace-nowrap">
+                                {formatActionPrescription(action)}
+                              </ItemDescription>
+                            </ItemContent>
+                            <ItemActions className="shrink-0">
+                              <ChevronRight className="size-4 text-muted-foreground" />
+                            </ItemActions>
+                          </Button>
+                        </Item>
+                      ))}
+                    </ItemGroup>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                暂无结构化训练动作。
+              </p>
+            )}
+
+            <GuidanceBlock label="恢复建议" value={plan.recovery_guidance} />
+            <GuidanceBlock label="营养建议" value={plan.nutrition_guidance} />
           </div>
 
           <DialogFooter>
@@ -1994,12 +1992,12 @@ function TrainingPlanDetailDialog({
 
 function PlanSummaryTile({ label, value }: { label: string; value: string }) {
   return (
-    <Card size="sm">
-      <CardContent>
-        <p className="text-[12px] font-medium text-muted-foreground">{label}</p>
-        <p className="mt-1 text-[14px] font-semibold leading-5">{value}</p>
-      </CardContent>
-    </Card>
+    <Item size="sm" className="items-start self-start ring-0 p-0">
+      <ItemContent className="items-start self-start p-0">
+        <ItemTitle>{label}</ItemTitle>
+        <ItemDescription className="leading-5">{value}</ItemDescription>
+      </ItemContent>
+    </Item>
   )
 }
 
@@ -2016,24 +2014,26 @@ function GuidanceBlock({
     .filter(Boolean) ?? []
 
   return (
-    <Card size="sm">
-      <CardHeader>
-        <CardTitle>{label}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {lines.length ? (
-          <div className="grid gap-2">
-            {lines.map((line) => (
-              <p className="rounded-md bg-muted px-3 py-2 text-[13px] leading-5 text-muted-foreground" key={line}>
-                {line}
-              </p>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[13px] text-muted-foreground">未填写</p>
-        )}
-      </CardContent>
-    </Card>
+    <section className="grid gap-3">
+      <h3 className="text-sm font-medium">{label}</h3>
+      {lines.length ? (
+        <ItemGroup data-size="sm">
+          {lines.map((line) => (
+            <Item key={line} size="sm" variant="muted">
+              <ItemContent>
+                <ItemDescription>{line}</ItemDescription>
+              </ItemContent>
+            </Item>
+          ))}
+        </ItemGroup>
+      ) : (
+        <Item size="sm" variant="muted">
+          <ItemContent>
+            <ItemDescription>未填写</ItemDescription>
+          </ItemContent>
+        </Item>
+      )}
+    </section>
   )
 }
 
@@ -2062,45 +2062,43 @@ function ActionDetailDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
-              <div className="grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
-                <Card size="sm">
-                  <CardContent>
-                    <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
-                      <ActionImage actionName={action.title} className="absolute inset-0" fit="contain" media={media} />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <div className="grid content-start gap-3">
-                  <section className="grid grid-cols-2 gap-3">
-                    <PlanSummaryTile label="次数组数" value={formatActionPrescription(action)} />
-                    <PlanSummaryTile label="休息与强度" value={formatActionIntensity(action)} />
-                  </section>
-
-                  <Card size="sm">
-                    <CardHeader>
-                      <CardTitle>动作讲解</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-[13px] leading-6 text-muted-foreground">
+            <div className="min-h-0 space-y-6 overflow-y-auto">
+              <div className="grid content-start gap-6">
+                <section className="grid gap-6 sm:grid-cols-2 sm:items-start">
+                  <div className="grid gap-6">
+                    <section className="grid">
+                      <h3 className="text-sm font-medium">次数组数</h3>
+                      <p className="text-sm leading-6 text-muted-foreground">
+                        {formatActionPrescription(action)}
+                      </p>
+                    </section>
+                    <section className="grid">
+                      <h3 className="text-sm font-medium">休息与强度</h3>
+                      <p className="text-sm leading-6 text-muted-foreground">
+                        {formatActionIntensity(action)}
+                      </p>
+                    </section>
+                    <section className="grid">
+                      <h3 className="text-sm font-medium">动作讲解</h3>
+                      <p className="text-sm leading-6 text-muted-foreground">
                         {action.notes || media?.exercise_name || "保持动作稳定、控制节奏，在目标次数范围内优先保证动作质量。"}
                       </p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
+                    </section>
+                  </div>
 
-              <Card size="sm">
-                <CardHeader>
-                  <CardTitle>教学视频</CardTitle>
-                  <CardDescription>优先展示计划生成时已匹配的教学资源。</CardDescription>
-                </CardHeader>
-                <CardContent>
+                  <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-muted">
+                    <ActionImage actionName={action.title} className="absolute inset-0" fit="contain" media={media} />
+                  </div>
+                </section>
+
+                <section className="grid gap-3">
+                  <div>
+                    <h3 className="text-sm font-medium">教学视频</h3>
+                  </div>
                   {videos.length ? (
                     <ItemGroup data-size="sm">
                       {videos.slice(0, 4).map((video) => (
-                        <Item asChild key={`${video.source}-${video.external_id ?? video.url}`} size="sm" variant="outline">
+                        <Item asChild key={`${video.source}-${video.external_id ?? video.url}`} size="sm" variant="muted">
                           <a href={video.url} rel="noreferrer" target="_blank">
                             <ItemMedia variant="image" className="size-12 group-data-[size=sm]/item:size-12">
                               {video.thumbnail_url ? (
@@ -2116,7 +2114,7 @@ function ActionDetailDialog({
                               )}
                             </ItemMedia>
                             <ItemContent>
-                              <ItemTitle>{video.title}</ItemTitle>
+                              <ItemTitle className="line-clamp-2 font-normal">{video.title}</ItemTitle>
                               <ItemDescription>{video.author ?? video.source}</ItemDescription>
                             </ItemContent>
                             <ItemActions>
@@ -2127,17 +2125,20 @@ function ActionDetailDialog({
                       ))}
                     </ItemGroup>
                   ) : (
-                    <p className="rounded-lg border border-dashed p-3 text-[13px] text-muted-foreground">
-                      暂无匹配的教学视频。
-                    </p>
+                    <Item size="sm" variant="muted">
+                      <ItemContent>
+                        <ItemDescription>暂无匹配的教学视频。</ItemDescription>
+                      </ItemContent>
+                    </Item>
                   )}
-                </CardContent>
-              </Card>
+                </section>
+              </div>
             </div>
           </>
-        ) : null}
-      </DialogContent>
-    </Dialog>
+        ) : null
+        }
+      </DialogContent >
+    </Dialog >
   )
 }
 

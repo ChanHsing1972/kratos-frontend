@@ -551,55 +551,62 @@ function CreateSkillSheet({
 }) {
   return (
     <Sheet onOpenChange={onOpenChange} open={open}>
-      <SheetContent className="w-full sm:max-w-lg">
-        <SheetHeader>
+      <SheetContent className="grid w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden sm:max-w-xl">
+        <SheetHeader className="px-6 pb-5">
           <SheetTitle>创建教练策略</SheetTitle>
           <SheetDescription>
-            定义 Agent 应遵循的建议风格、安全边界和可用工具。保存后可随时停用。
+            定义 Agent 的建议风格、安全边界和可用工具，保存后可随时停用。
           </SheetDescription>
         </SheetHeader>
-        <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
-          <ScrollArea className="min-h-0 flex-1">
-            <div className="space-y-5 px-6">
-              <FormField label="策略名称">
-                <Input onChange={(event) => onUpdateForm("name", event.target.value)} value={form.name} />
-              </FormField>
-              <FormField label="用途说明">
-                <Textarea className="min-h-18" onChange={(event) => onUpdateForm("description", event.target.value)} value={form.description} />
-              </FormField>
-              <FormField label="核心策略">
-                <Textarea className="min-h-28" onChange={(event) => onUpdateForm("promptSnippet", event.target.value)} value={form.promptSnippet} />
-              </FormField>
-              <Accordion collapsible type="single">
+        <form className="contents" onSubmit={onSubmit}>
+          <ScrollArea className="min-h-0">
+            <div className="grid gap-6 px-6 pb-6">
+              <section className="grid gap-4">
+                <FormField label="策略名称">
+                  <Input onChange={(event) => onUpdateForm("name", event.target.value)} value={form.name} />
+                </FormField>
+                <FormField label="用途说明">
+                  <Textarea className="min-h-24 resize-none" onChange={(event) => onUpdateForm("description", event.target.value)} value={form.description} />
+                </FormField>
+              </section>
+
+              <section className="grid gap-4">
+                <FormField label="策略内容">
+                  <Textarea className="min-h-36 resize-none" onChange={(event) => onUpdateForm("promptSnippet", event.target.value)} value={form.promptSnippet} />
+                </FormField>
+              </section>
+
+              <Accordion collapsible type="single" defaultValue="advanced">
                 <AccordionItem value="advanced">
-                  <AccordionTrigger>更多边界设置</AccordionTrigger>
-                  <AccordionContent className="space-y-4">
+                  <AccordionTrigger className="py-2 text-sm font-medium hover:no-underline">更多边界设置</AccordionTrigger>
+                  <AccordionContent className="grid gap-4 pt-3">
                     <FormField label="适用场景">
-                      <Textarea onChange={(event) => onUpdateForm("applicableScenarios", event.target.value)} value={form.applicableScenarios} />
+                      <Textarea className="min-h-24 resize-none" onChange={(event) => onUpdateForm("applicableScenarios", event.target.value)} value={form.applicableScenarios} />
                     </FormField>
                     <FormField label="可用工具名称">
                       <Input onChange={(event) => onUpdateForm("availableTools", event.target.value)} value={form.availableTools} />
                     </FormField>
                     <FormField label="输出格式">
-                      <Textarea onChange={(event) => onUpdateForm("outputFormat", event.target.value)} value={form.outputFormat} />
+                      <Textarea className="min-h-24 resize-none" onChange={(event) => onUpdateForm("outputFormat", event.target.value)} value={form.outputFormat} />
                     </FormField>
                     <FormField label="禁止行为">
-                      <Textarea onChange={(event) => onUpdateForm("forbiddenRules", event.target.value)} value={form.forbiddenRules} />
+                      <Textarea className="min-h-24 resize-none" onChange={(event) => onUpdateForm("forbiddenRules", event.target.value)} value={form.forbiddenRules} />
                     </FormField>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
+
               {formError ? <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{formError}</p> : null}
             </div>
           </ScrollArea>
-          <SheetFooter>
+          <SheetFooter className="shrink-0 px-6 pt-4 pb-6">
             {currentUser ? (
-              <Button disabled={submitting} type="submit">
+              <Button className="w-full" disabled={submitting} size="lg" type="submit">
                 {submitting ? <Spinner /> : <Plus />}
                 保存并启用策略
               </Button>
             ) : (
-              <Button onClick={onLogin} type="button">登录后创建</Button>
+              <Button className="w-full" onClick={onLogin} size="lg" type="button">登录后创建</Button>
             )}
           </SheetFooter>
         </form>
@@ -659,7 +666,7 @@ function DetailBlock({
 
 function FormField({ children, label }: { children: ReactNode; label: string }) {
   return (
-    <label className="block space-y-2">
+    <label className="grid gap-2">
       <span className="text-sm font-medium">{label}</span>
       {children}
     </label>

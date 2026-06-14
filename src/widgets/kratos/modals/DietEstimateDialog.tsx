@@ -17,12 +17,6 @@ import {
 } from "@/shared/ui/dialog"
 import { Input } from "@/shared/ui/input"
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card"
-import {
   Item,
   ItemContent,
   ItemDescription,
@@ -70,7 +64,7 @@ export function DietEstimateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="grid max-h-[86svh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-3xl">
+      <DialogContent className="grid max-h-[86svh] grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>热量识别</DialogTitle>
           <DialogDescription>
@@ -78,23 +72,21 @@ export function DietEstimateDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {estimate ? (
-          <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <SummaryMetric label="将保存热量" value={total.estimated_kcal} unit="kcal" />
-              <SummaryMetric label="蛋白质" value={total.protein_g} unit="g" />
-              <SummaryMetric label="脂肪" value={total.fat_g} unit="g" />
-              <SummaryMetric label="碳水" value={total.carbs_g} unit="g" />
-            </div>
+        <div className="min-h-0 overflow-y-auto pr-1">
+          {estimate ? (
+            <div className="grid gap-4">
+              <ItemGroup className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-size="sm">
+                <SummaryMetric label="将保存热量" value={total.estimated_kcal} unit="kcal" />
+                <SummaryMetric label="蛋白质" value={total.protein_g} unit="g" />
+                <SummaryMetric label="脂肪" value={total.fat_g} unit="g" />
+                <SummaryMetric label="碳水" value={total.carbs_g} unit="g" />
+              </ItemGroup>
 
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between gap-3">
-                  <span>识别到的食物</span>
+              <section className="grid gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-medium">识别到的食物</h3>
                   <Badge variant="secondary">{selectedItems.length}/{items.length} 已选择</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+                </div>
                 <ItemGroup data-size="sm">
                   {items.length ? (
                     items.map((item, index) => (
@@ -109,23 +101,27 @@ export function DietEstimateDialog({
                       />
                     ))
                   ) : (
-                    <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                      未识别到明确食物
-                    </p>
+                    <Item size="sm" variant="muted">
+                      <ItemContent>
+                        <ItemDescription>未识别到明确食物</ItemDescription>
+                      </ItemContent>
+                    </Item>
                   )}
                 </ItemGroup>
-              </CardContent>
-            </Card>
+              </section>
 
-            {estimate.warning ? (
-              <p className="rounded-lg border p-3 text-sm text-muted-foreground">
-                {estimate.warning}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+              {estimate.warning ? (
+                <Item size="sm" variant="muted">
+                  <ItemContent>
+                    <ItemDescription>{estimate.warning}</ItemDescription>
+                  </ItemContent>
+                </Item>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
             暂不保存
           </Button>
@@ -180,7 +176,7 @@ function EstimateItemCard({
   onWeightChange: (value: number) => void
 }) {
   return (
-    <Item size="sm" variant="outline" className={item.selected ? "" : "opacity-60"}>
+    <Item size="sm" variant="muted" className={item.selected ? "" : "opacity-60"}>
       <ItemMedia>
         <Checkbox
           checked={item.selected}
@@ -249,16 +245,16 @@ function MacroInput({
   value: number
 }) {
   return (
-    <label className="grid gap-1.5 rounded-lg border bg-background px-3 py-2">
+    <label className="grid gap-1.5 rounded-md bg-background px-3 py-2">
       <span className="text-xs text-muted-foreground">{label}</span>
       <span className="flex items-center gap-2">
         <Input
-          className="h-8 border-0 bg-transparent p-0 text-base font-semibold shadow-none focus-visible:ring-0"
+          className="h-7 border-0 bg-transparent p-0 text-sm font-medium shadow-none focus-visible:ring-0"
           inputMode="decimal"
           onChange={(event) => onChange(toNumber(event.target.value))}
           value={String(value)}
         />
-        <span className="shrink-0 text-xs font-medium text-muted-foreground">
+        <span className="shrink-0 text-xs text-muted-foreground">
           {suffix}
         </span>
       </span>
@@ -276,15 +272,15 @@ function SummaryMetric({
   value: number
 }) {
   return (
-    <Card size="sm">
-      <CardContent className="py-1">
-        <div className="text-xs text-muted-foreground">{label}</div>
-        <div className="mt-1 text-lg font-semibold">
+    <Item size="sm" variant="muted">
+      <ItemContent>
+        <ItemDescription>{label}</ItemDescription>
+        <ItemTitle>
           {formatNumber(value)}
-          <span className="ml-1 text-xs font-medium text-muted-foreground">{unit}</span>
-        </div>
-      </CardContent>
-    </Card>
+          <span className="ml-1 text-xs font-normal text-muted-foreground">{unit}</span>
+        </ItemTitle>
+      </ItemContent>
+    </Item>
   )
 }
 

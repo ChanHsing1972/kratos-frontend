@@ -1,4 +1,4 @@
-import type { ChangeEvent } from "react"
+import { useMemo, useState, type ChangeEvent } from "react"
 import { Camera, Plus, Utensils } from "lucide-react"
 
 import type { DietRecord } from "@/entities/kratos/model/types"
@@ -11,6 +11,14 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/shared/ui/empty"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/shared/ui/pagination"
 import {
   Table,
   TableBody,
@@ -39,6 +47,15 @@ export function DietIntakePage({
     (left, right) =>
       dateTime(right.meal_date || right.created_at) -
       dateTime(left.meal_date || left.created_at)
+  )
+
+  const pageSize = 10
+  const [page, setPage] = useState(1)
+  const totalPages = Math.max(1, Math.ceil(recentRecords.length / pageSize))
+  const safePage = Math.min(page, totalPages)
+  const pagedRecords = useMemo(
+    () => recentRecords.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [recentRecords, safePage]
   )
 
   return (
@@ -91,7 +108,7 @@ export function DietIntakePage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recentRecords.map((record) => (
+                  {pagedRecords.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell>{formatDate(record.meal_date)}</TableCell>
                       <TableCell className="font-medium">{record.name}</TableCell>
@@ -107,6 +124,48 @@ export function DietIntakePage({
                   ))}
                 </TableBody>
               </Table>
+              {totalPages > 1 ? (
+                <Pagination className="mt-4 justify-center">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        aria-disabled={safePage <= 1}
+                        className={safePage <= 1 ? "pointer-events-none opacity-50" : undefined}
+                        href="#"
+                        onClick={(event) => {
+                          event.preventDefault()
+                          setPage((current) => Math.max(1, current - 1))
+                        }}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
+                      <PaginationItem key={pageNumber}>
+                        <PaginationLink
+                          href="#"
+                          isActive={pageNumber === safePage}
+                          onClick={(event) => {
+                            event.preventDefault()
+                            setPage(pageNumber)
+                          }}
+                        >
+                          {pageNumber}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        aria-disabled={safePage >= totalPages}
+                        className={safePage >= totalPages ? "pointer-events-none opacity-50" : undefined}
+                        href="#"
+                        onClick={(event) => {
+                          event.preventDefault()
+                          setPage((current) => Math.min(totalPages, current + 1))
+                        }}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              ) : null}
             </div>
           ) : (
             <Empty className="mt-4 min-h-64 bg-transparent border border-dashed">

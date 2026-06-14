@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react"
-import { RotateCcw } from "lucide-react"
+import { CalendarIcon, RotateCcw } from "lucide-react"
 
 import type {
   BodyMetricForm,
@@ -7,6 +7,8 @@ import type {
   HealthMetricForm,
 } from "@/entities/kratos/model/types"
 import { Button } from "@/shared/ui/button"
+import { Calendar } from "@/shared/ui/calendar"
+import { cn } from "@/shared/lib/utils"
 import {
   Dialog,
   DialogContent,
@@ -15,6 +17,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/shared/ui/popover"
 import { Spinner } from "@/shared/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
 import {
@@ -96,7 +103,7 @@ export function AddDataModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form className="min-h-0" id="add-data-form" onSubmit={submit}>
+        <form className="min-h-0 overflow-hidden" id="add-data-form" onSubmit={submit}>
           <Tabs
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as AddDataCategory)}
@@ -108,8 +115,8 @@ export function AddDataModal({
               <TabsTrigger value="diet">饮食摄入</TabsTrigger>
             </TabsList>
 
-            <div className="mt-5 min-h-0 overflow-y-auto pr-1">
-              <TabsContent className="mt-0" value="body">
+            <div className="mt-2 min-h-0 overflow-y-auto px-1 pb-3 pt-1">
+              <TabsContent className="mt-0 focus-visible:outline-none" value="body">
                 <BodyFields
                   form={body}
                   onChange={(field, value) =>
@@ -118,7 +125,7 @@ export function AddDataModal({
                 />
 
               </TabsContent>
-              <TabsContent className="mt-0" value="health">
+              <TabsContent className="mt-0 focus-visible:outline-none" value="health">
                 <HealthFields
                   form={health}
                   onChange={(field, value) =>
@@ -126,7 +133,7 @@ export function AddDataModal({
                   }
                 />
               </TabsContent>
-              <TabsContent className="mt-0" value="diet">
+              <TabsContent className="mt-0 focus-visible:outline-none" value="diet">
                 <DietFields
                   form={diet}
                   onChange={(field, value) =>
@@ -170,10 +177,10 @@ function BodyFields({
   const bmi = calculateBmiPreview(form.weightKg, form.heightCm) ?? form.bmi
   return (
     <div className="grid gap-4">
-      <FormInput
+      <DatePickerField
         label="测量时间"
+        mode="datetime"
         onChange={(value) => onChange("measuredAt", value)}
-        type="datetime-local"
         value={form.measuredAt}
       />
       <div className="grid gap-4 sm:grid-cols-3">
@@ -208,20 +215,13 @@ function HealthFields({
 }) {
   return (
     <div className="grid gap-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormInput
-          label="记录日期"
-          onChange={(value) => onChange("metricDate", value)}
-          type="date"
-          value={form.metricDate}
-        />
-        <FormInput
-          label="测量时间"
-          onChange={(value) => onChange("measuredAt", value)}
-          type="datetime-local"
-          value={form.measuredAt}
-        />
-      </div>
+
+      <DatePickerField
+        label="测量时间"
+        mode="datetime"
+        onChange={(value) => onChange("measuredAt", value)}
+        value={form.measuredAt}
+      />
       <div className="grid gap-4 sm:grid-cols-3">
         <NumberInput label="步数 步" onChange={(value) => onChange("steps", value)} value={form.steps} />
         <NumberInput label="睡眠时长 h" onChange={(value) => onChange("sleepHours", value)} value={form.sleepHours} />
@@ -253,10 +253,9 @@ function DietFields({
   return (
     <div className="grid gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormInput
+        <DatePickerField
           label="日期"
           onChange={(value) => onChange("mealDate", value)}
-          type="date"
           value={form.mealDate}
         />
         <FormInput
@@ -275,6 +274,88 @@ function DietFields({
       </div>
     </div>
   )
+}
+
+function DatePickerField({
+  label,
+  mode = "date",
+  onChange,
+  value,
+}: {
+  label: string
+  mode?: "date" | "datetime"
+  onChange: (value: string) => void
+  value: string
+}) {
+  const selectedDate = parseDateValue(value)
+  const timeValue = parseTimeValue(value)
+
+  return (
+    <div className="space-y-2">
+      <span className="text-sm font-medium">{label}</span>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            className={cn(
+              "w-full justify-start gap-2 text-left font-normal",
+              !value && "text-muted-foreground",
+            )}
+            type="button"
+            variant="outline"
+          >
+            <CalendarIcon className="size-4 shrink-0" />
+            <span>{value ? formatDateButtonLabel(value, mode) : "选择日期"}</span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-auto p-0">
+          <Calendar
+            initialFocus
+            mode="single"
+            onSelect={(date) => {
+              if (!date) return
+              const nextDate = localDateValue(date)
+              onChange(mode === "datetime" ? `${nextDate}T${timeValue}` : nextDate)
+            }}
+            selected={selectedDate ?? undefined}
+          />
+          {mode === "datetime" ? (
+            <div className="border-t p-3">
+              <label className="block space-y-2">
+                <input
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+                  onChange={(event) => {
+                    const nextDate = value.slice(0, 10) || localDateValue(new Date())
+                    onChange(`${nextDate}T${event.target.value || "00:00"}`)
+                  }}
+                  type="time"
+                  value={timeValue}
+                />
+              </label>
+            </div>
+          ) : null}
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
+}
+
+function parseDateValue(value: string) {
+  const datePart = value.slice(0, 10)
+  if (!datePart) return null
+  const date = new Date(`${datePart}T00:00`)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function parseTimeValue(value: string) {
+  const timePart = value.includes("T") ? value.slice(11, 16) : ""
+  return timePart || "00:00"
+}
+
+function formatDateButtonLabel(value: string, mode: "date" | "datetime") {
+  const datePart = value.slice(0, 10)
+  if (!datePart) return "选择日期"
+  if (mode === "date") return datePart
+  return `${datePart} ${parseTimeValue(value)}`
 }
 
 function NumberInput({
