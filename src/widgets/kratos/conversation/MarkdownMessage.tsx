@@ -250,6 +250,15 @@ function stabilizeStreamingTableTail(markdown: string) {
   if (isTableSeparatorFragment(trimmedLastLine)) {
     const headerIndex = findPreviousNonEmptyLine(lines, lastIndex - 1)
     if (headerIndex !== null && lines[headerIndex]?.includes("|")) {
+      const headerColumnCount = splitTableLine(lines[headerIndex]).length
+      const separatorCells = splitTableLine(trimmedLastLine)
+      if (
+        trimmedLastLine.endsWith("|") &&
+        separatorCells.length >= headerColumnCount &&
+        separatorCells.every(isTableSeparatorCell)
+      ) {
+        return markdown
+      }
       return lines.slice(0, headerIndex).join("\n")
     }
     return lines.slice(0, lastIndex).join("\n")
@@ -289,7 +298,11 @@ function findTableColumnCountBefore(lines: string[], rowIndex: number) {
 
 function isTableSeparatorLine(line: string) {
   const cells = line.replace(/^\|/, "").replace(/\|$/, "").split("|")
-  return cells.length >= 2 && cells.every((cell) => /^:?-{2,}:?$/.test(cell.trim()))
+  return cells.length >= 2 && cells.every(isTableSeparatorCell)
+}
+
+function isTableSeparatorCell(cell: string) {
+  return /^:?-{2,}:?$/.test(cell.trim())
 }
 
 function isTableSeparatorFragment(line: string) {
