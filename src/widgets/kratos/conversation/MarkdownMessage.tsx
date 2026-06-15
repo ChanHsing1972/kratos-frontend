@@ -248,11 +248,18 @@ function stabilizeStreamingTableTail(markdown: string) {
   }
 
   if (isTableSeparatorFragment(trimmedLastLine)) {
-    return stabilizeStreamingSeparatorLine(lines, lastIndex)
+    const headerIndex = findPreviousNonEmptyLine(lines, lastIndex - 1)
+    if (headerIndex !== null && lines[headerIndex]?.includes("|")) {
+      return lines.slice(0, headerIndex).join("\n")
+    }
+    return lines.slice(0, lastIndex).join("\n")
   }
 
   const columnCount = findTableColumnCountBefore(lines, lastIndex)
   if (!columnCount) {
+    if (looksLikeTableTail(trimmedLastLine)) {
+      return lines.slice(0, lastIndex).join("\n")
+    }
     return markdown
   }
 
@@ -261,22 +268,7 @@ function stabilizeStreamingTableTail(markdown: string) {
     return markdown
   }
 
-  lines[lastIndex] = formatTableLine(padTableCells(cells, columnCount))
-  return lines.join("\n")
-}
-
-function stabilizeStreamingSeparatorLine(lines: string[], rowIndex: number) {
-  const headerLine = lines[rowIndex - 1]?.trim()
-  if (!headerLine?.includes("|")) {
-    return lines.join("\n")
-  }
-
-  const columnCount = splitTableLine(headerLine).length
-  const separatorCells = splitTableLine(lines[rowIndex].trim()).map((cell) =>
-    normalizeSeparatorCell(cell)
-  )
-  lines[rowIndex] = formatTableLine(padTableCells(separatorCells, columnCount, "---"))
-  return lines.join("\n")
+  return lines.slice(0, lastIndex).join("\n")
 }
 
 function findTableColumnCountBefore(lines: string[], rowIndex: number) {
@@ -305,29 +297,28 @@ function isTableSeparatorFragment(line: string) {
   return line.includes("-") && content.length === 0
 }
 
+function findPreviousNonEmptyLine(lines: string[], startIndex: number) {
+  for (let index = startIndex; index >= 0; index -= 1) {
+    if (lines[index]?.trim()) {
+      return index
+    }
+  }
+  return null
+}
+
+function looksLikeTableTail(line: string) {
+  if (line.startsWith("|")) {
+    return line.split("|").length >= 3
+  }
+  return /^[^|\n]{1,40}\|/.test(line)
+}
+
 function splitTableLine(line: string) {
   return line
     .replace(/^\s*\|?/, "")
     .replace(/\|?\s*$/, "")
     .split("|")
     .map((cell) => cell.trim())
-}
-
-function padTableCells(cells: string[], columnCount: number, value = "") {
-  const next = [...cells]
-  while (next.length < columnCount) {
-    next.push(value)
-  }
-  return next
-}
-
-function normalizeSeparatorCell(cell: string) {
-  const trimmed = cell.trim()
-  return /^:?-{2,}:?$/.test(trimmed) ? trimmed : "---"
-}
-
-function formatTableLine(cells: string[]) {
-  return `| ${cells.join(" | ")} |`
 }
 
 function stabilizeInlineMarkdown(markdown: string) {
