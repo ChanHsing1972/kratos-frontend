@@ -35,6 +35,9 @@ export type AgentStreamEvent = AgentTraceStep & {
   session_id?: string
   answer?: string
   delta?: string
+  trace_id?: string
+  server_received_at?: string
+  server_emit_at?: string
 }
 
 export type ChatAttachment = {

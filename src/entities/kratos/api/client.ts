@@ -43,6 +43,23 @@ export const EVAL_APP_URL = import.meta.env.VITE_EVAL_URL ?? "/eval"
 
 export const AUTH_TOKEN_KEY = "kratos-auth-token"
 
+export type AgentStreamDebugEvent = {
+  chunkIndex?: number
+  elapsedMs: number
+  eventCount?: number
+  eventType?: string
+  headers?: Record<string, string | null>
+  phase:
+  | "send"
+  | "headers"
+  | "chunk"
+  | "first_event"
+  | "first_answer_delta"
+  | "done"
+  status?: number
+  traceId?: string
+}
+
 export type UploadResponse = {
   content_type: string
   filename: string
@@ -559,7 +576,9 @@ export async function activateTrainingPlan(token: string, planId: number) {
 export async function streamAgentChat({
   attachments = [],
   clientTurnId,
+  debug,
   message,
+  onDebug,
   onEvent,
   sessionId,
   signal,
@@ -567,12 +586,32 @@ export async function streamAgentChat({
 }: {
   attachments?: ChatAttachment[]
   clientTurnId: string
+  debug?: boolean
   message: string
+  onDebug?: (event: AgentStreamDebugEvent) => void
   onEvent: (event: AgentStreamEvent) => void
   sessionId: string | null
   signal?: AbortSignal
   token: string
 }) {
+  const startedAt = performance.now()
+  const debugEnabled = debug ?? isAgentStreamDebugEnabled()
+  const emitDebug = (event: Omit<AgentStreamDebugEvent, "elapsedMs">) => {
+    if (!debugEnabled) {
+      return
+    }
+    const payload = {
+      ...event,
+      elapsedMs: Math.round(performance.now() - startedAt),
+    }
+    if (onDebug) {
+      onDebug(payload)
+    } else {
+      console.info("[kratos-agent-stream]", payload)
+    }
+  }
+
+  emitDebug({ phase: "send", traceId: clientTurnId })
   const response = await fetch(`${API_BASE_URL}/agent/chat/stream`, {
     body: JSON.stringify({
       attachments,
@@ -586,6 +625,19 @@ export async function streamAgentChat({
     },
     method: "POST",
     signal,
+  })
+  emitDebug({
+    headers: {
+      "cache-control": response.headers.get("cache-control"),
+      "cf-cache-status": response.headers.get("cf-cache-status"),
+      "content-encoding": response.headers.get("content-encoding"),
+      "content-type": response.headers.get("content-type"),
+      "transfer-encoding": response.headers.get("transfer-encoding"),
+      "x-accel-buffering": response.headers.get("x-accel-buffering"),
+    },
+    phase: "headers",
+    status: response.status,
+    traceId: response.headers.get("x-trace-id") ?? clientTurnId,
   })
 
   if (!response.ok) {
@@ -601,10 +653,34 @@ export async function streamAgentChat({
   const decoder = new TextDecoder()
   let buffer = ""
   let receivedDone = false
+  let chunkIndex = 0
+  let receivedFirstEvent = false
+  let receivedFirstAnswerDelta = false
 
   const emitEvent = (event: AgentStreamEvent) => {
+    if (!receivedFirstEvent) {
+      receivedFirstEvent = true
+      emitDebug({
+        eventType: event.type,
+        phase: "first_event",
+        traceId: event.trace_id ?? clientTurnId,
+      })
+    }
+    if (!receivedFirstAnswerDelta && event.type === "answer_delta") {
+      receivedFirstAnswerDelta = true
+      emitDebug({
+        eventType: event.type,
+        phase: "first_answer_delta",
+        traceId: event.trace_id ?? clientTurnId,
+      })
+    }
     if (event.type === "done") {
       receivedDone = true
+      emitDebug({
+        eventType: event.type,
+        phase: "done",
+        traceId: event.trace_id ?? clientTurnId,
+      })
     }
     onEvent(event)
   }
@@ -618,13 +694,22 @@ export async function streamAgentChat({
     buffer += decoder.decode(value, { stream: true })
     const parts = buffer.split(/\r?\n\r?\n/)
     buffer = parts.pop() ?? ""
+    let eventsInChunk = 0
 
     for (const part of parts) {
       const event = parseServerSentEvent(part)
       if (event) {
+        eventsInChunk += 1
         emitEvent(event)
       }
     }
+    emitDebug({
+      chunkIndex,
+      eventCount: eventsInChunk,
+      phase: "chunk",
+      traceId: clientTurnId,
+    })
+    chunkIndex += 1
   }
 
   buffer += decoder.decode()
@@ -640,6 +725,17 @@ export async function streamAgentChat({
     }
     emitEvent(interrupted)
     throw new Error(interrupted.content)
+  }
+}
+
+function isAgentStreamDebugEnabled() {
+  if (import.meta.env.DEV) {
+    return true
+  }
+  try {
+    return localStorage.getItem("kratos-agent-debug") === "1"
+  } catch {
+    return false
   }
 }
 

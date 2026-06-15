@@ -190,6 +190,15 @@ type TrainingSession = {
 }
 
 const DEFAULT_CHAT_TITLE = "新会话"
+const TRACE_EVENT_DELAY_MIN_MS = 80
+const TRACE_EVENT_DELAY_MAX_MS = 200
+
+type AgentStreamEventTarget = {
+  assistantMessageId: string
+  body: string
+  event: AgentStreamEvent
+  sessionId: string
+}
 
 function routeFromLocation() {
   const path = window.location.pathname
@@ -283,6 +292,12 @@ function isStructuredCardPendingEvent(event: AgentStreamEvent) {
     typeof raw === "object" &&
     "structured_card_pending" in raw &&
     raw.structured_card_pending === true
+  )
+}
+
+function isTraceOnlyEvent(event: AgentStreamEvent) {
+  return ["status", "thought", "action", "observation", "reflection"].includes(
+    event.type
   )
 }
 
@@ -601,6 +616,8 @@ export function KratosPage() {
   const liveMessagesBySessionRef = useRef<Record<string, ChatMessage[]>>({})
   const messagesRef = useRef<ChatMessage[]>(messages)
   const sendLockRef = useRef(false)
+  const traceEventQueuesRef = useRef<Record<string, AgentStreamEventTarget[]>>({})
+  const traceEventTimersRef = useRef<Record<string, number>>({})
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId
@@ -609,6 +626,16 @@ export function KratosPage() {
   useEffect(() => {
     messagesRef.current = messages
   }, [messages])
+
+  useEffect(() => {
+    return () => {
+      Object.values(traceEventTimersRef.current).forEach((timerId) => {
+        window.clearTimeout(timerId)
+      })
+      traceEventTimersRef.current = {}
+      traceEventQueuesRef.current = {}
+    }
+  }, [])
 
   const unreadCount = notifications.filter((item) => !item.read).length
   const activePlan =
@@ -688,7 +715,7 @@ export function KratosPage() {
           sessionId: run.session_id,
           token,
           onEvent: (event) => {
-            applyAgentEventToSession({
+            handleAgentStreamEvent({
               assistantMessageId: `run-${run.id}-assistant`,
               body: run.user_message,
               event,
@@ -840,6 +867,68 @@ export function KratosPage() {
         }
       })
     )
+  }
+
+  const handleAgentStreamEvent = (target: AgentStreamEventTarget) => {
+    if (isTraceOnlyEvent(target.event)) {
+      enqueueAgentTraceEvent(target)
+      return
+    }
+    if (["final", "done", "error"].includes(target.event.type)) {
+      flushAgentTraceEvents(traceEventKey(target))
+    }
+    applyAgentEventToSession(target)
+  }
+
+  const traceEventKey = (target: AgentStreamEventTarget) =>
+    `${target.sessionId}:${target.assistantMessageId}`
+
+  const enqueueAgentTraceEvent = (target: AgentStreamEventTarget) => {
+    const key = traceEventKey(target)
+    const queue = traceEventQueuesRef.current[key] ?? []
+    queue.push(target)
+    traceEventQueuesRef.current[key] = queue
+    if (!traceEventTimersRef.current[key]) {
+      scheduleNextTraceEvent(key)
+    }
+  }
+
+  const scheduleNextTraceEvent = (key: string) => {
+    const queue = traceEventQueuesRef.current[key]
+    if (!queue?.length) {
+      delete traceEventQueuesRef.current[key]
+      delete traceEventTimersRef.current[key]
+      return
+    }
+    const delay =
+      TRACE_EVENT_DELAY_MIN_MS +
+      Math.floor(
+        Math.random() * (TRACE_EVENT_DELAY_MAX_MS - TRACE_EVENT_DELAY_MIN_MS + 1)
+      )
+    traceEventTimersRef.current[key] = window.setTimeout(() => {
+      const nextQueue = traceEventQueuesRef.current[key]
+      const next = nextQueue?.shift()
+      if (next) {
+        applyAgentEventToSession(next)
+      }
+      if (nextQueue?.length) {
+        scheduleNextTraceEvent(key)
+      } else {
+        delete traceEventQueuesRef.current[key]
+        delete traceEventTimersRef.current[key]
+      }
+    }, delay)
+  }
+
+  const flushAgentTraceEvents = (key: string) => {
+    const timerId = traceEventTimersRef.current[key]
+    if (timerId) {
+      window.clearTimeout(timerId)
+    }
+    const queue = traceEventQueuesRef.current[key] ?? []
+    delete traceEventQueuesRef.current[key]
+    delete traceEventTimersRef.current[key]
+    queue.forEach((target) => applyAgentEventToSession(target))
   }
 
   useEffect(() => {
@@ -1997,7 +2086,7 @@ export function KratosPage() {
             })
           }
 
-          applyAgentEventToSession({
+          handleAgentStreamEvent({
             assistantMessageId,
             body: displayBody,
             event,
