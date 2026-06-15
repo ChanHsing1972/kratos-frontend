@@ -8,10 +8,12 @@ import {
   SearchIcon,
   ShieldCheck,
   SlidersHorizontal,
+  ToolCase,
   Trash2,
   WandSparkles,
   Wrench,
   X,
+  type LucideIcon,
 } from "lucide-react"
 
 import type { AgentToolConfig, Skill, SkillPayload, UserProfile } from "@/entities/kratos/model/types"
@@ -61,14 +63,42 @@ type SkillForm = {
 }
 
 const defaultForm: SkillForm = {
-  name: "宿舍无器械训练教练",
-  description: "适合宿舍、无器械、小空间训练的轻量策略。",
-  applicableScenarios: "用户只有宿舍空间、没有器械、希望安排徒手训练。",
-  promptSnippet: "优先选择安静、低冲击、无需器械的动作，并给出邻里友好版本。",
-  availableTools: "calculate_workout_volume, pain_safety_gate",
-  outputFormat: "按热身、主训练、拉伸、注意事项输出。",
-  forbiddenRules: "不要安排跳跃噪音过大的动作；不要建议危险借力动作。",
+  name: "户外运动与导航教练",
+  description: "适合把天气、地点、运动安排和导航建议放在一起处理的轻量策略。",
+  applicableScenarios: "用户询问天气是否适合运动，或想在附近找篮球场、公园、跑步路线、健身场地并获得出行建议。",
+  promptSnippet: "先判断环境和安全条件，再调用天气、地点或路线工具；最终回答只引用实际工具结果，并给出可执行的运动安排。",
+  availableTools: "weather_fitness_advisor, place_navigation_advisor, running_route_advisor, pain_safety_gate",
+  outputFormat: "按环境判断、候选地点/路线、运动建议、风险边界输出。",
+  forbiddenRules: "不要编造未查询到的场馆、地址、距离或导航路线；不要在降雨、湿滑或疼痛风险明显时鼓励高强度户外运动。",
 }
+
+const skillTemplates: Array<{ label: string; value: SkillForm }> = [
+  { label: "户外运动导航", value: defaultForm },
+  {
+    label: "饮食记录审核",
+    value: {
+      name: "饮食记录审核教练",
+      description: "把餐食图片、手动记录和减脂目标转成更可靠的摄入复盘。",
+      applicableScenarios: "用户上传餐食图片、记录一餐、询问今天吃得是否合适，或需要补充蛋白质和控制热量。",
+      promptSnippet: "先区分已确认记录和 AI 估算记录；提醒用户确认份量；围绕蛋白质、总热量和高不确定食物给出下一餐建议。",
+      availableTools: "diet_plan_generator, calculate_bmr",
+      outputFormat: "按已记录摄入、估算不确定性、下一餐建议、需要用户确认的信息输出。",
+      forbiddenRules: "不要声称图片估算已经保存；不要用极端节食或单一食物替代正常饮食。",
+    },
+  },
+  {
+    label: "康复安全分流",
+    value: {
+      name: "康复安全分流教练",
+      description: "在疼痛、疲劳和动作替代场景中优先保护安全边界。",
+      applicableScenarios: "用户提到膝盖、腰、肩、脚踝疼痛，不适，受伤，极度疲劳，或想调整训练动作。",
+      promptSnippet: "先做风险分层，必要时调用安全门工具；给出停止条件、降级动作和何时就医。",
+      availableTools: "pain_safety_gate, exercise_substitution_advisor, calculate_workout_volume",
+      outputFormat: "按是否能练、替代方案、停止条件、后续观察输出。",
+      forbiddenRules: "不要诊断疾病；不要要求用户忍痛完成动作；不要替代医生或康复师。",
+    },
+  },
+]
 
 export function SkillPanelPage({
   currentUser,
@@ -154,7 +184,9 @@ export function SkillPanelPage({
     <main className="scrollbar-none min-h-0 flex-1 overflow-y-auto bg-muted/40">
       <section className="mx-auto mt-20 flex min-h-full w-full max-w-[900px] flex-col px-6 pt-8 pb-16 sm:px-8">
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
-          <h1 className="text-3xl font-medium tracking-[-0.05em]">工具技能</h1>
+          <div>
+            <h1 className="text-3xl font-medium">工具技能</h1>
+          </div>
           <div className="flex shrink-0 gap-2">
             <InputGroup className="w-full sm:w-64">
               <InputGroupInput
@@ -355,21 +387,33 @@ function SkillAccordionItem({
         </span>
       </AccordionTrigger>
       <AccordionContent className="space-y-5 overflow-hidden pb-6">
-        <div className="mt-3 grid gap-10 sm:grid-cols-2">
-          <DetailBlock icon={SlidersHorizontal} label="核心策略" value={skill.prompt_snippet} />
-          <DetailBlock icon={ShieldCheck} label="安全边界" value={skill.forbidden_rules} />
+        <div className="mt-3 grid gap-8 sm:grid-cols-2">
+          <DetailBlock icon={BookOpenText} label="触发场景" value={skill.applicable_scenarios} />
+          <DetailBlock icon={SlidersHorizontal} label="工作流策略" value={skill.prompt_snippet} />
+          <DetailBlock icon={Wrench} label="输出契约" value={skill.output_format} />
+          <DetailBlock icon={ShieldCheck} label="禁止事项" value={skill.forbidden_rules} />
         </div>
         <div>
-          {/* <p className="text-sm font-medium text-muted-foreground">依赖工具</p> */}
+          <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <ToolCase className="size-3.5" />
+            推荐工具
+          </p>
           <div className="flex flex-wrap gap-2">
             {skill.available_tools.length ? (
               skill.available_tools.map((tool) => <Badge key={tool} variant="outline">{tool}</Badge>)
             ) : (
-              <Badge variant="outline">不限制工具范围</Badge>
+              <Badge variant="outline">使用基础工具池</Badge>
             )}
           </div>
         </div>
-        <div className="flex gap-2">
+        {skill.definition ? (
+          <div>
+            <pre className="max-h-64 overflow-auto rounded-lg border bg-muted/40 p-4 text-xs leading-5 whitespace-pre-wrap">
+              {clipText(skill.definition, 1600)}
+            </pre>
+          </div>
+        ) : null}
+        <div className="flex flex-wrap gap-2 justify-end">
           <Button
             disabled={submitting}
             onClick={() => onToggle(!skill.enabled)}
@@ -549,20 +593,49 @@ function CreateSkillSheet({
   open: boolean
   submitting: boolean
 }) {
+  const applyTemplate = (template: SkillForm) => {
+    for (const [field, value] of Object.entries(template) as Array<[keyof SkillForm, string]>) {
+      onUpdateForm(field, value)
+    }
+  }
+  const preview = buildSkillPreview(form)
+
   return (
     <Sheet onOpenChange={onOpenChange} open={open}>
       <SheetContent className="grid w-full grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden sm:max-w-xl">
         <SheetHeader className="px-6 pb-5">
-          <SheetTitle>创建教练策略</SheetTitle>
-          <SheetDescription>
-            定义 Agent 的建议风格、安全边界和可用工具，保存后可随时停用。
-          </SheetDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <SheetTitle>创建 Skill</SheetTitle>
+              <SheetDescription>
+                定义 Agent 的触发场景、工作流、安全边界和推荐工具，保存后可随时停用。
+              </SheetDescription>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" type="button" variant="outline">
+                  <WandSparkles />
+                  模板
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                {skillTemplates.map((template) => (
+                  <DropdownMenuItem
+                    key={template.label}
+                    onClick={() => applyTemplate(template.value)}
+                  >
+                    {template.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </SheetHeader>
         <form className="contents" onSubmit={onSubmit}>
           <ScrollArea className="min-h-0">
             <div className="grid gap-6 px-6 pb-6">
               <section className="grid gap-4">
-                <FormField label="策略名称">
+                <FormField label="Skill 名称">
                   <Input onChange={(event) => onUpdateForm("name", event.target.value)} value={form.name} />
                 </FormField>
                 <FormField label="用途说明">
@@ -571,7 +644,7 @@ function CreateSkillSheet({
               </section>
 
               <section className="grid gap-4">
-                <FormField label="策略内容">
+                <FormField label="工作流策略">
                   <Textarea className="min-h-36 resize-none" onChange={(event) => onUpdateForm("promptSnippet", event.target.value)} value={form.promptSnippet} />
                 </FormField>
               </section>
@@ -580,13 +653,18 @@ function CreateSkillSheet({
                 <AccordionItem value="advanced">
                   <AccordionTrigger className="py-2 text-sm font-medium hover:no-underline">更多边界设置</AccordionTrigger>
                   <AccordionContent className="grid gap-4 pt-3">
-                    <FormField label="适用场景">
+                    <FormField label="触发场景">
                       <Textarea className="min-h-24 resize-none" onChange={(event) => onUpdateForm("applicableScenarios", event.target.value)} value={form.applicableScenarios} />
                     </FormField>
-                    <FormField label="可用工具名称">
+                    <FormField label="推荐工具名称">
                       <Input onChange={(event) => onUpdateForm("availableTools", event.target.value)} value={form.availableTools} />
                     </FormField>
-                    <FormField label="输出格式">
+                    <div className="flex flex-wrap gap-2">
+                      {parseTools(form.availableTools).map((tool) => (
+                        <Badge key={tool} variant="outline">{tool}</Badge>
+                      ))}
+                    </div>
+                    <FormField label="输出契约">
                       <Textarea className="min-h-24 resize-none" onChange={(event) => onUpdateForm("outputFormat", event.target.value)} value={form.outputFormat} />
                     </FormField>
                     <FormField label="禁止行为">
@@ -595,6 +673,13 @@ function CreateSkillSheet({
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
+
+              <section>
+                <p className="mb-3 text-sm font-medium">定义预览</p>
+                <pre className="max-h-72 overflow-auto rounded-lg border bg-muted/40 p-4 text-xs leading-5 whitespace-pre-wrap">
+                  {preview}
+                </pre>
+              </section>
 
               {formError ? <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{formError}</p> : null}
             </div>
@@ -649,7 +734,7 @@ function DetailBlock({
   label,
   value,
 }: {
-  icon: typeof ShieldCheck
+  icon: LucideIcon
   label: string
   value: string | null
 }) {
@@ -718,4 +803,35 @@ function matchesQuery(query: string, ...fields: Array<string | null | undefined>
 
 function parseTools(value: string) {
   return value.split(/[\n,，]+/).map((item) => item.trim()).filter(Boolean)
+}
+
+function buildSkillPreview(form: SkillForm) {
+  const tools = parseTools(form.availableTools)
+  const toolLines = tools.map((tool) => `  - ${tool}`).join("\n") || "  - none"
+  return `---
+name: ${form.name}
+description: ${form.description}
+applicable_scenarios: ${form.applicableScenarios}
+available_tools:
+${toolLines}
+---
+# 何时使用
+${form.applicableScenarios}
+
+# 工作流
+${form.promptSnippet}
+
+# 推荐工具
+这些工具会作为本 Skill 的优先工具；天气、搜索、地图和导航仍作为基础信息能力保留。
+
+# 输出格式
+${form.outputFormat}
+
+# 禁止事项
+${form.forbiddenRules}
+`
+}
+
+function clipText(value: string, maxLength: number) {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
 }

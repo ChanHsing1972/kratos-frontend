@@ -309,7 +309,7 @@ function MetricSection({
     <section className="mt-12">
       <SectionHeader description={`最近记录：${latestLabel}`} title={title} />
       {importantDefinitions.length ? (
-        <div className="mt-7 grid gap-x-10 gap-y-10 lg:grid-cols-2">
+        <div className="mt-6 grid gap-x-6 gap-y-8 lg:grid-cols-2">
           {importantDefinitions.map((definition) => (
             <MetricChartPanel
               definition={definition}
@@ -321,7 +321,7 @@ function MetricSection({
           ))}
         </div>
       ) : (
-        <Empty className="mt-5 min-h-52 bg-transparent border border-dashed">
+        <Empty className="mt-4 min-h-52 bg-transparent border border-dashed">
           <EmptyHeader>
             <EmptyMedia variant="icon">{emptyIcon}</EmptyMedia>
             <EmptyTitle>暂无重要指标</EmptyTitle>
@@ -330,14 +330,16 @@ function MetricSection({
         </Empty>
       )}
 
-      <Accordion className="mt-2" collapsible type="single">
+      <Accordion className="mt-4" collapsible type="single">
         <AccordionItem className="border-0" value="more">
-          <AccordionTrigger className="px-0">
-            <span className="flex items-center gap-2">
-              更多指标
-              <Badge variant="outline">{moreDefinitions.length}</Badge>
-            </span>
-          </AccordionTrigger>
+          <div className="flex justify-end">
+            <AccordionTrigger className="inline-flex h-9 w-auto flex-none items-center justify-center gap-1 rounded-md px-3 text-sm shadow-none hover:bg-accent hover:text-accent-foreground hover:no-underline data-[state=open]:bg-accent data-[state=open]:text-accent-foreground [&>svg]:ml-1 [&>svg]:size-4 [&>svg]:shrink-0">
+              <span>更多指标</span>
+              <Badge className="h-5 min-w-5 justify-center rounded-full" variant="outline">
+                {moreDefinitions.length}
+              </Badge>
+            </AccordionTrigger>
+          </div>
           <AccordionContent>
             <div className="grid gap-x-10 gap-y-10 pt-5 lg:grid-cols-2">
               {moreDefinitions.map((definition) => (
@@ -379,7 +381,6 @@ function MetricChartPanel({
         </div>
         <Button
           onClick={() => onToggleImportant(definition.id)}
-          size="sm"
           type="button"
           variant="ghost"
           className="text-muted-foreground"
@@ -423,14 +424,14 @@ function MetricMiniChart({
   const yTicks = hasData ? undefined : [0, 0.25, 0.5, 0.75, 1]
 
   return (
-    <div className="relative mt-4 h-56 w-full">
+    <div className="relative mt-0 h-56 w-full">
       <ChartContainer
         className="h-full w-full !aspect-auto"
         config={chartConfig}
         initialDimension={{ height: 224, width: 460 }}
       >
         {kind === "bar" ? (
-          <BarChart data={chartData} barCategoryGap="25%" margin={{ bottom: 0, left: 0, right: 8, top: 18 }}>
+          <BarChart data={chartData} barCategoryGap="25%" margin={{ bottom: 0, left: 16, right: 8, top: 18 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
                 <stop offset="0%" stopColor="var(--foreground)" stopOpacity={0.9} />
