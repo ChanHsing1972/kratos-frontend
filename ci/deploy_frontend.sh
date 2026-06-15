@@ -3,8 +3,8 @@ set -euo pipefail
 
 : "${FRONTEND_NAME:?FRONTEND_NAME is required}"
 : "${SITE_ROOT:?SITE_ROOT is required}"
+: "${DEPLOY_HOST:?DEPLOY_HOST is required}"
 
-DEPLOY_HOST="${DEPLOY_HOST:-192.0.2.1}"
 DEPLOY_USER="${DEPLOY_USER:-root}"
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
 COMMIT_SHA="${CI_COMMIT_SHA:-manual}"

@@ -1,5 +1,6 @@
 import { BarChart3, ExternalLink } from "lucide-react"
 
+import { EVAL_APP_URL } from "@/entities/kratos/api/client"
 import { KratosPageHeader } from "@/widgets/kratos/layout/KratosPageHeader"
 
 export function EvaluationPage() {
@@ -14,7 +15,7 @@ export function EvaluationPage() {
         </p>
         <a
           className="mt-5 inline-flex h-10 items-center gap-2 rounded-[8px] bg-primary px-4 text-[13px] font-bold text-primary-foreground hover:bg-primary/90"
-          href="http://192.0.2.1/eval"
+          href={EVAL_APP_URL}
           rel="noreferrer"
           target="_blank"
         >

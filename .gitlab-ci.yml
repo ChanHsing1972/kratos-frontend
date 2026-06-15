@@ -1,24 +1,27 @@
 image: node:22-alpine
 
 stages:
+  - verify
   - build
   - deploy
 
 workflow:
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "master"'
     - when: never
 
 variables:
   NPM_CONFIG_REGISTRY: "https://registry.npmmirror.com"
+  PNPM_VERSION: "10.33.1"
   PNPM_STORE_DIR: "$CI_PROJECT_DIR/.pnpm-store"
-  DEPLOY_HOST: "192.0.2.1"
   DEPLOY_USER: "root"
   DEPLOY_PORT: "22"
   FRONTEND_NAME: "agent"
   SITE_ROOT: "/var/www/se3/agent"
   VITE_BASE: "/"
   VITE_API_BASE_URL: "/api/v1"
+  VITE_EVAL_URL: "/eval"
 
 cache:
   key:
@@ -27,13 +30,28 @@ cache:
   paths:
     - .pnpm-store/
 
-build:
-  stage: build
-  before_script:
+.pnpm_setup:
+  before_script: &pnpm_setup
     - npm config set registry "$NPM_CONFIG_REGISTRY"
-    - npm install -g pnpm@10.22.0
+    - npm install -g "pnpm@$PNPM_VERSION"
     - pnpm config set registry "$NPM_CONFIG_REGISTRY"
     - pnpm config set store-dir "$PNPM_STORE_DIR"
+
+verify:
+  stage: verify
+  interruptible: true
+  before_script: *pnpm_setup
+  script:
+    - pnpm install --frozen-lockfile
+    - pnpm typecheck
+    - pnpm lint
+
+build:
+  stage: build
+  interruptible: true
+  needs:
+    - verify
+  before_script: *pnpm_setup
   script:
     - pnpm install --frozen-lockfile
     - pnpm build
@@ -47,13 +65,21 @@ deploy:
   image: alpine:3.20
   needs:
     - build
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: manual
+    - when: never
   resource_group: web-frontend-production
   before_script:
     - sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
     - apk add --no-cache bash openssh-client sshpass tar
   script:
+    - test -n "$DEPLOY_HOST" || (echo "DEPLOY_HOST must be configured in GitLab CI/CD Variables." >&2; exit 1)
     - chmod +x ci/deploy_frontend.sh
     - ci/deploy_frontend.sh
   environment:
     name: $CI_COMMIT_BRANCH
-    url: http://192.0.2.1/

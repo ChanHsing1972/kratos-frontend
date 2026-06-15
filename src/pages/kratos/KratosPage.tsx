@@ -12,6 +12,7 @@ import { toast as sonnerToast } from "sonner"
 import { initialMessages } from "@/features/kratos/model/fixtures"
 import {
   AUTH_TOKEN_KEY,
+  EVAL_APP_URL,
   activateTrainingPlan,
   cancelAgentChatStream,
   createAgentCheckin,
@@ -1212,7 +1213,7 @@ export function KratosPage() {
 
   const handleNavSelect = (label: string) => {
     if (label === "评估平台") {
-      window.open("http://192.0.2.1/eval", "_blank", "noopener,noreferrer")
+      window.open(EVAL_APP_URL, "_blank", "noopener,noreferrer")
       setSidebarDrawerOpen(false)
       return
     }

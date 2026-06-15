@@ -38,8 +38,8 @@ import type {
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "/api/v1"
-// import.meta.env.VITE_API_BASE_URL ?? "http://192.0.2.1/api/v1"
 
+export const EVAL_APP_URL = import.meta.env.VITE_EVAL_URL ?? "/eval"
 
 export const AUTH_TOKEN_KEY = "kratos-auth-token"
 
