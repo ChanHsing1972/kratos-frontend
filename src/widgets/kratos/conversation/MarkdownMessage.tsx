@@ -169,6 +169,11 @@ export function MarkdownMessage({
   className,
   streaming = false,
 }: MarkdownMessageProps) {
+  const normalized = normalizeMarkdownInput(children)
+  const streamingTable = streaming
+    ? splitStreamingTable(normalized)
+    : null
+
   return (
     <div
       className={cn(
@@ -176,18 +181,86 @@ export function MarkdownMessage({
         className
       )}
     >
-      <Streamdown
-        components={components}
-        controls={false}
-        isAnimating={streaming}
-        mode={streaming ? "streaming" : "static"}
-        parseIncompleteMarkdown={streaming}
-        skipHtml
-      >
-        {streaming
-          ? stabilizeStreamingMarkdown(children)
-          : normalizeMarkdownInput(children)}
-      </Streamdown>
+      {streamingTable ? (
+        <>
+          {streamingTable.before ? (
+            <Streamdown
+              components={components}
+              controls={false}
+              isAnimating
+              mode="streaming"
+              parseIncompleteMarkdown
+              skipHtml
+            >
+              {stabilizeStreamingMarkdown(streamingTable.before)}
+            </Streamdown>
+          ) : null}
+          <StreamingMarkdownTable lines={streamingTable.tableLines} />
+          {streamingTable.after ? (
+            <Streamdown
+              components={components}
+              controls={false}
+              isAnimating
+              mode="streaming"
+              parseIncompleteMarkdown
+              skipHtml
+            >
+              {stabilizeStreamingMarkdown(streamingTable.after)}
+            </Streamdown>
+          ) : null}
+        </>
+      ) : (
+        <Streamdown
+          components={components}
+          controls={false}
+          isAnimating={streaming}
+          mode={streaming ? "streaming" : "static"}
+          parseIncompleteMarkdown={streaming}
+          skipHtml
+        >
+          {streaming ? stabilizeStreamingMarkdown(normalized) : normalized}
+        </Streamdown>
+      )}
+    </div>
+  )
+}
+
+function StreamingMarkdownTable({ lines }: { lines: string[] }) {
+  const { headers, rows, columnCount } = parseStreamingTableLines(lines)
+  if (!headers.length) {
+    return null
+  }
+
+  return (
+    <div className="markdown-table-scroll my-4 w-full max-w-full overflow-x-auto overscroll-x-contain rounded-[8px] border border-border bg-card">
+      <table className="w-full min-w-[46rem] table-auto border-separate border-spacing-0 text-left text-[14px] leading-6">
+        <thead className="[&_tr]:border-b">
+          <tr className="even:bg-muted/25">
+            {padTableCells(headers, columnCount).map((cell, index) => (
+              <th
+                className="min-w-[8.5rem] bg-muted/80 px-3.5 py-2.5 align-top font-semibold break-words text-foreground"
+                key={`header-${index}`}
+              >
+                {cell}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, rowIndex) => (
+            <tr className="even:bg-muted/25" key={`row-${rowIndex}`}>
+              {padTableCells(row, columnCount).map((cell, cellIndex) => (
+                <td
+                  className="min-w-[8.5rem] max-w-[24rem] border-t border-border px-3.5 py-2.5 align-top break-words"
+                  key={`row-${rowIndex}-cell-${cellIndex}`}
+                >
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -204,6 +277,68 @@ function stabilizeStreamingMarkdown(markdown: string) {
   }
 
   return stabilizeInlineMarkdown(stabilizeStreamingTableTail(normalized))
+}
+
+function splitStreamingTable(markdown: string) {
+  const lines = markdown.split("\n")
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]?.trim() ?? ""
+    if (!looksLikeStreamingTableStart(line, lines[index + 1]?.trim() ?? "")) {
+      continue
+    }
+    const endIndex = findStreamingTableEnd(lines, index)
+    return {
+      before: lines.slice(0, index).join("\n").trimEnd(),
+      tableLines: lines.slice(index, endIndex),
+      after: lines.slice(endIndex).join("\n").trimStart(),
+    }
+  }
+  return null
+}
+
+function findStreamingTableEnd(lines: string[], startIndex: number) {
+  let index = startIndex
+  for (; index < lines.length; index += 1) {
+    const line = lines[index]?.trim() ?? ""
+    if (!line) {
+      continue
+    }
+    if (!line.includes("|") && index > startIndex) {
+      break
+    }
+  }
+  return index
+}
+
+function parseStreamingTableLines(lines: string[]) {
+  const rows = lines
+    .map((line) => line.trim())
+    .filter((line) => line.includes("|"))
+    .map((line) => splitTableLine(line))
+
+  const headerIndex = rows.findIndex((row) => row.length >= 2)
+  const headers = headerIndex >= 0 ? rows[headerIndex] : []
+  const bodyRows = rows
+    .slice(headerIndex + 1)
+    .filter((row) => !row.every(isTableSeparatorCell))
+    .filter((row) => row.some((cell) => cell.trim()))
+  const columnCount = Math.max(
+    headers.length,
+    ...bodyRows.map((row) => row.length),
+    1
+  )
+
+  return { headers, rows: bodyRows, columnCount }
+}
+
+function looksLikeStreamingTableStart(line: string, nextLine: string) {
+  if (!line.includes("|")) {
+    return false
+  }
+  if (isTableSeparatorLine(nextLine) || isTableSeparatorFragment(nextLine)) {
+    return true
+  }
+  return line.startsWith("|") && splitTableLine(line).length >= 2
 }
 
 function findOpenCodeFence(markdown: string) {
@@ -332,6 +467,14 @@ function splitTableLine(line: string) {
     .replace(/\|?\s*$/, "")
     .split("|")
     .map((cell) => cell.trim())
+}
+
+function padTableCells(cells: string[], columnCount: number) {
+  const next = [...cells]
+  while (next.length < columnCount) {
+    next.push("")
+  }
+  return next
 }
 
 function stabilizeInlineMarkdown(markdown: string) {
