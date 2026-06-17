@@ -34,6 +34,8 @@ import type {
   FoodImageEstimateResponse,
   WorkoutShareCard,
   AgentToolConfig,
+  KnowledgeDocument,
+  KnowledgeSearchResponse,
 } from "@/entities/kratos/model/types"
 
 export const API_BASE_URL =
@@ -107,6 +109,68 @@ export async function uploadAttachment(token: string, file: File) {
 
 export async function uploadAvatar(token: string, file: File) {
   return uploadFile(token, "/uploads/avatar", file)
+}
+
+export async function listKnowledgeDocuments(token: string) {
+  return authorizedJson<KnowledgeDocument[]>("/knowledge-base/documents", token)
+}
+
+export async function createKnowledgeTextDocument(
+  token: string,
+  payload: { title: string; content: string; source_url?: string | null }
+) {
+  return authorizedJson<KnowledgeDocument>("/knowledge-base/documents/text", token, {
+    body: JSON.stringify(payload),
+    method: "POST",
+  })
+}
+
+export async function createKnowledgeUrlDocument(
+  token: string,
+  payload: { url: string; title?: string | null }
+) {
+  return authorizedJson<KnowledgeDocument>("/knowledge-base/documents/url", token, {
+    body: JSON.stringify(payload),
+    method: "POST",
+  })
+}
+
+export async function uploadKnowledgeDocument(token: string, file: File) {
+  const formData = new FormData()
+  formData.set("file", file)
+
+  const response = await fetch(`${API_BASE_URL}/knowledge-base/documents/upload`, {
+    body: formData,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    method: "POST",
+  })
+
+  const payload = await response.json().catch(() => null as unknown)
+  if (!response.ok) {
+    throw new Error(extractApiError(payload) ?? `上传失败：${response.status}`)
+  }
+
+  return payload as KnowledgeDocument
+}
+
+export async function updateKnowledgeDocumentActive(
+  token: string,
+  documentId: number,
+  isActive: boolean
+) {
+  return authorizedJson<KnowledgeDocument>(`/knowledge-base/documents/${documentId}`, token, {
+    body: JSON.stringify({ is_active: isActive }),
+    method: "PATCH",
+  })
+}
+
+export async function searchKnowledgeBase(token: string, query: string, limit = 6) {
+  return authorizedJson<KnowledgeSearchResponse>("/knowledge-base/search", token, {
+    body: JSON.stringify({ query, limit }),
+    method: "POST",
+  })
 }
 
 export async function estimateDietFromImage(token: string, file: File) {

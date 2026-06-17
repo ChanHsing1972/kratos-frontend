@@ -106,6 +106,7 @@ import { BodyDataPage } from "@/pages/kratos/BodyDataPage"
 import { ConversationDetailPage } from "@/pages/kratos/ConversationDetailPage"
 import { DietIntakePage } from "@/pages/kratos/DietIntakePage"
 import { EvaluationPage } from "@/pages/kratos/EvaluationPage"
+import { KnowledgeBasePage } from "@/pages/kratos/KnowledgeBasePage"
 import { NewConversationPage } from "@/pages/kratos/NewConversationPage"
 import { SkillPanelPage } from "@/pages/kratos/SkillPanelPage"
 import { TrainingPlanPage } from "@/pages/kratos/TrainingPlanPage"
@@ -3280,6 +3281,10 @@ export function KratosPage() {
           submitting={skillSubmitting}
         />
       )
+    }
+
+    if (activeNav === "知识库") {
+      return <KnowledgeBasePage onLogin={() => openAuth("login")} />
     }
 
     if (activeNav === "评估平台") {

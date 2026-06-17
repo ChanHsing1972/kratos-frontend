@@ -117,9 +117,9 @@ export function ThinkingCard({
       <Dialog open={Boolean(evidenceStep)} onOpenChange={(open) => !open && setEvidenceStep(null)}>
         <DialogContent className="max-h-md sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>工具依据</DialogTitle>
+            <DialogTitle>依据</DialogTitle>
             <DialogDescription>
-              本次推理中对应步骤的原始工具参数或返回结果。
+              本次推理中对应步骤的原始参数、返回结果或知识库命中片段。
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[56svh] rounded-md border bg-muted/40">
@@ -176,7 +176,7 @@ function TimelineRow({
               type="button"
               variant="outline"
             >
-              查看工具依据
+              查看依据
             </Button>
           ) : null}
         </div>

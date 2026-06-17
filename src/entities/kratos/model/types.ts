@@ -230,6 +230,40 @@ export type AgentToolConfig = {
   updated_at: string
 }
 
+export type KnowledgeDocument = {
+  id: number
+  title: string
+  source_type: string
+  source_url?: string | null
+  file_url?: string | null
+  status: string
+  is_active: boolean
+  chunk_count: number
+  created_by?: number | null
+  created_at: string
+  updated_at: string
+}
+
+export type KnowledgeSearchHit = {
+  chunk_id: number
+  chunk_index: number
+  document_id: number
+  document_title: string
+  content: string
+  citation: string
+  score?: number | null
+  source_title?: string | null
+  source_url?: string | null
+  page_number?: number | null
+}
+
+export type KnowledgeSearchResponse = {
+  query: string
+  count: number
+  hits: KnowledgeSearchHit[]
+  metadata: Record<string, unknown>
+}
+
 export type FitnessProfile = {
   id: number
   user_id: number
