@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 
 import {
-  getCurrentHyperateHeartRate,
+  getCurrentHeartRate,
   saveWorkoutHeartRateSample,
 } from "@/entities/kratos/api/client"
 
@@ -11,7 +11,6 @@ export type LiveHeartRateStatus =
   | "live"
   | "no_data"
   | "disconnected"
-  | "unbound"
 
 export type LiveHeartRateState = {
   bpm: number | null
@@ -23,7 +22,6 @@ export type LiveHeartRateState = {
 
 type UseLiveHeartRateOptions = {
   enabled: boolean
-  hasHyperateId: boolean
   intervalMs?: number
   token: string | null
   workoutSessionId: number | null
@@ -33,14 +31,13 @@ const IDLE_READING: LiveHeartRateState = {
   bpm: null,
   detail: null,
   recordedAt: null,
-  source: "hyperate",
+  source: "sport_app",
   status: "idle",
 }
 
-// Polls through the backend so HypeRate failures remain isolated from training.
+// Polls the latest app-uploaded heart rate, then stores it into the active workout.
 export function useLiveHeartRate({
   enabled,
-  hasHyperateId,
   intervalMs = 1000,
   token,
   workoutSessionId,
@@ -50,15 +47,6 @@ export function useLiveHeartRate({
   useEffect(() => {
     if (!enabled) {
       setReading(IDLE_READING)
-      return undefined
-    }
-
-    if (!hasHyperateId) {
-      setReading({
-        ...IDLE_READING,
-        detail: "当前账号未绑定 HypeRate ID",
-        status: "unbound",
-      })
       return undefined
     }
 
@@ -95,7 +83,7 @@ export function useLiveHeartRate({
       )
 
       try {
-        const current = await getCurrentHyperateHeartRate(
+        const current = await getCurrentHeartRate(
           token,
           controller.signal
         )
@@ -103,7 +91,7 @@ export function useLiveHeartRate({
           return
         }
 
-        const nextStatus = mapHyperateStatus(current.status)
+        const nextStatus = mapCurrentHeartRateStatus(current.status)
         setReading({
           bpm: current.bpm,
           detail: current.detail ?? null,
@@ -146,15 +134,15 @@ export function useLiveHeartRate({
         window.clearTimeout(timeoutId)
       }
     }
-  }, [enabled, hasHyperateId, intervalMs, token, workoutSessionId])
+  }, [enabled, intervalMs, token, workoutSessionId])
 
   return reading
 }
 
-function mapHyperateStatus(status: string): LiveHeartRateStatus {
+function mapCurrentHeartRateStatus(status: string): LiveHeartRateStatus {
   if (status === "ok") return "live"
-  if (status === "unbound") return "unbound"
   if (status === "no_data") return "no_data"
+  if (status === "stale") return "disconnected"
   return "disconnected"
 }
 

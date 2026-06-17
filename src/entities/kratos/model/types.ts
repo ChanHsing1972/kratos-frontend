@@ -519,6 +519,15 @@ export type HyperateCurrentHeartRate = {
   detail?: string | null
 }
 
+export type CurrentHeartRate = {
+  bpm: number | null
+  source: string
+  recorded_at: string
+  received_at?: string | null
+  status: "ok" | "no_data" | "stale"
+  detail?: string | null
+}
+
 export type HeartRateSamplePayload = {
   bpm: number
   source?: string

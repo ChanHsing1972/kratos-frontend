@@ -29,6 +29,7 @@ import type {
   WorkoutLog,
   WorkoutLogPayload,
   ChatAttachment,
+  CurrentHeartRate,
   DietRecord,
   DietRecordPayload,
   FoodImageEstimateResponse,
@@ -355,6 +356,17 @@ export async function getCurrentHyperateHeartRate(
 ) {
   return authorizedJson<HyperateCurrentHeartRate>(
     "/integrations/hyperate/current",
+    token,
+    { signal }
+  )
+}
+
+export async function getCurrentHeartRate(
+  token: string,
+  signal?: AbortSignal
+) {
+  return authorizedJson<CurrentHeartRate>(
+    "/heart-rate/current",
     token,
     { signal }
   )

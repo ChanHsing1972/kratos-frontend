@@ -668,7 +668,6 @@ export function KratosPage() {
       activeNav === "训练计划" &&
       trainingStarted &&
       Boolean(trainingSession?.logId),
-    hasHyperateId: Boolean(fitnessProfile?.hyperate_id?.trim()),
     token: authToken,
     workoutSessionId: trainingSession?.logId ?? null,
   })
