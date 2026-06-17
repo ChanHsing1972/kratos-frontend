@@ -9,7 +9,7 @@ import { Button } from "@/shared/ui/button"
 import { Dialog, DialogClose, DialogContent } from "@/shared/ui/dialog"
 import { Spinner } from "@/shared/ui/spinner"
 
-const SHARE_CARD_WIDTH = 432
+const SHARE_CARD_WIDTH = 500
 const SHARE_CARD_MIN_HEIGHT = 560
 
 type TrainingShareCardDialogProps = {
@@ -157,7 +157,7 @@ export function TrainingShareCardPreview({
             />
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-3">
             <MiniFact
               label="周累计时长"
               value={weekDuration.value}
@@ -190,14 +190,14 @@ export function TrainingShareCardPreview({
             </div>
           ) : null}
 
-          <blockquote className="mt-4 rounded-2xl bg-[#242424]/80 p-4 text-base leading-7 font-semibold text-white">
-            <span className="-mb-1 block text-[11px] font-black tracking-[0.2em] text-[#f5ff66] uppercase">
+          <blockquote className="mt-3 rounded-2xl bg-[#242424]/80 p-4 text-base leading-6 font-semibold text-white">
+            <span className="mb-1 block text-[11px] font-black tracking-[0.2em] text-[#f5ff66] uppercase">
               Kratos says
             </span>
             {card.coach_comment}
           </blockquote>
 
-          <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4 text-[11px] tracking-[0.18em] text-white/50 uppercase">
+          <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-4 text-[11px] tracking-[0.18em] text-white/50 uppercase">
             <span>KRATOS</span>
             <span>让健身更智能，让训练更高效</span>
           </div>
