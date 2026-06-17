@@ -283,10 +283,7 @@ function UserBubbleSkeleton({ compact = false }: { compact?: boolean }) {
 function AssistantBubbleSkeleton() {
   return (
     <div className="bg-card pt-0 pb-4">
-      <div className="flex gap-4">
-        <div className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
-          <span className="text-[18px] font-black">K</span>
-        </div>
+      <div className="flex">
         <div className="min-w-0 flex-1">
           <Skeleton className="h-4 w-20 rounded-[8px]" />
           <div className="mt-3 rounded-[12px] border border-border bg-muted/40 px-4 py-4">

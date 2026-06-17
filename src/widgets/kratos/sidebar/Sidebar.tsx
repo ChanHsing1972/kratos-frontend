@@ -66,7 +66,7 @@ export function Sidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               aria-label={collapsed ? "打开侧边栏" : "新建对话"}
-              className="group/brand pr-2"
+              className="group/brand justify-start pr-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
               onClick={() => {
                 if (collapsed) {
                   onExpand()
@@ -78,16 +78,18 @@ export function Sidebar({
               tooltip={collapsed ? "打开侧边栏" : "新建对话"}
               type="button"
             >
-              <div className="relative hidden aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary font-black text-sidebar-primary-foreground transition-all duration-200 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:cursor-e-resize group-data-[collapsible=icon]:hover:bg-sidebar-accent group-data-[collapsible=icon]:hover:text-sidebar-accent-foreground">
-                <span className="transition-opacity duration-150 group-hover/brand:opacity-0">
-                  K
-                </span>
+              <div className="relative hidden aspect-square size-8 items-center justify-center overflow-hidden rounded-lg transition-all duration-200 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:cursor-e-resize group-data-[collapsible=icon]:hover:bg-sidebar-accent group-data-[collapsible=icon]:hover:text-sidebar-accent-foreground">
+                <img
+                  alt="Kratos"
+                  className="size-7 object-contain transition-opacity duration-150 dark:invert group-hover/brand:opacity-0"
+                  src="/logo.png"
+                />
                 <PanelLeftOpen
                   aria-hidden="true"
                   className="absolute size-4 opacity-0 transition-opacity duration-150 group-hover/brand:opacity-100"
                 />
               </div>
-              <div className="grid flex-1 text-left text-lg leading-tight opacity-100 transition-[opacity,transform] duration-200 ease-out group-data-[collapsible=icon]:opacity-0">
+              <div className="grid flex-1 text-left text-lg leading-tight opacity-100 transition-[opacity,transform] duration-200 ease-out group-data-[collapsible=icon]:hidden group-data-[collapsible=icon]:opacity-0">
                 <span className="truncate text-[24px] font-black tracking-[-0.06em]">
                   Kratos
                 </span>

@@ -99,13 +99,7 @@ export function ChatBubble({
   return (
     <section className="bg-card pt-0 pb-4">
       <div className="flex gap-4">
-        <div className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
-          <span className="text-[18px] font-black">K</span>
-        </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-4">
-            <h3 className="text-[14px] leading-5 font-bold">Kratos</h3>
-          </div>
           {message.trace?.length ? (
             <div className="mt-3">
               <ThinkingCard

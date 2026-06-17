@@ -1535,7 +1535,6 @@ export function KratosPage() {
     pushWorkspacePath("/chat/new")
     setConversationLoading(false)
     setSidebarDrawerOpen(false)
-    sonnerToast.success("已新建对话")
   }
 
   const handleSelectConversation = async (sessionId: string) => {
