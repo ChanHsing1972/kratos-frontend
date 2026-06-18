@@ -86,7 +86,9 @@ type BodyDataPageProps = {
   latestMetric: BodyMetric | null
   onAddData: () => void
   onExportBodyData: () => void
-  onLoadWorkoutHeartRateSummary: (log: WorkoutLog) => Promise<HeartRateSummary | null>
+  onLoadWorkoutHeartRateSummary: (
+    log: WorkoutLog
+  ) => Promise<HeartRateSummary | null>
   workoutLogs: WorkoutLog[]
 }
 
@@ -99,6 +101,13 @@ type MetricPoint = {
 type RangeId = "week" | "month" | "half-year" | "year"
 type MetricKind = "line" | "bar"
 
+type RangeOption = {
+  id: RangeId
+  label: string
+  days: number
+  maxPoints: number
+}
+
 type MetricDefinition<T extends string> = {
   id: T
   key: string
@@ -110,12 +119,25 @@ type MetricDefinition<T extends string> = {
 const BODY_IMPORTANT_KEY = "kratos-important-body-metrics-v1"
 const HEALTH_IMPORTANT_KEY = "kratos-important-health-metrics-v3"
 const DEFAULT_BODY_IMPORTANT = ["weight", "bmi"]
-const DEFAULT_HEALTH_IMPORTANT = ["steps", "sleep", "active-kcal", "resting-hr", "vo2", "spo2"]
+const DEFAULT_HEALTH_IMPORTANT = [
+  "steps",
+  "sleep",
+  "active-kcal",
+  "resting-hr",
+  "vo2",
+  "spo2",
+]
 
 const BODY_METRIC_DEFS: MetricDefinition<string>[] = [
   { id: "weight", key: "weight_kg", kind: "line", label: "体重", unit: "kg" },
   { id: "bmi", key: "bmi", kind: "line", label: "BMI", unit: "" },
-  { id: "body-fat", key: "body_fat_percentage", kind: "line", label: "体脂率", unit: "%" },
+  {
+    id: "body-fat",
+    key: "body_fat_percentage",
+    kind: "line",
+    label: "体脂率",
+    unit: "%",
+  },
   { id: "height", key: "height_cm", kind: "line", label: "身高", unit: "cm" },
   { id: "waist", key: "waist_cm", kind: "line", label: "腰围", unit: "cm" },
   { id: "hip", key: "hip_cm", kind: "line", label: "臀围", unit: "cm" },
@@ -127,21 +149,57 @@ const BODY_METRIC_DEFS: MetricDefinition<string>[] = [
 
 const HEALTH_METRIC_DEFS: MetricDefinition<string>[] = [
   { id: "steps", key: "steps", kind: "bar", label: "步数", unit: "步" },
-  { id: "sleep", key: "sleep_hours", kind: "bar", label: "睡眠时长", unit: "h" },
-  { id: "active-kcal", key: "active_kcal", kind: "bar", label: "活动消耗", unit: "kcal" },
-  { id: "diet-kcal", key: "dietary_kcal", kind: "bar", label: "饮食摄入", unit: "kcal" },
+  {
+    id: "sleep",
+    key: "sleep_hours",
+    kind: "bar",
+    label: "睡眠时长",
+    unit: "h",
+  },
+  {
+    id: "active-kcal",
+    key: "active_kcal",
+    kind: "bar",
+    label: "活动消耗",
+    unit: "kcal",
+  },
+  {
+    id: "diet-kcal",
+    key: "dietary_kcal",
+    kind: "bar",
+    label: "饮食摄入",
+    unit: "kcal",
+  },
   { id: "hrv", key: "hrv_ms", kind: "line", label: "HRV", unit: "ms" },
-  { id: "stress", key: "stress_level", kind: "line", label: "压力", unit: "/10" },
-  { id: "resting-hr", key: "resting_heart_rate", kind: "line", label: "静息心率", unit: "bpm" },
+  {
+    id: "stress",
+    key: "stress_level",
+    kind: "line",
+    label: "压力",
+    unit: "/10",
+  },
+  {
+    id: "resting-hr",
+    key: "resting_heart_rate",
+    kind: "line",
+    label: "静息心率",
+    unit: "bpm",
+  },
   { id: "vo2", key: "vo2_max", kind: "line", label: "最大摄氧量", unit: "" },
-  { id: "spo2", key: "blood_oxygen_percentage", kind: "line", label: "血氧饱和度", unit: "%" },
+  {
+    id: "spo2",
+    key: "blood_oxygen_percentage",
+    kind: "line",
+    label: "血氧饱和度",
+    unit: "%",
+  },
 ]
 
-const RANGE_OPTIONS: Array<{ id: RangeId; label: string; days: number }> = [
-  { id: "week", label: "近一周", days: 7 },
-  { id: "month", label: "近一月", days: 31 },
-  { id: "half-year", label: "近半年", days: 183 },
-  { id: "year", label: "近一年", days: 365 },
+const RANGE_OPTIONS: RangeOption[] = [
+  { id: "week", label: "近一周", days: 7, maxPoints: 7 },
+  { id: "month", label: "近一月", days: 31, maxPoints: 16 },
+  { id: "half-year", label: "近半年", days: 183, maxPoints: 24 },
+  { id: "year", label: "近一年", days: 365, maxPoints: 24 },
 ]
 
 const DONUT_OPACITIES = [1, 0.78, 0.6, 0.45, 0.34, 0.26]
@@ -201,9 +259,19 @@ export function BodyDataPage({
           definitions={BODY_METRIC_DEFS}
           emptyIcon={<Scale />}
           importantIds={importantBody}
-          latestLabel={latestMetric ? formatFullDate(latestMetric.measured_at ?? latestMetric.recorded_at) : "暂无记录"}
-          onToggleImportant={(id) => setImportantBody(toggleMetricId(importantBody, id))}
-          renderSeries={(definition) => getBodySeries(bodyMetrics, definition.key)}
+          latestLabel={
+            latestMetric
+              ? formatFullDate(
+                  latestMetric.measured_at ?? latestMetric.recorded_at
+                )
+              : "暂无记录"
+          }
+          onToggleImportant={(id) =>
+            setImportantBody(toggleMetricId(importantBody, id))
+          }
+          renderSeries={(definition, range) =>
+            getBodySeries(bodyMetrics, definition.key, range)
+          }
           title="身体指标"
         />
 
@@ -211,10 +279,19 @@ export function BodyDataPage({
           definitions={HEALTH_METRIC_DEFS}
           emptyIcon={<HeartPulse />}
           importantIds={importantHealth}
-          latestLabel={latestHealthMetric ? formatFullDate(latestHealthMetric.measured_at ?? latestHealthMetric.recorded_at) : "暂无记录"}
-          onToggleImportant={(id) => setImportantHealth(toggleMetricId(importantHealth, id))}
-          renderSeries={(definition) =>
-            getHealthSeries(healthMetrics, dietRecords, definition.key)
+          latestLabel={
+            latestHealthMetric
+              ? formatFullDate(
+                  latestHealthMetric.measured_at ??
+                    latestHealthMetric.recorded_at
+                )
+              : "暂无记录"
+          }
+          onToggleImportant={(id) =>
+            setImportantHealth(toggleMetricId(importantHealth, id))
+          }
+          renderSeries={(definition, range) =>
+            getHealthSeries(healthMetrics, dietRecords, definition.key, range)
           }
           title="健康数据"
         />
@@ -230,7 +307,8 @@ export function BodyDataPage({
 
 function ExerciseOverview({ logs }: { logs: WorkoutLog[] }) {
   const [range, setRange] = useState<RangeId>("week")
-  const rangeOption = RANGE_OPTIONS.find((item) => item.id === range) ?? RANGE_OPTIONS[0]
+  const rangeOption =
+    RANGE_OPTIONS.find((item) => item.id === range) ?? RANGE_OPTIONS[0]
   const rangeLogs = filterLogsByRange(logs, rangeOption.days)
   const stats = buildExerciseStats(rangeLogs)
   const timeData = buildTimePreferenceData(rangeLogs)
@@ -238,21 +316,15 @@ function ExerciseOverview({ logs }: { logs: WorkoutLog[] }) {
 
   return (
     <section className="mt-10">
-      <Tabs value={range} onValueChange={(value) => setRange(value as RangeId)} >
+      <Tabs value={range} onValueChange={(value) => setRange(value as RangeId)}>
         <div className="flex items-center justify-between">
-          <SectionHeader
-            description=""
-            title="运动总览"
-          />
+          <SectionHeader description="" title="运动总览" />
           <TabsList
             className="grid h-auto w-full grid-cols-2 bg-transparent p-0 sm:w-auto sm:grid-cols-4"
             variant="line"
           >
             {RANGE_OPTIONS.map((item) => (
-              <TabsTrigger
-                key={item.id}
-                value={item.id}
-              >
+              <TabsTrigger key={item.id} value={item.id}>
                 {item.label}
               </TabsTrigger>
             ))}
@@ -261,10 +333,26 @@ function ExerciseOverview({ logs }: { logs: WorkoutLog[] }) {
         {RANGE_OPTIONS.map((item) => (
           <TabsContent className="mt-6" key={item.id} value={item.id}>
             <div className="grid gap-x-8 gap-y-5 sm:grid-cols-4">
-              <OverviewStat icon={<Dumbbell />} label="总运动次数" value={`${stats.count} 次`} />
-              <OverviewStat icon={<Timer />} label="总运动时长" value={formatDuration(stats.seconds)} />
-              <OverviewStat icon={<Flame />} label="总消耗热量" value={`${stats.calories} kcal`} />
-              <OverviewStat icon={<Trophy />} label="累计运动天数" value={`${stats.days} 天`} />
+              <OverviewStat
+                icon={<Dumbbell />}
+                label="总运动次数"
+                value={`${stats.count} 次`}
+              />
+              <OverviewStat
+                icon={<Timer />}
+                label="总运动时长"
+                value={formatDuration(stats.seconds)}
+              />
+              <OverviewStat
+                icon={<Flame />}
+                label="总消耗热量"
+                value={`${stats.calories} kcal`}
+              />
+              <OverviewStat
+                icon={<Trophy />}
+                label="累计运动天数"
+                value={`${stats.days} 天`}
+              />
             </div>
             <div className="mt-8 grid gap-10 lg:grid-cols-2">
               <ChartPanel title="运动时间偏好">
@@ -295,67 +383,103 @@ function MetricSection({
   importantIds: string[]
   latestLabel: string
   onToggleImportant: (id: string) => void
-  renderSeries: (definition: MetricDefinition<string>) => MetricPoint[]
+  renderSeries: (
+    definition: MetricDefinition<string>,
+    range: RangeOption
+  ) => MetricPoint[]
   title: string
 }) {
+  const [range, setRange] = useState<RangeId>("month")
+  const rangeOption =
+    RANGE_OPTIONS.find((item) => item.id === range) ?? RANGE_OPTIONS[1]
   const importantDefinitions = definitions.filter((definition) =>
     importantIds.includes(definition.id)
   )
-  const moreDefinitions = definitions.filter((definition) =>
-    !importantIds.includes(definition.id)
+  const moreDefinitions = definitions.filter(
+    (definition) => !importantIds.includes(definition.id)
   )
 
   return (
     <section className="mt-12">
-      <SectionHeader description={`最近记录：${latestLabel}`} title={title} />
-      {importantDefinitions.length ? (
-        <div className="mt-6 grid gap-x-6 gap-y-8 lg:grid-cols-2">
-          {importantDefinitions.map((definition) => (
-            <MetricChartPanel
-              definition={definition}
-              important
-              key={definition.id}
-              onToggleImportant={onToggleImportant}
-              series={renderSeries(definition)}
-            />
-          ))}
+      <Tabs value={range} onValueChange={(value) => setRange(value as RangeId)}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <SectionHeader
+            description={`最近记录：${latestLabel}`}
+            title={title}
+          />
+          <RangeTabs />
         </div>
-      ) : (
-        <Empty className="mt-4 min-h-52 bg-transparent border border-dashed">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">{emptyIcon}</EmptyMedia>
-            <EmptyTitle>暂无重要指标</EmptyTitle>
-            <EmptyDescription>在更多指标中标记重要后会显示在这里。</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      )}
-
-      <Accordion className="mt-4" collapsible type="single">
-        <AccordionItem className="border-0" value="more">
-          <div className="flex justify-end">
-            <AccordionTrigger className="inline-flex h-9 w-auto flex-none items-center justify-center gap-1 rounded-md px-3 text-sm shadow-none hover:bg-accent hover:text-accent-foreground hover:no-underline data-[state=open]:bg-accent data-[state=open]:text-accent-foreground [&>svg]:ml-1 [&>svg]:size-4 [&>svg]:shrink-0">
-              <span>更多指标</span>
-              <Badge className="h-5 min-w-5 justify-center rounded-full" variant="outline">
-                {moreDefinitions.length}
-              </Badge>
-            </AccordionTrigger>
-          </div>
-          <AccordionContent>
-            <div className="grid gap-x-10 gap-y-10 pt-5 lg:grid-cols-2">
-              {moreDefinitions.map((definition) => (
+        <TabsContent className="mt-0" value={range}>
+          {importantDefinitions.length ? (
+            <div className="mt-6 grid gap-x-6 gap-y-8 lg:grid-cols-2">
+              {importantDefinitions.map((definition) => (
                 <MetricChartPanel
                   definition={definition}
-                  important={false}
+                  important
                   key={definition.id}
                   onToggleImportant={onToggleImportant}
-                  series={renderSeries(definition)}
+                  series={renderSeries(definition, rangeOption)}
                 />
               ))}
             </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+          ) : (
+            <Empty className="mt-4 min-h-52 border border-dashed bg-transparent">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">{emptyIcon}</EmptyMedia>
+                <EmptyTitle>暂无重要指标</EmptyTitle>
+                <EmptyDescription>
+                  在更多指标中标记重要后会显示在这里。
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
+
+          <Accordion className="mt-4" collapsible type="single">
+            <AccordionItem className="border-0" value="more">
+              <div className="flex justify-end">
+                <AccordionTrigger className="inline-flex h-9 w-auto flex-none items-center justify-center gap-1 rounded-md px-3 text-sm shadow-none hover:bg-accent hover:text-accent-foreground hover:no-underline data-[state=open]:bg-accent data-[state=open]:text-accent-foreground [&>svg]:ml-1 [&>svg]:size-4 [&>svg]:shrink-0">
+                  <span>更多指标</span>
+                  <Badge
+                    className="h-5 min-w-5 justify-center rounded-full"
+                    variant="outline"
+                  >
+                    {moreDefinitions.length}
+                  </Badge>
+                </AccordionTrigger>
+              </div>
+              <AccordionContent>
+                <div className="grid gap-x-10 gap-y-10 pt-5 lg:grid-cols-2">
+                  {moreDefinitions.map((definition) => (
+                    <MetricChartPanel
+                      definition={definition}
+                      important={false}
+                      key={definition.id}
+                      onToggleImportant={onToggleImportant}
+                      series={renderSeries(definition, rangeOption)}
+                    />
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </TabsContent>
+      </Tabs>
     </section>
+  )
+}
+
+function RangeTabs() {
+  return (
+    <TabsList
+      className="grid h-auto w-full grid-cols-2 bg-transparent p-0 sm:w-auto sm:grid-cols-4"
+      variant="line"
+    >
+      {RANGE_OPTIONS.map((item) => (
+        <TabsTrigger key={item.id} value={item.id}>
+          {item.label}
+        </TabsTrigger>
+      ))}
+    </TabsList>
   )
 }
 
@@ -374,7 +498,9 @@ function MetricChartPanel({
     <section className="min-w-0">
       <div className="flex flex-row items-start justify-between gap-4">
         <div>
-          <h3 className="text-sm font-medium text-muted-foreground">{definition.label}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">
+            {definition.label}
+          </h3>
           <p className="mt-1 text-2xl font-medium tracking-tight">
             {formatLatest(series, definition.unit)}
           </p>
@@ -422,58 +548,153 @@ function MetricMiniChart({
   const chartData = hasData ? series : EMPTY_CHART_POINTS
   const yDomain = hasData ? metricDomain(series, unit) : [0, 1]
   const yTicks = hasData ? undefined : [0, 0.25, 0.5, 0.75, 1]
+  const showDots = hasData && series.length <= 16
+  const xAxisGap = series.length > 16 ? 32 : 18
 
   return (
     <div className="relative mt-0 h-56 w-full">
       <ChartContainer
-        className="h-full w-full !aspect-auto"
+        className="!aspect-auto h-full w-full"
         config={chartConfig}
         initialDimension={{ height: 224, width: 460 }}
       >
         {kind === "bar" ? (
-          <BarChart data={chartData} barCategoryGap="25%" margin={{ bottom: 0, left: 16, right: 8, top: 18 }}>
+          <BarChart
+            data={chartData}
+            barCategoryGap="25%"
+            margin={{ bottom: 0, left: 16, right: 8, top: 18 }}
+          >
             <defs>
               <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="var(--foreground)" stopOpacity={0.9} />
-                <stop offset="100%" stopColor="var(--foreground)" stopOpacity={0.34} />
+                <stop
+                  offset="0%"
+                  stopColor="var(--foreground)"
+                  stopOpacity={0.9}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="var(--foreground)"
+                  stopOpacity={0.34}
+                />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 20%, transparent)" strokeDasharray="4 8" vertical={false} />
-            <XAxis axisLine={false} dataKey="label" minTickGap={18} tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
-            <YAxis allowDecimals={hasData} axisLine={false} domain={yDomain} tick={{ fontSize: 12 }} tickFormatter={(value: number) => hasData ? formatAxisTick(value, unit) : formatNumber(value)} tickLine={false} tickMargin={8} ticks={yTicks} width={36} />
+            <CartesianGrid
+              stroke="color-mix(in oklch, var(--muted-foreground) 20%, transparent)"
+              strokeDasharray="4 8"
+              vertical={false}
+            />
+            <XAxis
+              axisLine={false}
+              dataKey="label"
+              interval="preserveStartEnd"
+              minTickGap={xAxisGap}
+              tick={{ fontSize: 12 }}
+              tickLine={false}
+              tickMargin={10}
+            />
+            <YAxis
+              allowDecimals={hasData}
+              axisLine={false}
+              domain={yDomain}
+              tick={{ fontSize: 12 }}
+              tickFormatter={(value: number) =>
+                hasData ? formatAxisTick(value, unit) : formatNumber(value)
+              }
+              tickLine={false}
+              tickMargin={8}
+              ticks={yTicks}
+              width={36}
+            />
             {hasData ? (
-              <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ fill: "color-mix(in oklch, var(--muted-foreground) 6%, transparent)" }} />
+              <ChartTooltip
+                content={<ChartTooltipContent indicator="dot" />}
+                cursor={{
+                  fill: "color-mix(in oklch, var(--muted-foreground) 6%, transparent)",
+                }}
+              />
             ) : null}
-            <Bar dataKey="value" fill={`url(#${gradientId})`} fillOpacity={hasData ? 1 : 0} maxBarSize={38} radius={[5, 5, 5, 5]} />
+            <Bar
+              dataKey="value"
+              fill={`url(#${gradientId})`}
+              fillOpacity={hasData ? 1 : 0}
+              maxBarSize={38}
+              radius={[5, 5, 5, 5]}
+            />
           </BarChart>
         ) : (
-          <AreaChart data={chartData} margin={{ bottom: 0, left: 0, right: 12, top: 18 }}>
+          <AreaChart
+            data={chartData}
+            margin={{ bottom: 0, left: 0, right: 12, top: 18 }}
+          >
             <defs>
               <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="var(--foreground)" stopOpacity={0.2} />
-                <stop offset="100%" stopColor="var(--foreground)" stopOpacity={0} />
+                <stop
+                  offset="0%"
+                  stopColor="var(--foreground)"
+                  stopOpacity={0.2}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="var(--foreground)"
+                  stopOpacity={0}
+                />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 22%, transparent)" strokeDasharray="3 5" vertical={false} />
-            <XAxis axisLine={false} dataKey="label" minTickGap={18} tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
-            <YAxis axisLine={false} domain={yDomain} tick={{ fontSize: 12 }} tickCount={hasData ? 4 : undefined} tickFormatter={(value: number) => hasData ? formatAxisTick(value, unit) : formatNumber(value)} tickLine={false} tickMargin={8} ticks={yTicks} width={52} />
+            <CartesianGrid
+              stroke="color-mix(in oklch, var(--muted-foreground) 22%, transparent)"
+              strokeDasharray="3 5"
+              vertical={false}
+            />
+            <XAxis
+              axisLine={false}
+              dataKey="label"
+              interval="preserveStartEnd"
+              minTickGap={xAxisGap}
+              tick={{ fontSize: 12 }}
+              tickLine={false}
+              tickMargin={10}
+            />
+            <YAxis
+              axisLine={false}
+              domain={yDomain}
+              tick={{ fontSize: 12 }}
+              tickCount={hasData ? 4 : undefined}
+              tickFormatter={(value: number) =>
+                hasData ? formatAxisTick(value, unit) : formatNumber(value)
+              }
+              tickLine={false}
+              tickMargin={8}
+              ticks={yTicks}
+              width={52}
+            />
             {hasData ? (
-              <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={<ChartCursorBand />} />
+              <ChartTooltip
+                content={<ChartTooltipContent indicator="dot" />}
+                cursor={<ChartCursorBand />}
+              />
             ) : null}
             <Area
-              activeDot={hasData ? {
-                fill: "var(--color-value)",
-                r: 4,
-                strokeWidth: 2,
-              } : false}
+              activeDot={
+                hasData
+                  ? {
+                      fill: "var(--color-value)",
+                      r: 4,
+                      strokeWidth: 2,
+                    }
+                  : false
+              }
               connectNulls={false}
               dataKey="value"
-              dot={hasData ? {
-                fill: "var(--background)",
-                r: 4,
-                stroke: "var(--color-value)",
-                strokeWidth: 2,
-              } : false}
+              dot={
+                showDots
+                  ? {
+                      fill: "var(--background)",
+                      r: 4,
+                      stroke: "var(--color-value)",
+                      strokeWidth: 2,
+                    }
+                  : false
+              }
               fill={`url(#${gradientId})`}
               fillOpacity={hasData ? 1 : 0}
               stroke="var(--color-value)"
@@ -494,17 +715,23 @@ function MetricMiniChart({
   )
 }
 
-function PreferenceBarChart({ data }: { data: Array<{ label: string; value: number }> }) {
+function PreferenceBarChart({
+  data,
+}: {
+  data: Array<{ label: string; value: number }>
+}) {
   const gradientId = useSvgId("time-gradient")
   if (!data.some((item) => item.value > 0)) {
     return (
-      <Empty className="h-72 bg-transparent border border-dashed">
+      <Empty className="h-72 border border-dashed bg-transparent">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <Dumbbell />
           </EmptyMedia>
           <EmptyTitle>暂无运动时间偏好</EmptyTitle>
-          <EmptyDescription>保存训练记录后会生成运动时间偏好。</EmptyDescription>
+          <EmptyDescription>
+            保存训练记录后会生成运动时间偏好。
+          </EmptyDescription>
         </EmptyHeader>
       </Empty>
     )
@@ -514,35 +741,80 @@ function PreferenceBarChart({ data }: { data: Array<{ label: string; value: numb
   } satisfies ChartConfig
 
   return (
-    <ChartContainer className="h-72 w-full !aspect-auto" config={chartConfig} initialDimension={{ height: 288, width: 620 }}>
-      <BarChart data={data} barCategoryGap="25%" margin={{ bottom: 0, left: 0, right: 8, top: 18 }}>
+    <ChartContainer
+      className="!aspect-auto h-72 w-full"
+      config={chartConfig}
+      initialDimension={{ height: 288, width: 620 }}
+    >
+      <BarChart
+        data={data}
+        barCategoryGap="25%"
+        margin={{ bottom: 0, left: 0, right: 8, top: 18 }}
+      >
         <defs>
           <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="var(--foreground)" stopOpacity={0.9} />
-            <stop offset="100%" stopColor="var(--foreground)" stopOpacity={0.34} />
+            <stop
+              offset="100%"
+              stopColor="var(--foreground)"
+              stopOpacity={0.34}
+            />
           </linearGradient>
         </defs>
-        <CartesianGrid stroke="color-mix(in oklch, var(--muted-foreground) 20%, transparent)" strokeDasharray="4 8" vertical={false} />
-        <XAxis axisLine={false} dataKey="label" tick={{ fontSize: 12 }} tickLine={false} tickMargin={10} />
-        <YAxis allowDecimals={false} axisLine={false} tick={{ fontSize: 12 }} tickLine={false} tickMargin={8} width={36} />
-        <ChartTooltip content={<ChartTooltipContent indicator="dot" />} cursor={{ fill: "color-mix(in oklch, var(--muted-foreground) 6%, transparent)" }} />
-        <Bar dataKey="value" fill={`url(#${gradientId})`} maxBarSize={38} radius={[5, 5, 5, 5]} />
+        <CartesianGrid
+          stroke="color-mix(in oklch, var(--muted-foreground) 20%, transparent)"
+          strokeDasharray="4 8"
+          vertical={false}
+        />
+        <XAxis
+          axisLine={false}
+          dataKey="label"
+          tick={{ fontSize: 12 }}
+          tickLine={false}
+          tickMargin={10}
+        />
+        <YAxis
+          allowDecimals={false}
+          axisLine={false}
+          tick={{ fontSize: 12 }}
+          tickLine={false}
+          tickMargin={8}
+          width={36}
+        />
+        <ChartTooltip
+          content={<ChartTooltipContent indicator="dot" />}
+          cursor={{
+            fill: "color-mix(in oklch, var(--muted-foreground) 6%, transparent)",
+          }}
+        />
+        <Bar
+          dataKey="value"
+          fill={`url(#${gradientId})`}
+          maxBarSize={38}
+          radius={[5, 5, 5, 5]}
+        />
       </BarChart>
     </ChartContainer>
   )
 }
 
-function PreferenceDonutChart({ data }: { data: Array<{ label: string; value: number }> }) {
+function PreferenceDonutChart({
+  data,
+}: {
+  data: Array<{ label: string; value: number }>
+}) {
   const hasData = data.some((item) => item.value > 0)
   if (!hasData) {
     return (
-      <Empty className="h-72 bg-transparent border border-dashed">
+      <Empty className="h-72 border border-dashed bg-transparent">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <Dumbbell />
           </EmptyMedia>
           <EmptyTitle>暂无训练类型偏好</EmptyTitle>
-          <EmptyDescription>保存训练记录后会生成训练类型偏好。</EmptyDescription>
+          <EmptyDescription>
+            保存训练记录后会生成训练类型偏好。
+          </EmptyDescription>
         </EmptyHeader>
       </Empty>
     )
@@ -557,7 +829,7 @@ function PreferenceDonutChart({ data }: { data: Array<{ label: string; value: nu
   return (
     <div className="grid gap-7 lg:grid-cols-[240px_minmax(0,0.8fr)] lg:items-center">
       <ChartContainer
-        className="mx-auto h-56 w-56 !aspect-auto"
+        className="mx-auto !aspect-auto h-56 w-56"
         config={chartConfig}
         initialDimension={{ height: 224, width: 224 }}
       >
@@ -584,13 +856,11 @@ function PreferenceDonutChart({ data }: { data: Array<{ label: string; value: nu
               />
             ))}
           </Pie>
-          <text
-            dominantBaseline="central"
-            textAnchor="middle"
-            x="50%"
-            y="46%"
-          >
-            <tspan className="fill-foreground text-3xl font-medium tracking-tight" x="50%">
+          <text dominantBaseline="central" textAnchor="middle" x="50%" y="46%">
+            <tspan
+              className="fill-foreground text-3xl font-medium tracking-tight"
+              x="50%"
+            >
               {total}
             </tspan>
             <tspan className="fill-muted-foreground text-xs" dy="22" x="50%">
@@ -607,7 +877,9 @@ function PreferenceDonutChart({ data }: { data: Array<{ label: string; value: nu
               <span className="flex min-w-0 items-center gap-2">
                 <span
                   className="size-2.5 shrink-0 rounded-full bg-foreground"
-                  style={{ opacity: DONUT_OPACITIES[index % DONUT_OPACITIES.length] }}
+                  style={{
+                    opacity: DONUT_OPACITIES[index % DONUT_OPACITIES.length],
+                  }}
                 />
                 <span className="truncate">{item.label}</span>
               </span>
@@ -630,14 +902,20 @@ function WorkoutRecordsSection({
   onLoadHeartRateSummary: (log: WorkoutLog) => Promise<HeartRateSummary | null>
 }) {
   const [selectedLog, setSelectedLog] = useState<WorkoutLog | null>(null)
-  const [heartRateSummary, setHeartRateSummary] = useState<HeartRateSummary | null>(null)
+  const [heartRateSummary, setHeartRateSummary] =
+    useState<HeartRateSummary | null>(null)
   const [heartRateLoading, setHeartRateLoading] = useState(false)
   const [page, setPage] = useState(1)
   const pageSize = 8
-  const sortedLogs = [...logs].sort((left, right) => dateTime(right.workout_date) - dateTime(left.workout_date))
+  const sortedLogs = [...logs].sort(
+    (left, right) => dateTime(right.workout_date) - dateTime(left.workout_date)
+  )
   const pageCount = Math.max(1, Math.ceil(sortedLogs.length / pageSize))
   const currentPage = Math.min(page, pageCount)
-  const pagedLogs = sortedLogs.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  const pagedLogs = sortedLogs.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -669,7 +947,7 @@ function WorkoutRecordsSection({
     <section className="mt-12">
       <SectionHeader description="" title="运动记录" />
       {sortedLogs.length ? (
-        <div className="overflow-x-auto mt-4">
+        <div className="mt-4 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -683,11 +961,21 @@ function WorkoutRecordsSection({
             </TableHeader>
             <TableBody>
               {pagedLogs.map((log) => (
-                <TableRow className="cursor-pointer" key={log.id} onClick={() => setSelectedLog(log)}>
-                  <TableCell className="font-medium">{log.title || "未命名训练"}</TableCell>
+                <TableRow
+                  className="cursor-pointer"
+                  key={log.id}
+                  onClick={() => setSelectedLog(log)}
+                >
+                  <TableCell className="font-medium">
+                    {log.title || "未命名训练"}
+                  </TableCell>
                   <TableCell>{formatFullDate(log.workout_date)}</TableCell>
-                  <TableCell>{formatWorkoutType(inferWorkoutTypeFromLog(log))}</TableCell>
-                  <TableCell>{formatDuration(getWorkoutSeconds(log))}</TableCell>
+                  <TableCell>
+                    {formatWorkoutType(inferWorkoutTypeFromLog(log))}
+                  </TableCell>
+                  <TableCell>
+                    {formatDuration(getWorkoutSeconds(log))}
+                  </TableCell>
                   <TableCell>{log.calories_burned ?? 0} kcal</TableCell>
                   <TableCell>
                     <Badge variant={log.completed ? "default" : "secondary"}>
@@ -704,7 +992,11 @@ function WorkoutRecordsSection({
                 <PaginationItem>
                   <PaginationPrevious
                     aria-disabled={currentPage === 1}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
+                    className={
+                      currentPage === 1
+                        ? "pointer-events-none opacity-50"
+                        : undefined
+                    }
                     href="#"
                     onClick={(event) => {
                       event.preventDefault()
@@ -726,16 +1018,23 @@ function WorkoutRecordsSection({
                     </PaginationLink>
                   </PaginationItem>
                 ))}
-                {/* Show ellipsis if there are more pages after the last shown page */
+                {
+                  /* Show ellipsis if there are more pages after the last shown page */
                   currentPage + 1 < pageCount && (
                     <PaginationItem>
                       <PaginationEllipsis />
-                    </PaginationItem>)}
+                    </PaginationItem>
+                  )
+                }
 
                 <PaginationItem>
                   <PaginationNext
                     aria-disabled={currentPage === pageCount}
-                    className={currentPage === pageCount ? "pointer-events-none opacity-50" : undefined}
+                    className={
+                      currentPage === pageCount
+                        ? "pointer-events-none opacity-50"
+                        : undefined
+                    }
                     href="#"
                     onClick={(event) => {
                       event.preventDefault()
@@ -748,13 +1047,15 @@ function WorkoutRecordsSection({
           ) : null}
         </div>
       ) : (
-        <Empty className="mt-6 min-h-60 bg-transparent border border-dashed">
+        <Empty className="mt-6 min-h-60 border border-dashed bg-transparent">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Dumbbell />
             </EmptyMedia>
             <EmptyTitle>暂无运动记录</EmptyTitle>
-            <EmptyDescription>训练计划中点击保存后会生成记录。</EmptyDescription>
+            <EmptyDescription>
+              训练计划中点击保存后会生成记录。
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}
@@ -788,35 +1089,63 @@ function WorkoutDetailDialog({
         <DialogHeader>
           <DialogTitle>{log?.title || "运动详情"}</DialogTitle>
           <DialogDescription>
-            {log ? `${formatFullDate(log.workout_date)} · ${formatWorkoutType(inferWorkoutTypeFromLog(log))} · ${formatDuration(getWorkoutSeconds(log))}` : ""}
+            {log
+              ? `${formatFullDate(log.workout_date)} · ${formatWorkoutType(inferWorkoutTypeFromLog(log))} · ${formatDuration(getWorkoutSeconds(log))}`
+              : ""}
           </DialogDescription>
         </DialogHeader>
         {log ? (
           <div className="space-y-6">
             <div className="grid gap-3 sm:grid-cols-3">
-              <DetailMetric label="完成状态" value={log.completed ? "完成" : "已保存"} />
-              <DetailMetric label="消耗热量" value={`${log.calories_burned ?? 0} kcal`} />
-              <DetailMetric label="RPE" value={log.perceived_exertion ? `${log.perceived_exertion}/10` : "未记录"} />
+              <DetailMetric
+                label="完成状态"
+                value={log.completed ? "完成" : "已保存"}
+              />
+              <DetailMetric
+                label="消耗热量"
+                value={`${log.calories_burned ?? 0} kcal`}
+              />
+              <DetailMetric
+                label="RPE"
+                value={
+                  log.perceived_exertion
+                    ? `${log.perceived_exertion}/10`
+                    : "未记录"
+                }
+              />
             </div>
 
             <section>
               <h3 className="text-sm font-medium">训练动作</h3>
               <div className="mt-3 space-y-3">
-                {log.exercises.length ? log.exercises.map((exercise) => (
-                  <div className="py-2" key={`${exercise.name}-${exercise.position}`}>
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-medium">{exercise.name}</p>
-                      <Badge variant={exercise.completed ? "default" : "secondary"}>
-                        {exercise.completed ? "完成" : "未完成"}
-                      </Badge>
+                {log.exercises.length ? (
+                  log.exercises.map((exercise) => (
+                    <div
+                      className="py-2"
+                      key={`${exercise.name}-${exercise.position}`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-medium">{exercise.name}</p>
+                        <Badge
+                          variant={exercise.completed ? "default" : "secondary"}
+                        >
+                          {exercise.completed ? "完成" : "未完成"}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {exercise.sets.length
+                          ? exercise.sets.map(formatSet).join("；")
+                          : "未记录组次"}
+                      </p>
+                      {exercise.notes ? (
+                        <p className="mt-2 text-sm">{exercise.notes}</p>
+                      ) : null}
                     </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {exercise.sets.length ? exercise.sets.map(formatSet).join("；") : "未记录组次"}
-                    </p>
-                    {exercise.notes ? <p className="mt-2 text-sm">{exercise.notes}</p> : null}
-                  </div>
-                )) : (
-                  <p className="text-sm text-muted-foreground">未记录训练动作。</p>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    未记录训练动作。
+                  </p>
                 )}
               </div>
             </section>
@@ -834,7 +1163,7 @@ function WorkoutDetailDialog({
 
             <section>
               <h3 className="text-sm font-medium">训练反馈与备注</h3>
-              <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+              <p className="mt-2 text-sm whitespace-pre-wrap text-muted-foreground">
                 {log.notes || "暂无备注。"}
               </p>
             </section>
@@ -845,7 +1174,13 @@ function WorkoutDetailDialog({
   )
 }
 
-function ChartPanel({ children, title }: { children: ReactNode; title: string }) {
+function ChartPanel({
+  children,
+  title,
+}: {
+  children: ReactNode
+  title: string
+}) {
   return (
     <section className="min-w-0">
       <h3 className="text-base font-medium tracking-[-0.02em]">{title}</h3>
@@ -878,8 +1213,15 @@ function ChartCursorBand({
   )
 }
 
-
-function OverviewStat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+function OverviewStat({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode
+  label: string
+  value: string
+}) {
   return (
     <div className="flex gap-3">
       <span className="mt-1 text-muted-foreground [&_svg]:size-4">{icon}</span>
@@ -900,7 +1242,13 @@ function DetailMetric({ label, value }: { label: string; value: string }) {
   )
 }
 
-function SectionHeader({ description, title }: { description: string; title: string }) {
+function SectionHeader({
+  description,
+  title,
+}: {
+  description: string
+  title: string
+}) {
   return (
     <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
       <h2 className="text-xl font-medium tracking-[-0.03em]">{title}</h2>
@@ -912,7 +1260,6 @@ function SectionHeader({ description, title }: { description: string; title: str
 function useSvgId(prefix: string) {
   return `${prefix}-${useId().replace(/:/g, "")}`
 }
-
 
 function formatPercent(value: number, total: number) {
   if (!total || value <= 0) return "0%"
@@ -928,7 +1275,8 @@ function useImportantMetrics(key: string, defaults: string[]) {
     try {
       const raw = localStorage.getItem(key)
       const parsed = raw ? JSON.parse(raw) : null
-      return Array.isArray(parsed) && parsed.every((item) => typeof item === "string")
+      return Array.isArray(parsed) &&
+        parsed.every((item) => typeof item === "string")
         ? parsed
         : defaults
     } catch {
@@ -953,13 +1301,17 @@ function toggleMetricId(current: string[], id: string) {
     : [...current, id]
 }
 
-function getBodySeries(metrics: BodyMetric[], key: string): MetricPoint[] {
-  return metrics
+function getBodySeries(
+  metrics: BodyMetric[],
+  key: string,
+  range: RangeOption
+): MetricPoint[] {
+  const points = metrics
     .map((metric) => {
       const date = metric.measured_at ?? metric.recorded_at
       const rawValue =
         key === "bmi"
-          ? metric.bmi ?? calculateBmi(metric)
+          ? (metric.bmi ?? calculateBmi(metric))
           : metric[key as keyof BodyMetric]
       const value = typeof rawValue === "number" ? rawValue : null
       return value !== null && Number.isFinite(value)
@@ -967,19 +1319,19 @@ function getBodySeries(metrics: BodyMetric[], key: string): MetricPoint[] {
         : null
     })
     .filter((point): point is MetricPoint => Boolean(point))
-    .sort((left, right) => dateTime(left.date) - dateTime(right.date))
-    .slice(-40)
+  return prepareMetricSeries(points, range)
 }
 
 function getHealthSeries(
   metrics: HealthMetric[],
   dietRecords: DietRecord[],
-  key: string
+  key: string,
+  range: RangeOption
 ): MetricPoint[] {
   if (key === "dietary_kcal") {
-    return getDietKcalSeries(metrics, dietRecords)
+    return prepareMetricSeries(getDietKcalSeries(metrics, dietRecords), range)
   }
-  return metrics
+  const points = metrics
     .map((metric) => {
       const date = metric.measured_at ?? metric.recorded_at
       const rawValue = metric[key as keyof HealthMetric]
@@ -989,11 +1341,13 @@ function getHealthSeries(
         : null
     })
     .filter((point): point is MetricPoint => Boolean(point))
-    .sort((left, right) => dateTime(left.date) - dateTime(right.date))
-    .slice(-40)
+  return prepareMetricSeries(points, range)
 }
 
-function getDietKcalSeries(metrics: HealthMetric[], records: DietRecord[]): MetricPoint[] {
+function getDietKcalSeries(
+  metrics: HealthMetric[],
+  records: DietRecord[]
+): MetricPoint[] {
   const byDate = new Map<string, number>()
   for (const record of records) {
     const date = dateKey(record.meal_date)
@@ -1001,14 +1355,44 @@ function getDietKcalSeries(metrics: HealthMetric[], records: DietRecord[]): Metr
   }
   for (const metric of metrics) {
     if (typeof metric.dietary_kcal === "number") {
-      const date = dateKey(metric.metric_date ?? metric.measured_at ?? metric.recorded_at)
+      const date = dateKey(
+        metric.metric_date ?? metric.measured_at ?? metric.recorded_at
+      )
       byDate.set(date, metric.dietary_kcal)
     }
   }
   return [...byDate.entries()]
-    .map(([date, value]) => ({ date, label: formatShortDate(date), value: roundOne(value) }))
+    .map(([date, value]) => ({
+      date,
+      label: formatShortDate(date),
+      value: roundOne(value),
+    }))
     .sort((left, right) => dateTime(left.date) - dateTime(right.date))
-    .slice(-40)
+}
+
+function prepareMetricSeries(points: MetricPoint[], range: RangeOption) {
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  start.setDate(start.getDate() - range.days + 1)
+
+  const latestByDay = new Map<string, MetricPoint>()
+  points
+    .filter((point) => localDate(point.date) >= start)
+    .sort((left, right) => dateTime(left.date) - dateTime(right.date))
+    .forEach((point) => latestByDay.set(dateKey(point.date), point))
+
+  return downsampleMetricSeries([...latestByDay.values()], range.maxPoints)
+}
+
+function downsampleMetricSeries(points: MetricPoint[], maxPoints: number) {
+  if (points.length <= maxPoints) return points
+
+  return Array.from({ length: maxPoints }, (_, index) => {
+    const pointIndex = Math.round(
+      (index * (points.length - 1)) / (maxPoints - 1)
+    )
+    return points[pointIndex]
+  })
 }
 
 function filterLogsByRange(logs: WorkoutLog[], days: number) {
@@ -1040,7 +1424,8 @@ function buildTimePreferenceData(logs: WorkoutLog[]) {
   ]
   for (const log of logs) {
     const hour = localHourFromServerTimestamp(log.created_at)
-    const bucket = buckets.find((item) => hour >= item.min && hour <= item.max) ?? buckets[2]
+    const bucket =
+      buckets.find((item) => hour >= item.min && hour <= item.max) ?? buckets[2]
     bucket.value += 1
   }
   return buckets.map(({ label, value }) => ({ label, value }))
@@ -1072,9 +1457,15 @@ function inferWorkoutTypeFromLog(log: WorkoutLog) {
     .toLowerCase()
 
   if (/(跑|running|run|慢跑|冲刺|间歇跑)/i.test(text)) return "running"
-  if (/(快走|椭圆机|单车|游泳|有氧|cardio|hiit|tabata|跳绳|爬楼|划船机)/i.test(text)) return "cardio"
+  if (
+    /(快走|椭圆机|单车|游泳|有氧|cardio|hiit|tabata|跳绳|爬楼|划船机)/i.test(
+      text
+    )
+  )
+    return "cardio"
   if (/(瑜伽|yoga)/i.test(text)) return "yoga"
-  if (/(拉伸|伸展|灵活|活动度|mobility|stretch|放松)/i.test(text)) return "mobility"
+  if (/(拉伸|伸展|灵活|活动度|mobility|stretch|放松)/i.test(text))
+    return "mobility"
   return log.workout_type || "strength"
 }
 
@@ -1096,26 +1487,35 @@ function metricDomain(series: MetricPoint[], unit: string): [number, number] {
   if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1]
   const range = Math.max(max - min, 1)
   const padding = Math.max(range * 0.3, 1)
-  return [Math.max(0, Math.floor((min - padding) * 10) / 10), Math.ceil((max + padding) * 10) / 10]
+  return [
+    Math.max(0, Math.floor((min - padding) * 10) / 10),
+    Math.ceil((max + padding) * 10) / 10,
+  ]
 }
 
 function formatAxisTick(value: number, unit: string) {
   if (unit === "kg") return formatNumber(value)
-  if (unit === "kcal") return value >= 1000 ? `${Math.round(value / 100) / 10}k` : `${value}`
-  if (unit === "bpm" || unit === "ms" || unit === "cm" || unit === "h") return formatNumber(value)
+  if (unit === "kcal")
+    return value >= 1000 ? `${Math.round(value / 100) / 10}k` : `${value}`
+  if (unit === "bpm" || unit === "ms" || unit === "cm" || unit === "h")
+    return formatNumber(value)
   return unit ? `${formatNumber(value)}${unit}` : formatNumber(value)
 }
 
 function formatLatest(series: MetricPoint[], unit: string) {
   const latest = series[series.length - 1]
-  return latest ? `${formatNumber(latest.value)}${unit ? ` ${unit}` : ""}` : "未记录"
+  return latest
+    ? `${formatNumber(latest.value)}${unit ? ` ${unit}` : ""}`
+    : "未记录"
 }
 
 function formatSet(set: WorkoutLog["exercises"][number]["sets"][number]) {
   const reps = set.reps ? `${set.reps} 次` : "未填次数"
   const weight = set.weight_kg ? `${set.weight_kg} kg` : null
   const rpe = set.rpe ? `RPE ${set.rpe}` : null
-  return [`第 ${set.set_number} 组`, reps, weight, rpe].filter(Boolean).join(" · ")
+  return [`第 ${set.set_number} 组`, reps, weight, rpe]
+    .filter(Boolean)
+    .join(" · ")
 }
 
 function buildPaginationItems(currentPage: number, pageCount: number) {

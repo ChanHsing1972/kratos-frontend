@@ -264,6 +264,16 @@ export type KnowledgeSearchResponse = {
   metadata: Record<string, unknown>
 }
 
+export type RagCitation = {
+  citation: string
+  content: string
+  document_title: string
+  source_title?: string | null
+  source_url?: string | null
+  page_number?: number | null
+  chunk_id?: number | null
+}
+
 export type FitnessProfile = {
   id: number
   user_id: number
@@ -745,6 +755,7 @@ export type ChatMessage = {
   completedAt?: number
   error?: string
   pendingTrainingPlanDraft?: TrainingPlanPayload
+  ragCitations?: RagCitation[]
   suggestedTrainingPlan?: TrainingPlanPayload
   trainingPlanCreatedId?: number
   suggestedHealthData?: SuggestedHealthData

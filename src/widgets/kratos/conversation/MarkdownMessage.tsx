@@ -1,10 +1,19 @@
 import { Streamdown, type Components } from "streamdown"
+import { BookOpenText, ExternalLink } from "lucide-react"
 
+import type { RagCitation } from "@/entities/kratos/model/types"
 import { cn } from "@/shared/lib/utils"
+import { Badge } from "@/shared/ui/badge"
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/shared/ui/hover-card"
 
 type MarkdownMessageProps = {
   className?: string
   children: string
+  citations?: RagCitation[]
   streaming?: boolean
 }
 
@@ -166,10 +175,13 @@ const components: Components = {
 
 export function MarkdownMessage({
   children,
+  citations = [],
   className,
   streaming = false,
 }: MarkdownMessageProps) {
-  const normalized = normalizeMarkdownInput(children)
+  const prepared = prepareCitationLinks(normalizeMarkdownInput(children), citations)
+  const normalized = prepared.markdown
+  const messageComponents = citationAwareComponents(prepared.citations)
   const streamingTable = streaming
     ? splitStreamingTable(normalized)
     : null
@@ -185,7 +197,7 @@ export function MarkdownMessage({
         <>
           {streamingTable.before ? (
             <Streamdown
-              components={components}
+              components={messageComponents}
               controls={false}
               isAnimating
               mode="streaming"
@@ -198,7 +210,7 @@ export function MarkdownMessage({
           <StreamingMarkdownTable lines={streamingTable.tableLines} />
           {streamingTable.after ? (
             <Streamdown
-              components={components}
+              components={messageComponents}
               controls={false}
               isAnimating
               mode="streaming"
@@ -211,7 +223,7 @@ export function MarkdownMessage({
         </>
       ) : (
         <Streamdown
-          components={components}
+          components={messageComponents}
           controls={false}
           isAnimating={streaming}
           mode={streaming ? "streaming" : "static"}
@@ -223,6 +235,151 @@ export function MarkdownMessage({
       )}
     </div>
   )
+}
+
+function citationAwareComponents(citations: RagCitation[]): Components {
+  return {
+    ...components,
+    a: ({ className, href, ...props }) => {
+      const citationIndex = citationIndexFromHref(href)
+      const citation = citationIndex === null ? undefined : citations[citationIndex]
+      if (citation) {
+        return <CitationBadge citation={citation} />
+      }
+      return (
+        <a
+          className={cn(
+            "font-medium break-words text-primary underline decoration-primary/30 underline-offset-4 transition hover:decoration-primary",
+            className
+          )}
+          href={href}
+          rel="noreferrer"
+          target="_blank"
+          {...markdownProps(props)}
+        />
+      )
+    },
+  }
+}
+
+function CitationBadge({ citation }: { citation: RagCitation }) {
+  const label = citationBadgeLabel(citation)
+  return (
+    <HoverCard closeDelay={100} openDelay={150}>
+      <HoverCardTrigger asChild>
+        <Badge className="cursor-default align-middle" variant="secondary">
+          <BookOpenText data-icon="inline-start" />
+          <span className="truncate">{label}</span>
+        </Badge>
+      </HoverCardTrigger>
+      <HoverCardContent align="start" className="w-96">
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">{citation.document_title}</p>
+            {citation.source_title && citation.source_title !== citation.document_title ? (
+              <p className="text-xs text-muted-foreground">{citation.source_title}</p>
+            ) : null}
+          </div>
+          <p className="max-h-64 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+            {citation.content}
+          </p>
+          {citation.source_url ? (
+            <a
+              className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+              href={citation.source_url}
+              rel="noreferrer"
+              target="_blank"
+            >
+              查看来源
+              <ExternalLink className="size-3.5" />
+            </a>
+          ) : null}
+        </div>
+      </HoverCardContent>
+    </HoverCard>
+  )
+}
+
+function prepareCitationLinks(markdown: string, citations: RagCitation[]) {
+  const resolved = [...citations]
+  let linked = markdown.replace(
+    /\[([^\]\n]+?)\s+#chunk-(\d+)\](?!\()/gi,
+    (marker, title: string, chunkIdText: string) => {
+      const chunkId = Number.parseInt(chunkIdText, 10)
+      let index = resolved.findIndex(
+        (citation) =>
+          citation.chunk_id === chunkId ||
+          normalizeCitationMarker(citation.citation) === normalizeCitationMarker(marker)
+      )
+
+      if (index < 0) {
+        index = resolved.length
+        resolved.push({
+          chunk_id: chunkId,
+          citation: marker,
+          content: "该历史引用未保存原文摘要。",
+          document_title: title.trim(),
+        })
+      }
+
+      const label = citationBadgeLabel(resolved[index]).replace(/[\[\]]/g, "")
+      return `[${label}](#rag-citation-${index})`
+    }
+  )
+
+  linked = linked.replace(
+    /\[知识库:([^\]#\n]+)#(\d+)\](?!\()/g,
+    (marker, title: string, chunkIdText: string) => {
+      let index = resolved.findIndex(
+        (citation) =>
+          normalizeCitationMarker(citation.citation) === normalizeCitationMarker(marker)
+      )
+      if (index < 0) {
+        index = resolved.length
+        resolved.push({
+          chunk_id: Number.parseInt(chunkIdText, 10),
+          citation: marker,
+          content: "该历史引用未保存原文摘要。",
+          document_title: title.trim(),
+        })
+      }
+      return `[${citationBadgeLabel(resolved[index])}](#rag-citation-${index})`
+    }
+  )
+
+  linked = citations.reduce((text, citation, index) => {
+    if (
+      !citation.citation ||
+      /#chunk-\d+/i.test(citation.citation) ||
+      !text.includes(citation.citation)
+    ) {
+      return text
+    }
+    const label = citationBadgeLabel(citation).replace(/[\[\]]/g, "")
+    return text.split(citation.citation).join(`[${label}](#rag-citation-${index})`)
+  }, linked)
+
+  return { citations: resolved, markdown: linked }
+}
+
+function normalizeCitationMarker(value: string) {
+  return value.replace(/\s+/g, "").toLowerCase()
+}
+
+function citationIndexFromHref(href?: string) {
+  const match = /^#rag-citation-(\d+)$/.exec(href ?? "")
+  return match ? Number.parseInt(match[1], 10) : null
+}
+
+function citationBadgeLabel(citation: RagCitation) {
+  if (citation.source_url) {
+    try {
+      return new URL(citation.source_url).hostname.replace(/^www\./, "")
+    } catch {
+      // Fall back to the stored source title.
+    }
+  }
+  return citation.source_title || citation.document_title
 }
 
 function StreamingMarkdownTable({ lines }: { lines: string[] }) {

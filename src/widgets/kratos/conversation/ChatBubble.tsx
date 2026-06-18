@@ -115,6 +115,7 @@ export function ChatBubble({
           <div className="mt-6 min-h-7">
             {message.body ? (
               <MarkdownMessage
+                citations={message.ragCitations}
                 className="text-foreground"
                 streaming={message.streaming}
               >

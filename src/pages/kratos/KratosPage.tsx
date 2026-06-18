@@ -61,6 +61,7 @@ import {
   formatTime,
   getLatestByDate,
   pendingHealthDataFromAgentResult,
+  ragCitationsFromAgentResult,
   trainingPlanPayloadFromAgentResult,
 } from "@/entities/kratos/lib/domain"
 import {
@@ -763,6 +764,8 @@ export function KratosPage() {
           healthDataFromAgentRaw(event.raw) ?? message.suggestedHealthData
         const suggestedDietRecords =
           foodImageEstimateFromAgentResult(event.raw) ?? message.suggestedDietRecords
+        const ragCitations =
+          ragCitationsFromAgentResult(event.raw) ?? message.ragCitations
         const structuredCardPending =
           event.type === "done" || event.type === "final" || event.type === "error"
             ? false
@@ -794,6 +797,7 @@ export function KratosPage() {
             completedAt: Date.now(),
             streaming: false,
             pendingTrainingPlanDraft: undefined,
+            ragCitations,
             suggestedDietRecords,
             suggestedTrainingPlan,
             structuredCardPending,
@@ -823,6 +827,7 @@ export function KratosPage() {
             ),
             suggestedDietRecords,
             suggestedHealthData,
+            ragCitations,
             structuredCardPending,
           }
         }
@@ -851,6 +856,7 @@ export function KratosPage() {
             body: nextBody,
             pendingTrainingPlanDraft:
               suggestedTrainingPlan ?? message.pendingTrainingPlanDraft,
+            ragCitations,
             suggestedDietRecords,
             suggestedHealthData,
             structuredCardPending,
@@ -860,6 +866,7 @@ export function KratosPage() {
 
         return {
           ...message,
+          ragCitations,
           suggestedDietRecords,
           suggestedHealthData,
           structuredCardPending,

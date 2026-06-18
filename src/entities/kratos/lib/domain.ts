@@ -13,6 +13,7 @@ import type {
   FoodImageEstimateResult,
   OnboardingStatus,
   ProfileForm,
+  RagCitation,
   SuggestedHealthData,
   TrainingPlan,
   TrainingPlanPayload,
@@ -253,6 +254,7 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
           author: "assistant" as const,
           body: run.answer,
           completedAt: running ? undefined : completedAt,
+          ragCitations: ragCitationsFromAgentResult(run.result_payload),
           startedAt,
           structuredCardPending: running && structuredCardPendingFromTrace(run.trace_steps),
           suggestedDietRecords: foodImageEstimateFromAgentResult(run.result_payload),
@@ -420,6 +422,25 @@ export function pendingHealthDataFromAgentResult(
     asRecord(artifacts?.pending_health_data) ??
     asRecord(result?.pending_health_data)
   return pending ? (pending as SuggestedHealthData) : undefined
+}
+
+export function ragCitationsFromAgentResult(raw: unknown): RagCitation[] | undefined {
+  const result = asRecord(raw)
+  const artifacts = asRecord(result?.structured_artifacts)
+  const citations = asRecordArray(artifacts?.rag_citations)
+    .map((item) => ({
+      citation: textValue(item.citation) ?? "",
+      content: textValue(item.content) ?? "",
+      document_title:
+        textValue(item.document_title) ?? textValue(item.source_title) ?? "知识库来源",
+      source_title: textValue(item.source_title),
+      source_url: textValue(item.source_url),
+      page_number: numberValue(item.page_number),
+      chunk_id: numberValue(item.chunk_id),
+    }))
+    .filter((item) => item.citation && item.content)
+
+  return citations.length ? citations : undefined
 }
 
 function pendingHealthDataFromTrace(traceSteps: AgentRunTraceStep[]) {
