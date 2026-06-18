@@ -1,10 +1,8 @@
 import {
   Activity,
-  BarChart3,
   BrainCircuit,
   CalendarDays,
   ChevronRight,
-  Database,
   MessageCirclePlus,
   Utensils,
 } from "lucide-react"
