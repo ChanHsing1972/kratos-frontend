@@ -7,6 +7,8 @@ import {
   Utensils,
 } from "lucide-react"
 
+import type { LucideIcon } from "lucide-react"
+
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -22,7 +24,14 @@ type PrimaryNavigationProps = {
   onNavSelect: (label: string) => void
 }
 
-const primaryNavItems = [
+type PrimaryNavItem = {
+  id: string
+  label: string
+  icon: LucideIcon
+  external?: boolean
+}
+
+const primaryNavItems: PrimaryNavItem[] = [
   { id: "new", label: "新建对话", icon: MessageCirclePlus },
   { id: "训练计划", label: "训练计划", icon: CalendarDays },
   { id: "数据中心", label: "数据中心", icon: Activity },
