@@ -306,23 +306,17 @@ function prepareCitationLinks(markdown: string, citations: RagCitation[]) {
     /\[([^\]\n]+?)\s+#chunk-(\d+)\](?!\()/gi,
     (marker, title: string, chunkIdText: string) => {
       const chunkId = Number.parseInt(chunkIdText, 10)
-      let index = resolved.findIndex(
-        (citation) =>
-          citation.chunk_id === chunkId ||
-          normalizeCitationMarker(citation.citation) === normalizeCitationMarker(marker)
-      )
+      const index = findCitationIndex(resolved, {
+        chunkId,
+        marker,
+        title,
+      })
 
       if (index < 0) {
-        index = resolved.length
-        resolved.push({
-          chunk_id: chunkId,
-          citation: marker,
-          content: "该历史引用未保存原文摘要。",
-          document_title: title.trim(),
-        })
+        return marker
       }
 
-      const label = citationBadgeLabel(resolved[index]).replace(/[\[\]]/g, "")
+      const label = stripCitationLabelBrackets(citationBadgeLabel(resolved[index]))
       return `[${label}](#rag-citation-${index})`
     }
   )
@@ -330,18 +324,13 @@ function prepareCitationLinks(markdown: string, citations: RagCitation[]) {
   linked = linked.replace(
     /\[知识库:([^\]#\n]+)#(\d+)\](?!\()/g,
     (marker, title: string, chunkIdText: string) => {
-      let index = resolved.findIndex(
-        (citation) =>
-          normalizeCitationMarker(citation.citation) === normalizeCitationMarker(marker)
-      )
+      const index = findCitationIndex(resolved, {
+        marker,
+        title,
+        legacyIndex: Number.parseInt(chunkIdText, 10),
+      })
       if (index < 0) {
-        index = resolved.length
-        resolved.push({
-          chunk_id: Number.parseInt(chunkIdText, 10),
-          citation: marker,
-          content: "该历史引用未保存原文摘要。",
-          document_title: title.trim(),
-        })
+        return marker
       }
       return `[${citationBadgeLabel(resolved[index])}](#rag-citation-${index})`
     }
@@ -355,15 +344,44 @@ function prepareCitationLinks(markdown: string, citations: RagCitation[]) {
     ) {
       return text
     }
-    const label = citationBadgeLabel(citation).replace(/[\[\]]/g, "")
+    const label = stripCitationLabelBrackets(citationBadgeLabel(citation))
     return text.split(citation.citation).join(`[${label}](#rag-citation-${index})`)
   }, linked)
 
   return { citations: resolved, markdown: linked }
 }
 
+function findCitationIndex(
+  citations: RagCitation[],
+  target: { chunkId?: number | null; legacyIndex?: number | null; marker: string; title?: string }
+) {
+  const normalizedMarker = normalizeCitationMarker(target.marker)
+  const normalizedTitle = normalizeCitationMarker(target.title ?? "")
+  return citations.findIndex((citation) => {
+    if (target.chunkId && citation.chunk_id === target.chunkId) {
+      return true
+    }
+    if (normalizeCitationMarker(citation.citation) === normalizedMarker) {
+      return true
+    }
+    if (!normalizedTitle) {
+      return false
+    }
+    const titleCandidates = [
+      citation.document_title,
+      citation.source_title,
+      citation.citation,
+    ].map((value) => normalizeCitationMarker(value ?? ""))
+    return titleCandidates.some((value) => value === normalizedTitle || value.includes(normalizedTitle))
+  })
+}
+
 function normalizeCitationMarker(value: string) {
   return value.replace(/\s+/g, "").toLowerCase()
+}
+
+function stripCitationLabelBrackets(value: string) {
+  return value.replaceAll("[", "").replaceAll("]", "")
 }
 
 function citationIndexFromHref(href?: string) {
