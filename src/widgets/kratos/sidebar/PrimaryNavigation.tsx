@@ -29,9 +29,9 @@ const primaryNavItems = [
   { id: "训练计划", label: "训练计划", icon: CalendarDays },
   { id: "数据中心", label: "数据中心", icon: Activity },
   { id: "饮食摄入", label: "饮食摄入", icon: Utensils },
-  { id: "知识库", label: "知识库", icon: Database },
+  // { id: "知识库", label: "知识库", icon: Database },
   { id: "工具技能", label: "工具技能", icon: BrainCircuit },
-  { id: "评估平台", label: "评估平台", icon: BarChart3, external: true },
+  // { id: "评估平台", label: "评估平台", icon: BarChart3, external: true },
 ]
 
 export function PrimaryNavigation({
