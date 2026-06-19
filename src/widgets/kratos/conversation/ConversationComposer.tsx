@@ -1,8 +1,8 @@
 import {
-  useEffect,
+  // useEffect,
   useMemo,
   useRef,
-  useState,
+  // useState,
   type ChangeEvent,
   type KeyboardEvent,
 } from "react"
@@ -12,13 +12,13 @@ import {
   BrainCircuit,
   ChartNoAxesColumn,
   Check,
-  Eye,
+  // Eye,
   Heart,
   ImageIcon,
   LoaderCircle,
   MoreHorizontal,
   Paperclip,
-  PencilLine,
+  // PencilLine,
   Plus,
   SearchIcon,
   Sparkles,
@@ -34,7 +34,7 @@ import type {
   ChatAttachment,
   Skill,
 } from "@/entities/kratos/model/types"
-import { MarkdownMessage } from "@/widgets/kratos/conversation/MarkdownMessage"
+// import { MarkdownMessage } from "@/widgets/kratos/conversation/MarkdownMessage"
 import { Button } from "@/shared/ui/button"
 import { Badge } from "@/shared/ui/badge"
 import {
@@ -56,7 +56,7 @@ import {
   InputGroupTextarea,
 } from "@/shared/ui/input-group"
 import { Separator } from "@/shared/ui/separator"
-import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
+// import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group"
 import {
   Tooltip,
   TooltipContent,
@@ -211,7 +211,7 @@ export function ConversationComposer({
   tools,
   value,
 }: ConversationComposerProps) {
-  const [viewMode, setViewMode] = useState<"write" | "preview">("write")
+  // const [viewMode, setViewMode] = useState<"write" | "preview">("write")
   const attachmentInputRef = useRef<HTMLInputElement | null>(null)
   const dietImageInputRef = useRef<HTMLInputElement | null>(null)
   const imageAttachmentInputRef = useRef<HTMLInputElement | null>(null)
@@ -287,15 +287,15 @@ export function ConversationComposer({
     [toolModeOptions, tools]
   )
 
-  useEffect(() => {
-    const textarea = textareaRef.current
-    if (!textarea) {
-      return
-    }
+  // useEffect(() => {
+  //   const textarea = textareaRef.current
+  //   if (!textarea) {
+  //     return
+  //   }
 
-    textarea.style.height = "auto"
-    textarea.style.height = `${textarea.scrollHeight}px`
-  }, [value, viewMode])
+  //   textarea.style.height = "auto"
+  //   textarea.style.height = `${textarea.scrollHeight}px`
+  // }, [value, viewMode])
 
   const selectMode = (option: ComposerModeOption) => {
     onModeChange(stripModeOption(option))
@@ -357,7 +357,7 @@ export function ConversationComposer({
         </InputGroupAddon>
       ) : null}
 
-      {viewMode === "write" ? (
+      {/* {viewMode === "write" ? ( */}
         <InputGroupTextarea
           className="min-h-20 resize-none px-3 text-base disabled:opacity-100 md:text-base"
           maxLength={maxLength}
@@ -374,7 +374,7 @@ export function ConversationComposer({
           rows={1}
           value={value}
         />
-      ) : (
+      {/* ) : (
         <div
           className="min-h-20 w-full px-3 py-1.75"
           data-slot="input-group-control"
@@ -389,7 +389,7 @@ export function ConversationComposer({
             </p>
           )}
         </div>
-      )}
+      )} */}
 
       <InputGroupAddon align="block-end" className="flex-wrap gap-2 pt-0">
         <CapabilityMenu
@@ -409,7 +409,7 @@ export function ConversationComposer({
         />
 
 
-        <ToggleGroup
+        {/* <ToggleGroup
           className="hidden sm:flex"
           onValueChange={(nextMode) => {
             if (nextMode === "write" || nextMode === "preview") {
@@ -428,7 +428,7 @@ export function ConversationComposer({
             <Eye className="size-3.5" />
             预览
           </ToggleGroupItem>
-        </ToggleGroup>
+        </ToggleGroup> */}
 
 
         {activeMode ? (
