@@ -89,17 +89,15 @@ export function HealthDataConfirmationCard({
       </CardContent>
 
       <CardFooter className="justify-end gap-2">
-        {onEdit ? (
-          <Button
-            disabled={loading || saved}
-            onClick={onEdit}
-            type="button"
-            variant="outline"
-          >
-            <PencilLine className="size-4" />
-            编辑
-          </Button>
-        ) : null}
+        <Button
+          disabled={loading || saved}
+          onClick={onEdit}
+          type="button"
+          variant="outline"
+        >
+          <PencilLine className="size-4" />
+          编辑
+        </Button>
         <Button disabled={loading || saved} onClick={onConfirm} type="button">
           {loading ? <Spinner /> : <Check className="size-4" />}
           {saved ? "已保存" : loading ? "保存中..." : "确认并保存"}
