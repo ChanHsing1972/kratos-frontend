@@ -30,17 +30,25 @@ type EditableFoodEstimateItem = FoodEstimateItem & {
 }
 
 type DietEstimateDialogProps = {
+  cancelLabel?: string
+  description?: string
   estimate: FoodImageEstimateResult | null
   open: boolean
+  saveLabel?: string
   saving: boolean
+  title?: string
   onOpenChange: (open: boolean) => void
   onSave: (items: FoodEstimateItem[]) => void
 }
 
 export function DietEstimateDialog({
+  cancelLabel = "暂不保存",
+  description = "勾选要保存的食物，必要时修正重量和营养估算。",
   estimate,
   open,
+  saveLabel = "保存到今日饮食",
   saving,
+  title = "热量识别",
   onOpenChange,
   onSave,
 }: DietEstimateDialogProps) {
@@ -66,10 +74,8 @@ export function DietEstimateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="grid max-h-[86svh] grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>热量识别</DialogTitle>
-          <DialogDescription>
-            勾选要保存的食物，必要时修正重量和营养估算。
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="min-h-0 overflow-y-auto pr-1">
@@ -123,10 +129,10 @@ export function DietEstimateDialog({
 
         <DialogFooter className="shrink-0">
           <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
-            暂不保存
+            {cancelLabel}
           </Button>
           <Button disabled={!canSave} onClick={() => onSave(stripSelection(selectedItems))} type="button">
-            {saving ? "保存中..." : "保存到今日饮食"}
+            {saving ? "保存中..." : saveLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

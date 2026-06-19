@@ -29,8 +29,10 @@ type ChatBubbleProps = {
   onCreateTrainingPlan: (messageId: string, payload: TrainingPlanPayload) => void
   onEditTrainingPlanDraft: (payload: TrainingPlanPayload) => void
   onConfirmHealthData: (messageId: string) => void
+  onEditHealthData: (messageId: string) => void
   confirmingHealthData: boolean
   onConfirmDietRecords: (messageId: string) => void
+  onEditDietRecords: (messageId: string) => void
   confirmingDietRecords: boolean
   onToggleThinking: () => void
   thinkingExpanded: boolean
@@ -42,8 +44,10 @@ export function ChatBubble({
   onCreateTrainingPlan,
   onEditTrainingPlanDraft,
   onConfirmHealthData,
+  onEditHealthData,
   confirmingHealthData,
   onConfirmDietRecords,
+  onEditDietRecords,
   confirmingDietRecords,
   onToggleThinking,
   thinkingExpanded,
@@ -148,7 +152,7 @@ export function ChatBubble({
             !message.suggestedTrainingPlan &&
             !message.suggestedHealthData &&
             !message.suggestedDietRecords ? (
-            <TrainingPlanSuggestionCardSkeleton />
+            <PendingStructuredCardSkeleton kind={message.structuredCardPendingKind} />
           ) : null}
 
           {message.suggestedHealthData && message.streaming ? (
@@ -160,6 +164,7 @@ export function ChatBubble({
               data={message.suggestedHealthData}
               loading={confirmingHealthData}
               onConfirm={() => onConfirmHealthData(message.id)}
+              onEdit={() => onEditHealthData(message.id)}
               saved={Boolean(message.healthDataSaved)}
             />
           ) : null}
@@ -173,6 +178,7 @@ export function ChatBubble({
               data={message.suggestedDietRecords}
               loading={confirmingDietRecords}
               onConfirm={() => onConfirmDietRecords(message.id)}
+              onEdit={() => onEditDietRecords(message.id)}
               saved={Boolean(message.dietRecordsSaved)}
             />
           ) : null}
@@ -197,6 +203,20 @@ export function ChatBubble({
       </div>
     </section>
   )
+}
+
+function PendingStructuredCardSkeleton({
+  kind,
+}: {
+  kind?: ChatMessage["structuredCardPendingKind"]
+}) {
+  if (kind === "diet_records") {
+    return <DietRecordConfirmationCardSkeleton />
+  }
+  if (kind === "health_data") {
+    return <HealthDataConfirmationCardSkeleton />
+  }
+  return <TrainingPlanSuggestionCardSkeleton />
 }
 
 function AttachmentPreviewList({

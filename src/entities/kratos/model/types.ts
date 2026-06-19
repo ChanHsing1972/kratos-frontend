@@ -764,6 +764,7 @@ export type ChatMessage = {
   dietRecordsSaved?: boolean
   startedAt?: number
   structuredCardPending?: boolean
+  structuredCardPendingKind?: "training_plan" | "diet_records" | "health_data"
   streaming?: boolean
   trace?: AgentTraceStep[]
 }

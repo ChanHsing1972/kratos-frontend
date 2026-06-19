@@ -222,6 +222,7 @@ function VideoLink({
   video: TrainingExerciseVideo
 }) {
   const thumbnailUrl = proxiedBilibiliImageUrl(video.thumbnail_url)
+  const dose = formatExerciseDose(exercise)
 
   return (
     <a
@@ -252,7 +253,7 @@ function VideoLink({
       <span className="flex min-w-0 items-center gap-2 p-2">
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{exercise.name}</span>
-          <span className="block truncate text-xs text-muted-foreground">{video.title}</span>
+          <span className="block truncate text-xs text-muted-foreground">{dose || video.title}</span>
         </span>
         <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" />
       </span>

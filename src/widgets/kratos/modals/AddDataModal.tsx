@@ -42,6 +42,8 @@ export type AddDataSubmitPayload = {
 
 type AddDataModalProps = {
   bodyForm: BodyMetricForm
+  cancelLabel?: string
+  description?: string
   dietForm: DietIntakeForm
   error: string | null
   healthForm: HealthMetricForm
@@ -50,10 +52,14 @@ type AddDataModalProps = {
   onClose: () => void
   onSubmit: (payload: AddDataSubmitPayload) => void
   open: boolean
+  saveLabel?: string
+  title?: string
 }
 
 export function AddDataModal({
   bodyForm,
+  cancelLabel = "取消",
+  description = "只修改关心的字段，其他字段可以保持不动或清空。",
   dietForm,
   error,
   healthForm,
@@ -62,6 +68,8 @@ export function AddDataModal({
   onClose,
   onSubmit,
   open,
+  saveLabel = "保存",
+  title = "添加数据",
 }: AddDataModalProps) {
   const [activeTab, setActiveTab] = useState<AddDataCategory>(initialTab)
   const [body, setBody] = useState(bodyForm)
@@ -97,10 +105,8 @@ export function AddDataModal({
     >
       <DialogContent className="grid max-h-[90svh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-visible sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>添加数据</DialogTitle>
-          <DialogDescription>
-            只修改关心的字段，其他字段可以保持不动或清空。
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <form className="min-h-0 overflow-hidden" id="add-data-form" onSubmit={submit}>
@@ -153,11 +159,11 @@ export function AddDataModal({
           </Button>
           <div className="flex items-center gap-2">
             <Button onClick={onClose} type="button" variant="outline">
-              取消
+              {cancelLabel}
             </Button>
             <Button disabled={loading} form="add-data-form" type="submit">
               {loading ? <Spinner /> : null}
-              保存
+              {saveLabel}
             </Button>
           </div>
         </DialogFooter>

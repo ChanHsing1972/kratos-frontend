@@ -257,6 +257,7 @@ export function chatMessagesFromAgentRuns(runs: AgentRun[]): ChatMessage[] {
           ragCitations: ragCitationsFromAgentResult(run.result_payload),
           startedAt,
           structuredCardPending: running && structuredCardPendingFromTrace(run.trace_steps),
+          structuredCardPendingKind: running ? structuredCardPendingKindFromTrace(run.trace_steps) : undefined,
           suggestedDietRecords: foodImageEstimateFromAgentResult(run.result_payload),
           suggestedTrainingPlan: trainingPlanPayloadFromAgentResult(run.result_payload),
           suggestedHealthData:
@@ -299,6 +300,31 @@ function structuredCardPendingFromTrace(traceSteps: AgentRunTraceStep[]) {
     const raw = asRecord(step.raw)
     return raw?.structured_card_pending === true
   })
+}
+
+function structuredCardPendingKindFromTrace(
+  traceSteps: AgentRunTraceStep[]
+): ChatMessage["structuredCardPendingKind"] | undefined {
+  for (const step of [...traceSteps].reverse()) {
+    const raw = asRecord(step.raw)
+    if (!raw || raw.structured_card_pending !== true) {
+      continue
+    }
+    const kind = textValue(raw.structured_card_kind)
+    if (kind === "training_plan" || kind === "diet_records" || kind === "health_data") {
+      return kind
+    }
+    if (raw.food_image_estimate_ready === true || raw.food_image_estimate_pending === true) {
+      return "diet_records"
+    }
+    if (raw.pending_health_data || raw.health_data_pending === true) {
+      return "health_data"
+    }
+    if (raw.training_plan_draft_ready === true || raw.training_plan_draft_pending === true) {
+      return "training_plan"
+    }
+  }
+  return undefined
 }
 
 function agentRunResultUpdatedAt(resultPayload: unknown) {

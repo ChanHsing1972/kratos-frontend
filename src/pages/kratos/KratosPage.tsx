@@ -297,6 +297,34 @@ function isStructuredCardPendingEvent(event: AgentStreamEvent) {
   )
 }
 
+function structuredCardPendingKindFromEvent(
+  event: AgentStreamEvent
+): ChatMessage["structuredCardPendingKind"] | undefined {
+  const raw = event.raw
+  if (event.type !== "status" || raw === null || typeof raw !== "object") {
+    return undefined
+  }
+  const record = raw as Record<string, unknown>
+  const explicitKind = record.structured_card_kind
+  if (
+    explicitKind === "training_plan" ||
+    explicitKind === "diet_records" ||
+    explicitKind === "health_data"
+  ) {
+    return explicitKind
+  }
+  if (record.food_image_estimate_pending === true || record.food_image_estimate_ready === true) {
+    return "diet_records"
+  }
+  if (record.pending_health_data || record.health_data_pending === true) {
+    return "health_data"
+  }
+  if (record.training_plan_draft_ready === true || record.training_plan_draft_pending === true) {
+    return "training_plan"
+  }
+  return undefined
+}
+
 function isTraceOnlyEvent(event: AgentStreamEvent) {
   return ["status", "thought", "action", "observation", "reflection"].includes(
     event.type
@@ -392,6 +420,108 @@ function healthMetricFormFromLatest(metric: HealthMetric | null): HealthMetricFo
     measuredAt: localDatetimeValue(new Date()),
     metricDate: localDateValue(new Date()),
   }
+}
+
+function bodyMetricFormFromSuggestedHealthData(
+  data: SuggestedHealthData | null | undefined
+): BodyMetricForm {
+  const body = data?.body_metric ?? {}
+  const checkin = data?.checkin ?? {}
+  const measuredAt = stringValue(body.measured_at)
+  const measuredDate = measuredAt ? new Date(measuredAt) : new Date()
+  const validDate = Number.isNaN(measuredDate.getTime()) ? new Date() : measuredDate
+
+  return {
+    ...bodyMetricFormFromLatest(null),
+    armCm: textFromValue(body.arm_cm),
+    bmi: textFromValue(body.bmi),
+    bodyFatPercentage: textFromValue(body.body_fat_percentage),
+    calfCm: textFromValue(body.calf_cm),
+    chestCm: textFromValue(body.chest_cm),
+    energyLevel: textFromValue(checkin.energy_level),
+    heightCm: textFromValue(body.height_cm),
+    hipCm: textFromValue(body.hip_cm),
+    measuredAt: localDatetimeValue(validDate),
+    mood: stringValue(checkin.mood) ?? "",
+    notes: stringValue(body.notes) ?? "",
+    painNotes: stringValue(checkin.pain_notes) ?? "",
+    skeletalMuscleMassKg: textFromValue(body.skeletal_muscle_mass_kg),
+    sleepHours: textFromValue(checkin.sleep_hours ?? body.sleep_hours),
+    sleepQuality: textFromValue(checkin.sleep_quality),
+    sorenessLevel: textFromValue(checkin.soreness_level),
+    targetWeightKg: textFromValue(body.target_weight_kg),
+    thighCm: textFromValue(body.thigh_cm),
+    waistCm: textFromValue(body.waist_cm),
+    weightKg: textFromValue(body.weight_kg),
+  }
+}
+
+function healthMetricFormFromSuggestedHealthData(
+  data: SuggestedHealthData | null | undefined
+): HealthMetricForm {
+  const health = data?.health_metric ?? {}
+  const measuredAt = stringValue(health.measured_at)
+  const measuredDate = measuredAt ? new Date(measuredAt) : new Date()
+  const validDate = Number.isNaN(measuredDate.getTime()) ? new Date() : measuredDate
+
+  return {
+    ...emptyHealthMetricForm(),
+    activeKcal: textFromValue(health.active_kcal),
+    bloodOxygenPercentage: textFromValue(health.blood_oxygen_percentage),
+    dietaryKcal: textFromValue(health.dietary_kcal),
+    hrvMs: textFromValue(health.hrv_ms),
+    measuredAt: localDatetimeValue(validDate),
+    metricDate: stringValue(health.metric_date) ?? localDateValue(validDate),
+    notes: stringValue(health.notes) ?? "",
+    restingHeartRate: textFromValue(health.resting_heart_rate),
+    sleepHours: textFromValue(health.sleep_hours),
+    steps: textFromValue(health.steps),
+    stressLevel: textFromValue(health.stress_level),
+    vo2Max: textFromValue(health.vo2_max),
+  }
+}
+
+function suggestedHealthInitialTab(data: SuggestedHealthData | null | undefined): AddDataCategory {
+  if (data?.body_metric || data?.checkin) {
+    return "body"
+  }
+  if (data?.health_metric) {
+    return "health"
+  }
+  return "body"
+}
+
+function foodEstimateFromItems(
+  items: FoodEstimateItem[],
+  base?: FoodImageEstimateResult | null
+): FoodImageEstimateResult {
+  return {
+    items,
+    need_user_confirmation: true,
+    total: {
+      carbs_g: roundOne(items.reduce((sum, item) => sum + item.carbs_g, 0)),
+      estimated_kcal: roundOne(items.reduce((sum, item) => sum + item.estimated_kcal, 0)),
+      fat_g: roundOne(items.reduce((sum, item) => sum + item.fat_g, 0)),
+      max_kcal: roundOne(items.reduce((sum, item) => sum + item.max_kcal, 0)),
+      min_kcal: roundOne(items.reduce((sum, item) => sum + item.min_kcal, 0)),
+      protein_g: roundOne(items.reduce((sum, item) => sum + item.protein_g, 0)),
+    },
+    warning:
+      base?.warning ??
+      "该结果为 AI 估算，可能受到份量、油量和食材判断误差影响，请确认后保存。",
+  }
+}
+
+function textFromValue(value: unknown) {
+  return value === null || value === undefined ? "" : String(value)
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null
+}
+
+function roundOne(value: number) {
+  return Math.round(value * 10) / 10
 }
 
 function localDatetimeValue(date: Date) {
@@ -524,6 +654,8 @@ export function KratosPage() {
   const [dietSaving, setDietSaving] = useState(false)
   const [dietEstimateOpen, setDietEstimateOpen] = useState(false)
   const [dietEstimate, setDietEstimate] = useState<FoodImageEstimateResult | null>(null)
+  const [editingDietMessageId, setEditingDietMessageId] = useState<string | null>(null)
+  const [editingHealthMessageId, setEditingHealthMessageId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>(
     () => {
       const route = routeFromLocation()
@@ -535,6 +667,9 @@ export function KratosPage() {
         : initialMessages
     }
   )
+  const editingHealthData =
+    messages.find((message) => message.id === editingHealthMessageId)?.suggestedHealthData ??
+    null
   const [agentStreaming, setAgentStreaming] = useState(false)
   const [dashboardLoading, setDashboardLoading] = useState(false)
   const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>(
@@ -701,6 +836,26 @@ export function KratosPage() {
     return next
   }
 
+  const updateMessageEverywhere = (
+    messageId: string,
+    updater: (message: ChatMessage) => ChatMessage
+  ) => {
+    const apply = (current: ChatMessage[]) =>
+      current.map((message) => (message.id === messageId ? updater(message) : message))
+
+    setMessages((current) => {
+      const next = apply(current)
+      messagesRef.current = next
+      return next
+    })
+    liveMessagesBySessionRef.current = Object.fromEntries(
+      Object.entries(liveMessagesBySessionRef.current).map(([sessionId, sessionMessages]) => [
+        sessionId,
+        apply(sessionMessages),
+      ])
+    )
+  }
+
   const attachRunningRuns = (token: string, runs: AgentRun[]) => {
     runs
       .filter((run) => run.status === "running" && run.client_turn_id)
@@ -770,6 +925,13 @@ export function KratosPage() {
           event.type === "done" || event.type === "final" || event.type === "error"
             ? false
             : isStructuredCardPendingEvent(event) || message.structuredCardPending
+        const structuredCardPendingKind =
+          structuredCardPending
+            ? (structuredCardPendingKindFromEvent(event) ??
+              (suggestedDietRecords ? "diet_records" : undefined) ??
+              (suggestedHealthData ? "health_data" : undefined) ??
+              message.structuredCardPendingKind)
+            : undefined
 
         if (isAnswerResetEvent(event)) {
           return {
@@ -777,6 +939,7 @@ export function KratosPage() {
             suggestedDietRecords,
             suggestedHealthData,
             structuredCardPending,
+            structuredCardPendingKind,
             trace: [...(message.trace ?? []), event],
           }
         }
@@ -801,6 +964,7 @@ export function KratosPage() {
             suggestedDietRecords,
             suggestedTrainingPlan,
             structuredCardPending,
+            structuredCardPendingKind,
             suggestedHealthData,
             trainingPlanCreatedId: generatedAlready
               ? (message.trainingPlanCreatedId ?? -1)
@@ -829,6 +993,7 @@ export function KratosPage() {
             suggestedHealthData,
             ragCitations,
             structuredCardPending,
+            structuredCardPendingKind,
           }
         }
 
@@ -842,6 +1007,7 @@ export function KratosPage() {
             suggestedDietRecords,
             suggestedHealthData,
             structuredCardPending,
+            structuredCardPendingKind,
             trace: [...(message.trace ?? []), event],
           }
         }
@@ -860,6 +1026,7 @@ export function KratosPage() {
             suggestedDietRecords,
             suggestedHealthData,
             structuredCardPending,
+            structuredCardPendingKind,
             trace: [...(message.trace ?? []), event],
           }
         }
@@ -870,6 +1037,7 @@ export function KratosPage() {
           suggestedDietRecords,
           suggestedHealthData,
           structuredCardPending,
+          structuredCardPendingKind,
           trace: [...(message.trace ?? []), event],
         }
       })
@@ -1244,6 +1412,10 @@ export function KratosPage() {
     setProfileMenuOpen(false)
     setOnboardingOpen(false)
     setBodyMetricModalOpen(false)
+    setEditingHealthMessageId(null)
+    setEditingDietMessageId(null)
+    setDietEstimateOpen(false)
+    setDietEstimate(null)
     setCompletedExercises([])
     setTrainingStarted(false)
     setTrainingSession(null)
@@ -1384,6 +1556,18 @@ export function KratosPage() {
       if (showLoading) {
         setSessionListLoading(false)
       }
+    }
+  }
+
+  const scheduleConversationTitleRefresh = (token: string, sessionId: string) => {
+    const delays = [1000, 2500, 5000, 9000]
+    for (const delay of delays) {
+      window.setTimeout(() => {
+        void syncConversationSessions(token, sessionId, {
+          preserveActive: true,
+          showLoading: false,
+        })
+      }, delay)
     }
   }
 
@@ -1536,6 +1720,10 @@ export function KratosPage() {
     setComposerAttachments([])
     setComposerUploadingAttachments([])
     setComposerMode(null)
+    setEditingHealthMessageId(null)
+    setEditingDietMessageId(null)
+    setDietEstimateOpen(false)
+    setDietEstimate(null)
     setAgentStreaming(false)
     sendLockRef.current = false
     setActiveNav("new")
@@ -1709,6 +1897,62 @@ export function KratosPage() {
     setBodyMetricError(null)
 
     try {
+      if (editingHealthMessageId) {
+        const currentData =
+          messages.find((message) => message.id === editingHealthMessageId)?.suggestedHealthData ??
+          {}
+        if (category === "body") {
+          const bodyPayload = buildBodyPayload(bodyForm, setBodyMetricError)
+          if (!bodyPayload) {
+            return
+          }
+          if (!bodyPayload.hasMetricData && !bodyPayload.hasCheckinData) {
+            setBodyMetricError("请至少填写一项身体或恢复数据")
+            return
+          }
+          const nextData: SuggestedHealthData = {
+            ...currentData,
+            body_metric: bodyPayload.hasMetricData ? bodyPayload.metric : undefined,
+            checkin: bodyPayload.hasCheckinData ? bodyPayload.checkin : undefined,
+          }
+          updateMessageEverywhere(editingHealthMessageId, (message) => ({
+            ...message,
+            healthDataSaved: false,
+            suggestedHealthData: nextData,
+          }))
+        }
+
+        if (category === "health") {
+          const healthPayload = buildHealthPayload(healthForm, setBodyMetricError)
+          if (!healthPayload) {
+            return
+          }
+          if (!healthPayload.hasHealthData) {
+            setBodyMetricError("请至少填写一项健康数据")
+            return
+          }
+          const nextData: SuggestedHealthData = {
+            ...currentData,
+            health_metric: healthPayload.metric,
+          }
+          updateMessageEverywhere(editingHealthMessageId, (message) => ({
+            ...message,
+            healthDataSaved: false,
+            suggestedHealthData: nextData,
+          }))
+        }
+
+        if (category === "diet") {
+          setBodyMetricError("这张卡片只包含身体或恢复数据，请在饮食卡片中编辑饮食记录")
+          return
+        }
+
+        setBodyMetricModalOpen(false)
+        setEditingHealthMessageId(null)
+        sonnerToast.success("已更新待确认健康数据")
+        return
+      }
+
       if (category === "body") {
         const bodyPayload = buildBodyPayload(bodyForm, setBodyMetricError)
         if (!bodyPayload) {
@@ -2108,6 +2352,7 @@ export function KratosPage() {
           preserveActive: true,
           showLoading: false,
         })
+        scheduleConversationTitleRefresh(token, nextSessionId)
       }
       void refreshDashboard(token, { preserveMessages: true })
     } catch (error) {
@@ -2224,11 +2469,7 @@ export function KratosPage() {
           training_plan_id: activePlan?.id ?? null,
         })
       }
-      setMessages((current) =>
-        current.map((item) =>
-          item.id === messageId ? { ...item, healthDataSaved: true } : item
-        )
-      )
+      updateMessageEverywhere(messageId, (item) => ({ ...item, healthDataSaved: true }))
       await refreshDashboard(token, { preserveMessages: true })
       sonnerToast.success("已确认并保存健康数据")
     } catch (error) {
@@ -2236,6 +2477,18 @@ export function KratosPage() {
     } finally {
       setConfirmingHealthDataId(null)
     }
+  }
+
+  const handleEditHealthData = (messageId: string) => {
+    const message = messages.find((item) => item.id === messageId)
+    if (!message?.suggestedHealthData || message.healthDataSaved) {
+      return
+    }
+    setBodyMetricError(null)
+    setEditingBodyMetric(null)
+    setEditingHealthMessageId(messageId)
+    setAddDataInitialTab(suggestedHealthInitialTab(message.suggestedHealthData))
+    setBodyMetricModalOpen(true)
   }
 
   const handleConfirmDietRecords = async (messageId: string) => {
@@ -2253,11 +2506,7 @@ export function KratosPage() {
         items: data.items,
       })
       setDietRecords((current) => [...saved, ...current])
-      setMessages((current) =>
-        current.map((item) =>
-          item.id === messageId ? { ...item, dietRecordsSaved: true } : item
-        )
-      )
+      updateMessageEverywhere(messageId, (item) => ({ ...item, dietRecordsSaved: true }))
       await refreshDashboard(token, { preserveMessages: true })
       sonnerToast.success("已确认并保存饮食记录")
     } catch (error) {
@@ -2265,6 +2514,16 @@ export function KratosPage() {
     } finally {
       setConfirmingDietRecordsId(null)
     }
+  }
+
+  const handleEditDietRecords = (messageId: string) => {
+    const message = messages.find((item) => item.id === messageId)
+    if (!message?.suggestedDietRecords || message.dietRecordsSaved) {
+      return
+    }
+    setEditingDietMessageId(messageId)
+    setDietEstimate(message.suggestedDietRecords)
+    setDietEstimateOpen(true)
   }
 
   const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -2398,6 +2657,24 @@ export function KratosPage() {
   }
 
   const handleSaveDietEstimate = async (items: FoodEstimateItem[]) => {
+    if (editingDietMessageId) {
+      if (!items.length) {
+        sonnerToast.warning("请选择至少一项食物")
+        return
+      }
+      const nextEstimate = foodEstimateFromItems(items, dietEstimate)
+      updateMessageEverywhere(editingDietMessageId, (message) => ({
+        ...message,
+        dietRecordsSaved: false,
+        suggestedDietRecords: nextEstimate,
+      }))
+      setDietEstimate(nextEstimate)
+      setDietEstimateOpen(false)
+      setEditingDietMessageId(null)
+      sonnerToast.success("已更新待确认饮食记录")
+      return
+    }
+
     const token = localStorage.getItem(AUTH_TOKEN_KEY)
     if (!token) {
       openAuth("login")
@@ -2417,6 +2694,7 @@ export function KratosPage() {
       })
       setDietRecords((current) => [...saved, ...current])
       setDietEstimateOpen(false)
+      setDietEstimate(null)
       await refreshDashboard(token, { preserveMessages: true })
       sonnerToast.success("已保存到今日饮食")
     } catch (error) {
@@ -3322,8 +3600,10 @@ export function KratosPage() {
         onCreateTrainingPlanFromMessage={handleCreateTrainingPlanFromChat}
         onEditTrainingPlanDraft={openTrainingPlanComposer}
         onConfirmHealthData={handleConfirmHealthData}
+        onEditHealthData={handleEditHealthData}
         confirmingHealthDataId={confirmingHealthDataId}
         onConfirmDietRecords={handleConfirmDietRecords}
+        onEditDietRecords={handleEditDietRecords}
         confirmingDietRecordsId={confirmingDietRecordsId}
         onOpenAddData={openAddDataModal}
         onOpenCapabilities={() => handleNavSelect("工具技能")}
@@ -3434,19 +3714,40 @@ export function KratosPage() {
         status={onboardingStatus}
       />
       <AddDataModal
-        bodyForm={editingBodyMetric ? bodyMetricFormFromRecord(editingBodyMetric) : bodyMetricFormFromLatest(latestMetric)}
+        bodyForm={
+          editingHealthMessageId
+            ? bodyMetricFormFromSuggestedHealthData(editingHealthData)
+            : editingBodyMetric
+              ? bodyMetricFormFromRecord(editingBodyMetric)
+              : bodyMetricFormFromLatest(latestMetric)
+        }
+        cancelLabel={editingHealthMessageId ? "取消编辑" : undefined}
+        description={
+          editingHealthMessageId
+            ? "修正本次对话识别出的身体或恢复数据，确认后会回到聊天卡片。"
+            : undefined
+        }
         dietForm={emptyDietIntakeForm()}
         error={bodyMetricError}
-        healthForm={latestHealthMetric ? healthMetricFormFromLatest(latestHealthMetric) : emptyHealthMetricForm()}
+        healthForm={
+          editingHealthMessageId
+            ? healthMetricFormFromSuggestedHealthData(editingHealthData)
+            : latestHealthMetric
+              ? healthMetricFormFromLatest(latestHealthMetric)
+              : emptyHealthMetricForm()
+        }
         initialTab={addDataInitialTab}
-        key={`${bodyMetricModalOpen ? "data-open" : "data-closed"}-${addDataInitialTab}-${editingBodyMetric?.id ?? "new"}-${latestMetric?.id ?? "no-body"}-${latestHealthMetric?.id ?? "no-health"}`}
+        key={`${bodyMetricModalOpen ? "data-open" : "data-closed"}-${addDataInitialTab}-${editingBodyMetric?.id ?? "new"}-${editingHealthMessageId ?? "no-health-edit"}-${latestMetric?.id ?? "no-body"}-${latestHealthMetric?.id ?? "no-health"}`}
         loading={bodyMetricSubmitting}
         onClose={() => {
           setBodyMetricModalOpen(false)
           setEditingBodyMetric(null)
+          setEditingHealthMessageId(null)
         }}
         onSubmit={handleAddDataSubmit}
         open={bodyMetricModalOpen}
+        saveLabel={editingHealthMessageId ? "更新卡片" : undefined}
+        title={editingHealthMessageId ? "编辑待确认健康数据" : undefined}
       />
       <TrainingPlanModal
         draft={trainingPlanDraft}
@@ -3473,11 +3774,25 @@ export function KratosPage() {
         open={trainingShareCardOpen}
       />
       <DietEstimateDialog
+        cancelLabel={editingDietMessageId ? "取消编辑" : undefined}
+        description={
+          editingDietMessageId
+            ? "修正这张饮食卡片中的食物和营养估算，确认后再保存。"
+            : undefined
+        }
         estimate={dietEstimate}
-        onOpenChange={setDietEstimateOpen}
+        onOpenChange={(open) => {
+          setDietEstimateOpen(open)
+          if (!open) {
+            setEditingDietMessageId(null)
+            setDietEstimate(null)
+          }
+        }}
         onSave={handleSaveDietEstimate}
         open={dietEstimateOpen}
+        saveLabel={editingDietMessageId ? "更新卡片" : undefined}
         saving={dietSaving}
+        title={editingDietMessageId ? "编辑待确认饮食记录" : undefined}
       />
       <DetailModal panel={detailPanel} onClose={() => setDetailPanel(null)} />
       <Toaster position="top-right" />

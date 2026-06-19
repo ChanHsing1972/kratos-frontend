@@ -50,8 +50,10 @@ export type ConversationWorkspaceProps = {
   ) => void
   onEditTrainingPlanDraft: (payload: TrainingPlanPayload) => void
   onConfirmHealthData: (messageId: string) => void
+  onEditHealthData: (messageId: string) => void
   confirmingHealthDataId: string | null
   onConfirmDietRecords: (messageId: string) => void
+  onEditDietRecords: (messageId: string) => void
   confirmingDietRecordsId: string | null
   onSendMessage: () => void
   onStopAgent: () => void
@@ -83,8 +85,10 @@ export function ConversationWorkspace({
   onCreateTrainingPlanFromMessage,
   onEditTrainingPlanDraft,
   onConfirmHealthData,
+  onEditHealthData,
   confirmingHealthDataId,
   onConfirmDietRecords,
+  onEditDietRecords,
   confirmingDietRecordsId,
   onSendMessage,
   onStopAgent,
@@ -183,8 +187,10 @@ export function ConversationWorkspace({
                       onCreateTrainingPlan={onCreateTrainingPlanFromMessage}
                       onEditTrainingPlanDraft={onEditTrainingPlanDraft}
                       onConfirmHealthData={onConfirmHealthData}
+                      onEditHealthData={onEditHealthData}
                       confirmingHealthData={confirmingHealthDataId === message.id}
                       onConfirmDietRecords={onConfirmDietRecords}
+                      onEditDietRecords={onEditDietRecords}
                       confirmingDietRecords={confirmingDietRecordsId === message.id}
                       onToggleThinking={onToggleThinking}
                       thinkingExpanded={thinkingExpanded}
