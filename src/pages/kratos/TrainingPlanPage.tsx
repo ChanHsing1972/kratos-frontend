@@ -1347,6 +1347,7 @@ function TodayTrainingHero({
                     selectedDisplayActions.findIndex(
                       (item) => item.id === action.id
                     ) + 1
+                  const actionPrescription = formatActionPrescription(action)
 
                   return (
                     <CarouselItem key={action.id} className="basis-full pl-3 md:basis-1/2 lg:basis-1/3">
@@ -1384,7 +1385,10 @@ function TodayTrainingHero({
                         <CardContent className="flex flex-1 flex-col justify-between p-4">
                           <div>
                             <h3 className="line-clamp-2 text-[16px] leading-5 font-medium">
-                              {action.title} {action.targetReps}
+                              {action.title}
+                              {actionPrescription === "按计划完成"
+                                ? null
+                                : ` ${actionPrescription}`}
                             </h3>
                             <p className="mt-1 text-[13px] text-muted-foreground">
                               动作 {actionPosition} / {actionTotal}
