@@ -79,5 +79,11 @@ jobs:
             git pull origin dev
             docker build -t kratos-frontend:dev .
             cd /srv/se3
+            if [ -n "$DEPLOY_ENV" ]; then
+              echo "$DEPLOY_ENV" > .env
+              echo "✓ .env updated"
+            fi
             docker compose up -d frontend
             docker image prune -f
+          env:
+            DEPLOY_ENV: ${{ secrets.DEPLOY_ENV_FILE }}
