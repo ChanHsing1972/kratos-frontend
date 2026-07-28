@@ -12,7 +12,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: frontend-ci-${{ github.ref }}
+  group: kratos-frontend-ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
