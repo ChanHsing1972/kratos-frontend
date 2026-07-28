@@ -75,8 +75,9 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
+            cd /srv/se3/frontend-src
+            git pull origin dev
+            docker build -t kratos-frontend:dev .
             cd /srv/se3
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose pull frontend
             docker compose up -d frontend
             docker image prune -f
