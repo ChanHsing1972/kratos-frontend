@@ -1,6 +1,6 @@
-# Agent Frontend
+# Kratos Agent Frontend  [![CI](https://github.com/ChanHsing1972/kratos-frontend/actions/workflows/ci.yml/badge.svg)](https://github.com/ChanHsing1972/kratos-frontend/actions/workflows/ci.yml)  [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Kratos Agent 的 React + TypeScript 前端项目，基于 Vite、Tailwind CSS 和 shadcn/ui。
+Kratos Agent 的 React + TypeScript 前端，基于 Vite、Tailwind CSS 和 shadcn/ui。
 
 ## 开发命令
 
