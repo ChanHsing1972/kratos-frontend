@@ -31,3 +31,8 @@ EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://127.0.0.1:80/ || exit 1
+
+ARG APP_REVISION=local
+LABEL org.opencontainers.image.revision=${APP_REVISION} \
+      org.opencontainers.image.source="https://github.com/ChanHsing1972/kratos-frontend"
+RUN printf '{"service":"frontend","revision":"%s"}\n' "$APP_REVISION" > /usr/share/nginx/html/version.json

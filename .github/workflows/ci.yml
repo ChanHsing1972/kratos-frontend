@@ -5,18 +5,15 @@ on:
     branches: [dev, master]
   pull_request:
     branches: [dev, master]
+  workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
-  actions: write
 
+# Do not interrupt a deployment midway through replacement/rollback.
 concurrency:
-  group: kratos-frontend-ci-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  IMAGE_NAME: ghcr.io/${{ github.repository }}
+  group: kratos-frontend-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   verify:
@@ -32,63 +29,87 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
-      - run: pnpm build
 
-  build-and-push:
+  test:
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - name: Build production image and smoke test routes/assets/version
+        run: |
+          docker build --build-arg APP_REVISION="$GITHUB_SHA" -t kratos-frontend:test .
+          bash ci/smoke_frontend.sh kratos-frontend:test "$GITHUB_SHA"
+      - name: Save the tested image for publishing
+        run: docker save kratos-frontend:test | gzip > /tmp/frontend-image.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tested-frontend-image
+          path: /tmp/frontend-image.tar.gz
+          retention-days: 1
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
       - uses: docker/login-action@v3
-        if: github.event_name == 'push'
+        if: github.ref == 'refs/heads/dev' && github.event_name != 'pull_request'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/metadata-action@v5
-        id: meta
+      - uses: actions/download-artifact@v4
         with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=,format=short
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: ${{ github.event_name == 'push' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          name: tested-frontend-image
+          path: /tmp/tested-image
+      - name: Publish the exact image that passed smoke tests
+        id: image
+        if: github.ref == 'refs/heads/dev' && github.event_name != 'pull_request'
+        run: |
+          gzip -dc /tmp/tested-image/frontend-image.tar.gz | docker load
+          image="ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA}"
+          docker tag kratos-frontend:test "$image"
+          docker push "$image"
+          digest=$(docker inspect "$image" --format '{{index .RepoDigests 0}}' | cut -d@ -f2)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
   deploy:
     needs: build-and-push
-    if: github.event_name == 'push'
+    if: github.ref == 'refs/heads/dev' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment: ${{ github.ref_name }}
+    timeout-minutes: 15
+    environment:
+      name: dev
+      url: https://kratos.qzz.io
+    permissions:
+      contents: read
+      packages: read
     steps:
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            cd /srv/se3/frontend-src
-            git pull origin dev
-            docker build -t kratos-frontend:dev .
-            cd /srv/se3
-            cat > .env << 'ENVEOF'
-            ${{ secrets.DEPLOY_ENV_FILE }}
-            ENVEOF
-            docker compose up -d frontend
-            docker image prune -f
-
-  pr-done:
-    needs: build-and-push
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    steps:
-      - run: echo "PR build verified — ready to merge"
+      - uses: actions/checkout@v4
+      - name: Check whether this is still the latest dev commit
+        id: current
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          latest=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/dev" --jq '.object.sha')
+          echo "deploy=$([[ "$latest" == "$GITHUB_SHA" ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Deploy verified image with health check and rollback
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_IMAGE: ghcr.io/${{ github.repository }}@${{ needs.build-and-push.outputs.digest }}
+        run: bash ci/deploy_github.sh
+      - name: Verify public website
+        if: steps.current.outputs.deploy == 'true'
+        run: python ci/check_public.py "$GITHUB_SHA"
